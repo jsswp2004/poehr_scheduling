@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import {
   Alert,
@@ -29,10 +30,24 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { BuilderShell, BuilderToolbar, BUILDER_STICKY_TOP } from "../components/builders/BuilderShell";
 import { apiEndpoints } from "../config/api";
+import { AnalyticsSection } from "../components/patients";
+import { useAnalytics } from "../hooks/useAnalytics";
+import { useSubscriptionAccess, SubscriptionGate } from "../hooks/useSubscriptionAccess";
+import { getAccessToken } from "../utils/tokenManager";
+import { moduleEnabled } from "../utils/orgModules";
 import ReportRelationshipMap from "../components/reports/ReportRelationshipMap";
 import { STANDARD_REPORTS, dayTime, errorText, headers, listReports } from "../components/reports/reportUtils";
 
-const TABS = ["all", "std", "mine", "shared", "doc", "map", "audit"];
+const TABS = ["all", "std", "mine", "shared", "doc", "analytics", "map", "audit"];
+// Roles that can see appointment and patient analytics (same as the old Analytics page).
+const ANALYTICS_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar"];
+const tokenRole = () => {
+  try {
+    return jwtDecode(getAccessToken()).role || "";
+  } catch {
+    return "";
+  }
+};
 const MODULES = [
   { key: "all", label: "All modules" },
   { key: "staffing", label: "Staffing" },
@@ -56,7 +71,17 @@ export default function ReportsHomePage() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState("all");
+  const [searchParams] = useSearchParams();
+  const showAnalytics = ANALYTICS_ROLES.includes(tokenRole()) && moduleEnabled("scheduling");
+  const [tab, setTab] = useState(() => (searchParams.get("tab") === "analytics" && showAnalytics ? "analytics" : "all"));
+  const analytics = useAnalytics();
+  const { userTier, permissions } = useSubscriptionAccess();
+  const { fetchProviders, fetchOrganizationData } = analytics;
+  useEffect(() => {
+    if (tab !== "analytics") return;
+    fetchProviders(getAccessToken());
+    fetchOrganizationData();
+  }, [tab, fetchProviders, fetchOrganizationData]);
   const [query, setQuery] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all");
   const [menu, setMenu] = useState(null); // { anchor, report }
@@ -184,6 +209,7 @@ export default function ReportsHomePage() {
         { key: "mine", label: "My reports", count: counts.mine },
         { key: "shared", label: "Shared with me", count: counts.shared },
         { key: "doc", label: "Documentation", count: counts.doc },
+        ...(showAnalytics ? [{ key: "analytics", label: "Appointments and patients" }] : []),
         { key: "map", label: "Relationship map" },
         ...(audit ? [{ key: "audit", label: "Audit log", count: audit.length }] : []),
       ]}
@@ -191,7 +217,26 @@ export default function ReportsHomePage() {
       onTab={(t) => TABS.includes(t) && setTab(t)}
       maxWidth="100%"
     >
-      {tab === "map" ? (
+      {tab === "analytics" && showAnalytics ? (
+        <SubscriptionGate feature="analyticsSection" userTier={userTier} permissions={permissions} showUpgradePrompt={true}>
+          <AnalyticsSection
+            analyticsTab={analytics.analyticsTab}
+            setAnalyticsTab={analytics.setAnalyticsTab}
+            reportStartDate={analytics.reportStartDate}
+            setReportStartDate={analytics.setReportStartDate}
+            reportEndDate={analytics.reportEndDate}
+            setReportEndDate={analytics.setReportEndDate}
+            reportProvider={analytics.reportProvider}
+            setReportProvider={analytics.setReportProvider}
+            providers={analytics.providers}
+            analyticsReports={analytics.analyticsReports}
+            advancedAnalyticsReports={analytics.advancedAnalyticsReports}
+            onDownloadReport={(name) => analytics.downloadCSVReport(name, getAccessToken())}
+            organizationData={analytics.organizationData}
+            organizationLogo={analytics.organizationLogo}
+          />
+        </SubscriptionGate>
+      ) : tab === "map" ? (
         <ReportRelationshipMap catalog={catalog} />
       ) : tab === "audit" && audit ? (
         <Paper variant="outlined" sx={{ overflowX: { xs: "auto", md: "clip" } }}>
