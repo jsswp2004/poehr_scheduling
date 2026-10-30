@@ -1,413 +1,156 @@
-import React, { useState } from 'react';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
+import React from 'react';
+import { LegalPage } from '../components/LegalPage';
 import '../SupportPage/SupportPage.css';
 
-const SupportPage = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const icon = (paths) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    {paths.map((d) => (
+      <path key={d} d={d} />
+    ))}
+  </svg>
+);
 
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
+const BEFORE = [
+  {
+    title: 'Organization',
+    icon: ['M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6'],
+    items: ['Organization name and type', 'Business address', 'Contact information'],
+  },
+  {
+    title: 'Administrator',
+    icon: ['M12 4a4 4 0 100 8 4 4 0 000-8z', 'M4 21c0-4 4-6 8-6s8 2 8 6'],
+    items: ['Your name, email and phone', 'A username and a strong password', 'You become the main administrator'],
+  },
+  {
+    title: 'Payment card',
+    icon: ['M5 6h14a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z', 'M3 11h18'],
+    items: ['Credit or debit card', 'Free for 7 days; charged from day 8', 'Services chosen on the Pricing page'],
+  },
+];
 
-  return (
-    <div className="support-page">
-      <Header />
-      <div className="support-container">
-        
-        <div className="hero-section">
-          <div className="hero-content">
-            <div className="hero-text">
-              <h1 className="hero-title">Organization Registration & Setup Guide</h1>
-              <p className="hero-subtitle">Complete registration in under 10 minutes and get your healthcare platform ready</p>
-            </div>
-            <div className="hero-stats">
-              <div className="stat-item">
-                <div className="stat-number">5 min</div>
-                <div className="stat-label">Registration</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-number">10 min</div>
-                <div className="stat-label">Full Setup</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-number">Email</div>
-                <div className="stat-label">Support</div>
-              </div>
-            </div>
-          </div>
-        </div>
+const AFTER = [
+  {
+    title: 'Set up',
+    icon: ['M12 9a3 3 0 100 6 3 3 0 000-6z', 'M12 2v3M12 19v3M2 12h3M19 12h3'],
+    items: [
+      'Default blocked days: set and save',
+      'Holidays: load the year or add by hand',
+      'Organization: upload a logo, create clinics',
+    ],
+  },
+  {
+    title: 'Try it out',
+    icon: ['M5 12l4 4 10-10'],
+    items: ['Create a test appointment', 'Send a test reminder', 'Explore the dashboard'],
+  },
+  {
+    title: 'Good habits',
+    icon: ['M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z'],
+    items: ['Keep contact information current', 'Review user permissions regularly', 'Start with a small pilot group'],
+  },
+];
 
-        <div className="sections-container">
-          <div className="section-card">
-            <div className="section-header">
-              <div className="section-icon">📋</div>
-              <h2 className="section-title">Before You Start</h2>
-              <p className="section-description">Essential information you'll need during registration</p>
-            </div>
-            
-            <div className="info-grid">
-              <div className="info-card">
-                <h4 className="info-title">🏥 Organization Details</h4>
-                <ul className="info-list">
-                  <li>Organization name</li>
-                  <li>Business address</li>
-                  <li>Contact information</li>
-                </ul>
-              </div>
-              <div className="info-card">
-                <h4 className="info-title">👤 Admin Contact</h4>
-                <ul className="info-list">
-                  <li>Primary contact name</li>
-                  <li>Email address</li>
-                  <li>Phone number</li>
-                </ul>
-              </div>
-              <div className="info-card">
-                <h4 className="info-title">💳 Payment Method</h4>
-                <ul className="info-list">
-                  <li>Credit/debit card</li>
-                  <li>Billing address</li>
-                  <li>Plan selection</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          {/* Getting Started After Registration 
-          <div className="section-card">
-            <div className="section-header">
-              <div className="section-icon">🔧</div>
-              <h2 className="section-title">Getting Started After Registration</h2>
-              <p className="section-description">Your roadmap to a fully configured system</p>
-            </div>
-            
-            <div className="setup-grid">
-              <div className="setup-step">
-                <div className="step-number">1</div>
-                <div className="step-content">
-                  <h4 className="step-title">Initial Setup</h4>
-                  <ul className="step-list">
-                    <li>Default Blocked Days – configure and Save Settings</li>
-                    <li>Holidays – Load Year or add manually</li>
-                    <li>Organization – upload logo, create clinics</li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div className="setup-step">
-                <div className="step-number">2</div>
-                <div className="step-content">
-                  <h4 className="step-title">Test the System</h4>
-                  <ul className="step-list">
-                    <li>Create a test appointment</li>
-                    <li>Send a test reminder</li>
-                    <li>Explore the dashboard</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="section-card">
-            <div className="section-header">
-              <div className="section-icon">🆘</div>
-              <h2 className="section-title">Support & Resources</h2>
-              <p className="section-description">Get help when you need it</p>
-            </div>
-            
-            <div className="support-grid">
-              <div className="support-card">
-                <div className="support-icon">📞</div>
-                <h4 className="support-title">Phone Support</h4>
-                <p className="support-detail">301-880-6015</p>
-                <p className="support-hours">Mon-Fri, 8 AM - 6 PM EST</p>
-              </div>
-              
-              <div className="support-card">
-                <div className="support-icon">📧</div>
-                <h4 className="support-title">Email Support</h4>
-                <p className="support-detail">power@powerhealthit.com</p>
-                <p className="support-hours">24-hour response time</p>
-              </div>
-              
-              <div className="support-card">
-                <div className="support-icon">❓</div>
-                <h4 className="support-title">Common Questions</h4>
-                <ul className="support-tips">
-                  <li>Registration mistakes can be corrected</li>
-                  <li>Plans can be changed anytime</li>
-                  <li>Payment issues are quickly resolved</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+const FIELDS = [
+  'Organization name, type and address',
+  'First name, last name, username',
+  'Email and phone number',
+  'Password: at least 8 characters, with upper and lower case letters, numbers and symbols',
+];
 
-          <div className="section-card">
-            <div className="section-header">
-              <div className="section-icon">✅</div>
-              <h2 className="section-title">Best Practices</h2>
-              <p className="section-description">Tips for successful implementation</p>
-            </div>
-            
-            <div className="info-grid">
-              <div className="info-card">
-                <h4 className="info-title">🔐 Security & Access</h4>
-                <ul className="info-list">
-                  <li>Save login information securely</li>
-                  <li>Keep contact information updated</li>
-                  <li>Review user permissions regularly</li>
-                </ul>
-              </div>
-              <div className="info-card">
-                <h4 className="info-title">👥 Team Management</h4>
-                <ul className="info-list">
-                  <li>Schedule time to explore the platform</li>
-                  <li>Plan comprehensive staff training</li>
-                  <li>Start with a small pilot group</li>
-                </ul>
-              </div>
-              <div className="info-card">
-                <h4 className="info-title">📊 Ongoing Success</h4>
-                <ul className="info-list">
-                  <li>Review subscription and usage regularly</li>
-                  <li>Use available training resources</li>
-                  <li>Provide feedback to improve the platform</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          */}
-        </div>
-        {/*Step by Step Registration*/}
-        <div className="sections-container">
-          <div className="section-card">
-            <div className="section-header">
-              <div className="section-icon">✍️</div>
-              <h2 className="section-title">Step-by-Step Registration Process</h2>
-              <p className="section-description">If you have any questions during the registration process, please contact our support team.</p>
-            </div>
-            
-            <div className="info-grid">
-              <div className="info-card">
-                <h4 className="info-title">✅ Step 1: Start Your Registration</h4>
-                <ul className="info-list">
-                  <li>1.	Visit the POWER Healthcare website</li>
-                  <li>-	Go to https://www.powerhealthit.com</li>
-                  <li>-	Click the "Get Started", "Try Power Free" or "Try it now” button
-                  </li>
-                  <li>2.	Choose Your Plan</li>
-                  <li>Review the available subscription plans</li>
-                  <li>Select the plan that best fits your organization's size and needs</li>
-                  <li>Click "Get Started Free"</li>
-                </ul>
-              </div>
-              <div className="info-card" onClick={openModal} style={{cursor: 'pointer'}}>
-                <h4 className="info-title">✅ Step 2: Set Up Your Account Details (Click for details)</h4>
-                <ul className="info-list">
-                  <li>Click to see detailed registration steps</li>
-                  <li>Account creation form</li>
-                  <li>Plan selection process</li>
-                  <li>Payment information</li>
-                  <li>Review and confirmation</li>
-                </ul>
-              </div>
-              <div className="info-card">
-                <h4 className="info-title">✅ What Happens Next?</h4>
-                <ul className="info-list">
-                  <li>- You'll be redirected to the log in screen</li>
-                  <li>- A confirmation email will be sent to your administrator email</li>
-                  <li>- Your account will be activated within a few minutes</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card">
-            <div className="section-header">
-              <div className="section-icon">🔧</div>
-              <h2 className="section-title">Getting Started After Registration</h2>
-              <p className="section-description">Your roadmap to a fully configured system</p>
-            </div>
-            
-            <div className="setup-grid">
-              <div className="setup-step">
-                <div className="step-number">1</div>
-                <div className="step-content">
-                  <h4 className="step-title">Initial Setup</h4>
-                  <ul className="step-list">
-                    <li>Default Blocked Days – configure and Save Settings</li>
-                    <li>Holidays – Load Year or add manually</li>
-                    <li>Organization – upload logo, create clinics</li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div className="setup-step">
-                <div className="step-number">2</div>
-                <div className="step-content">
-                  <h4 className="step-title">Test the System</h4>
-                  <ul className="step-list">
-                    <li>Create a test appointment</li>
-                    <li>Send a test reminder</li>
-                    <li>Explore the dashboard</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card">
-            <div className="section-header">
-              <div className="section-icon">🆘</div>
-              <h2 className="section-title">Support & Resources</h2>
-              <p className="section-description">Get help when you need it</p>
-            </div>
-            
-            <div className="support-grid">
-              <div className="support-card">
-                <div className="support-icon">📞</div>
-                <h4 className="support-title">Phone Support</h4>
-                <p className="support-detail">301-880-6015</p>
-                <p className="support-hours">Mon-Fri, 8 AM - 6 PM EST</p>
-              </div>
-              
-              <div className="support-card">
-                <div className="support-icon">📧</div>
-                <h4 className="support-title">Email Support</h4>
-                <p className="support-detail">power@powerhealthit.com</p>
-                <p className="support-hours">24-hour response time</p>
-              </div>
-              
-              <div className="support-card">
-                <div className="support-icon">❓</div>
-                <h4 className="support-title">Common Questions</h4>
-                <ul className="support-tips">
-                  <li>Registration mistakes can be corrected</li>
-                  <li>Plans can be changed anytime</li>
-                  <li>Payment issues are quickly resolved</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="section-card">
-            <div className="section-header">
-              <div className="section-icon">✅</div>
-              <h2 className="section-title">Best Practices</h2>
-              <p className="section-description">Tips for successful implementation</p>
-            </div>
-            
-            <div className="info-grid">
-              <div className="info-card">
-                <h4 className="info-title">🔐 Security & Access</h4>
-                <ul className="info-list">
-                  <li>Save login information securely</li>
-                  <li>Keep contact information updated</li>
-                  <li>Review user permissions regularly</li>
-                </ul>
-              </div>
-              <div className="info-card">
-                <h4 className="info-title">👥 Team Management</h4>
-                <ul className="info-list">
-                  <li>Schedule time to explore the platform</li>
-                  <li>Plan comprehensive staff training</li>
-                  <li>Start with a small pilot group</li>
-                </ul>
-              </div>
-              <div className="info-card">
-                <h4 className="info-title">📊 Ongoing Success</h4>
-                <ul className="info-list">
-                  <li>Review subscription and usage regularly</li>
-                  <li>Use available training resources</li>
-                  <li>Provide feedback to improve the platform</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          
-        </div>
-
-        {/* Modal */}
-        {isModalOpen && (
-          <div className="modal-overlay" onClick={closeModal} style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000
-          }}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{
-              backgroundColor: 'white',
-              padding: '30px',
-              borderRadius: '8px',
-              maxWidth: '800px',
-              maxHeight: '80vh',
-              overflowY: 'auto',
-              position: 'relative',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-            }}>
-              <button 
-                onClick={closeModal}
-                style={{
-                  position: 'absolute',
-                  top: '10px',
-                  right: '15px',
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#666'
-                }}
-              >
-                ×
-              </button>
-              
-              <div className="modal-info-card">
-                <h4 className="modal-info-title" style={{color: '#1e293b', marginBottom: '20px'}}>✅ Step 2: Set Up Your Account Details</h4>
-                <ul className="modal-info-list" style={{lineHeight: '1.6', color: '#333'}}>
-                  <li><strong>You'll now fill out a form with your practice information:</strong></li>
-                  <br />
-                  <li><strong>1. Create your account and enter account details</strong></li>
-                  <li>Organization Name: Enter your clinic or practice's official name</li>
-                  <li>Organization Type: Enter/Select type of organization</li>
-                  <li>Firstname: Enter Firstname</li>
-                  <li>Lastname: Enter Lastname</li>
-                  <li>Username: Enter/create your username</li>
-                  <li>Email: A general contact email for your organization</li>
-                  <li>Phone Number: Enter your phone number</li>
-                  <li>Password: create your password</li>
-                  <li style={{marginLeft: '20px'}}>Choose a strong password (at least 8 characters)</li>
-                  <li style={{marginLeft: '20px'}}>Include uppercase and lowercase letters, numbers, and symbols</li>
-                  <li style={{marginLeft: '20px'}}>Confirm your password</li>
-                  <li>As the person registering, you'll become the main administrator.</li>
-                  <br />
-                  <li><strong>2. Choose Plan</strong></li>
-                  <li>Review the plan you selected, click Next</li>
-                  <br />
-                  <li><strong>3. Payment Information</strong></li>
-                  <li>Enter your payment information (We accept all major credit and debit cards)</li>
-                  <li style={{marginLeft: '20px'}}>Credit Card Number: Enter your payment card details</li>
-                  <li style={{marginLeft: '20px'}}>Expiration Date: MM/YY format</li>
-                  <li style={{marginLeft: '20px'}}>Security Code: The 3–4-digit code on your card</li>
-                  <br />
-                  <li><strong>4. Review and Confirm</strong></li>
-                  <li>Review all information</li>
-                  <li>Verify your contact details</li>
-                  <li>Confirm your subscription plan</li>
-                  <li>Click "Complete Enrollment"</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
+const Tiles = ({ tiles }) => (
+  <div className="sp-tiles">
+    {tiles.map((t) => (
+      <div className="sp-tile" key={t.title}>
+        {icon(t.icon)}
+        <h3>{t.title}</h3>
+        <ul>
+          {t.items.map((i) => (
+            <li key={i}>{i}</li>
+          ))}
+        </ul>
       </div>
-      <Footer pricingLink="/pricing" featuresLink="/features" />
-    </div>
-  );
-};
+    ))}
+  </div>
+);
+
+const SupportPage = () => (
+  <LegalPage
+    title="Getting started with POWER"
+    subtitle="How to register your organization, set it up, and reach us when you need help."
+  >
+    <section className="sp-section">
+      <h2>Before you start</h2>
+      <p className="sp-sub">Have these ready. Registration takes a few minutes.</p>
+      <Tiles tiles={BEFORE} />
+    </section>
+
+    <section className="sp-section">
+      <h2>Register in four steps</h2>
+      <p className="sp-sub">The steps match the sign-up form.</p>
+      <div className="sp-steps">
+        <div className="sp-step">
+          <div className="sp-num">1</div>
+          <div>
+            <h3>Start</h3>
+            <p>Go to powerhealthit.com and choose Try it now, or pick a plan on the Pricing page.</p>
+          </div>
+        </div>
+        <div className="sp-step">
+          <div className="sp-num">2</div>
+          <div>
+            <h3>Account details</h3>
+            <p>Organization, administrator and login information.</p>
+            <details>
+              <summary>See every field</summary>
+              <ul>
+                {FIELDS.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+            </details>
+          </div>
+        </div>
+        <div className="sp-step">
+          <div className="sp-num">3</div>
+          <div>
+            <h3>Plan and services</h3>
+            <p>Pick how many people sign in, then the services you use. The total updates as you choose.</p>
+          </div>
+        </div>
+        <div className="sp-step">
+          <div className="sp-num">4</div>
+          <div>
+            <h3>Payment and confirmation</h3>
+            <p>
+              Enter your card, review, and complete enrollment. Your 7-day free trial starts, and you are taken to the
+              login screen.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section className="sp-section">
+      <h2>After you register</h2>
+      <p className="sp-sub">A short list to get your team working.</p>
+      <Tiles tiles={AFTER} />
+    </section>
+
+    <section className="sp-section">
+      <h2>Contact us</h2>
+      <p className="sp-sub">Questions about registration, billing or setup.</p>
+      <div className="sp-contact">
+        <div>
+          <h3>Email</h3>
+          <a href="mailto:power@powerhealthit.com">power@powerhealthit.com</a>
+        </div>
+        <div>
+          <h3>Phone</h3>
+          <a href="tel:+13018806015">301-880-6015</a>
+        </div>
+      </div>
+    </section>
+  </LegalPage>
+);
 
 export default SupportPage;
