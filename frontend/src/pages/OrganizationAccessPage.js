@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import {
   Alert, Box, Button, Chip, CircularProgress, FormControl, Grid, InputLabel, LinearProgress, MenuItem, Paper,
   Select, Switch, TextField, Typography,
 } from "@mui/material";
 import { BuilderShell, BuilderToolbar } from "../components/builders/BuilderShell";
+import OrganizationManagement from "../components/OrganizationManagement";
 import { API_BASE_URL } from "../config/api";
 import { EXTRA_MODULE_PRICE, GROUP_ORDER, formatMoney, monthlyTotal, userLimitLabel } from "../utils/modulePricing";
 
@@ -36,6 +37,8 @@ const Meter = ({ label, value, max }) => (
 // organization administrators see the same page read-only.
 export default function OrganizationAccessPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get("tab") === "management" ? "management" : "access");
   const [role, setRole] = useState("");
   const [orgs, setOrgs] = useState([]);
   const [orgId, setOrgId] = useState("");
@@ -115,10 +118,17 @@ export default function OrganizationAccessPage() {
 
   return (
     <BuilderShell
-      title="Organization access"
-      subtitle={data ? `${data.organization.name}. ${canEdit ? "Plan, users and services." : "Read-only. A system administrator makes changes."}` : "Plan, users and services."}
+      title="Organization Management"
+      subtitle={tab === "management"
+        ? "Organization details and logo."
+        : data ? `${data.organization.name}. ${canEdit ? "Plan, users and services." : "Read-only. A system administrator makes changes."}` : "Plan, users and services."}
+      tabs={[{ key: "access", label: "Access" }, { key: "management", label: "Management" }]}
+      tab={tab}
+      onTab={setTab}
       maxWidth={1100}
     >
+      {tab === "management" && <OrganizationManagement />}
+      {tab === "access" && (<>
       <BuilderToolbar>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1, flexWrap: "wrap" }}>
           {role === "system_admin" && (
@@ -230,6 +240,7 @@ export default function OrganizationAccessPage() {
           </Grid>
         </Grid>
       )}
+      </>)}
     </BuilderShell>
   );
 }
