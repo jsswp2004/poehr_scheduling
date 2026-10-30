@@ -41,16 +41,9 @@ SUBSCRIPTION_TIERS = {
         'price_id': getattr(settings, 'STRIPE_ENTERPRISE_PRICE_ID', ''),
         'price': None,  # Contact sales - no fixed price
         'features': [
-            'Everything in Clinic',
             'Unlimited users',
-            'Advanced analytics',
-            'Priority support',
-            'Custom integrations',
-            'Multi-organization support',
-            'Custom branding',
-            '24/7 dedicated support',
-            'On-premise deployment option',
-            'Custom feature development'
+            'All services available',
+            'Priced by a quote based on your size'
         ]
     }
 }

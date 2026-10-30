@@ -323,8 +323,8 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               Access your schedules and patient information from your computer,
               phone, or tablet—anytime, anywhere. POWER keeps everything in
               sync, so your appointments and clinic data are always up to date,
-              whether you're at the office, at home, or on the go. Available on
-              Windows, macOS, Android, and iOS.
+              whether you're at the office, at home, or on the go. Works in any
+              modern web browser on Windows, macOS, Android, and iOS.
             </p>
             <div className="efficient-scheduling-cta">
               <div

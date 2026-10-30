@@ -79,16 +79,16 @@ export const OverviewPage = ({ className }) => {
           <div className="panel-content">
             <h2 className="app-title">POWER Communicator</h2>
             <p className="app-description">
-              Streamlined healthcare communication platform ensuring secure,
-              HIPAA-compliant messaging between providers, staff, and patients
-              with on time updates and alerts.
+              Streamlined healthcare communication platform for secure messaging
+              between providers and staff, and text and email updates to
+              patients with on time alerts.
             </p>
 
             <div className="feature-highlights">
               <div className="highlight-item">
                 <span className="highlight-icon">💬</span>
                 <span className="highlight-text">
-                  Secure HIPAA-compliant messaging
+                  Secure staff messaging
                 </span>
               </div>
               <div className="highlight-item">
@@ -105,7 +105,7 @@ export const OverviewPage = ({ className }) => {
               </div>
               <div className="highlight-item">
                 <span className="highlight-icon">🔒</span>
-                <span className="highlight-text">End-to-end encryption</span>
+                <span className="highlight-text">Encrypted in transit</span>
               </div>
             </div>
           </div>
@@ -123,9 +123,8 @@ export const OverviewPage = ({ className }) => {
           <div className="panel-content">
             <h2 className="app-title">POWER Portal</h2>
             <p className="app-description">
-              Patient self-service portal providing 24/7 access to online
-              services, appointment booking and requests with intuitive user
-              experience.
+              Patient self-service portal for online services, appointment
+              requests and information with an intuitive user experience.
             </p>
 
             <div className="feature-highlights">

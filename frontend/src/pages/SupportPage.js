@@ -30,7 +30,7 @@ const SupportPage = () => {
                 <div className="stat-label">Full Setup</div>
               </div>
               <div className="stat-item">
-                <div className="stat-number">24/7</div>
+                <div className="stat-number">Email</div>
                 <div className="stat-label">Support</div>
               </div>
             </div>
