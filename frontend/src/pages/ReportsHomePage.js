@@ -147,15 +147,18 @@ export default function ReportsHomePage() {
     return [...std, ...custom];
   }, [reports]);
 
+  // The Appointments and patients tab holds the standard and advanced analytics reports; they count toward All.
+  const analyticsCount = showAnalytics ? analytics.analyticsReports.length + analytics.advancedAnalyticsReports.length : 0;
+
   const counts = useMemo(
     () => ({
-      all: rows.length,
+      all: rows.length + analyticsCount,
       std: rows.filter((r) => r.standard).length,
       mine: rows.filter((r) => !r.standard && r.is_mine).length,
       shared: rows.filter((r) => !r.standard && !r.is_mine).length,
       doc: rows.filter((r) => r.source === "note_documentation").length,
     }),
-    [rows]
+    [rows, analyticsCount]
   );
 
   const visible = rows.filter((r) => {
@@ -209,7 +212,7 @@ export default function ReportsHomePage() {
         { key: "mine", label: "My reports", count: counts.mine },
         { key: "shared", label: "Shared with me", count: counts.shared },
         { key: "doc", label: "Documentation", count: counts.doc },
-        ...(showAnalytics ? [{ key: "analytics", label: "Appointments and patients" }] : []),
+        ...(showAnalytics ? [{ key: "analytics", label: "Appointments and patients", count: analyticsCount }] : []),
         { key: "map", label: "Relationship map" },
         ...(audit ? [{ key: "audit", label: "Audit log", count: audit.length }] : []),
       ]}
