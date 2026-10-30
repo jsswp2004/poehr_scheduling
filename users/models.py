@@ -920,3 +920,14 @@ class DictionaryEntry(models.Model):
 
     def __str__(self):
         return f"{self.dictionary.code}:{self.value}"
+
+
+from django.db.models.signals import pre_save  # noqa: E402
+from django.dispatch import receiver  # noqa: E402
+
+
+@receiver(pre_save, sender=CustomUser)
+def _drop_stale_role_entry(sender, instance, **kwargs):
+    """If a person's built-in role is changed, a System Dictionaries role they held no longer applies."""
+    if instance.role_entry_id and instance.role_entry.behaves_like != instance.role:
+        instance.role_entry = None

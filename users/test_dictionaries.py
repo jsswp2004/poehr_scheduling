@@ -113,3 +113,39 @@ class RosterOnCreateProfileTests(TestCase):
         org2 = Organization.objects.create(name="NoStaff", max_users=50, subscription_tier="premium", enabled_modules=["scheduling"])
         self.create(org2, "nurse", "n2")
         self.assertFalse(Staff.objects.filter(user__username="n2").exists())
+
+
+class RightsFollowRoleTests(TestCase):
+    def setUp(self):
+        from users.rights import effective_rights, role_default_rights
+
+        self.eff, self.defaults = effective_rights, role_default_rights
+        self.d = seed_roles()
+        self.org = Organization.objects.create(name="R", max_users=50, subscription_tier="premium")
+        self.adm = make(self.org, "admin", "radm")
+        self.c = APIClient()
+        self.c.force_authenticate(self.adm)
+
+    def post(self, role, name):
+        r = self.c.post("/api/auth/register/", {"username": name, "password": "Str0ng!pass99", "email": f"{name}@x.com", "role": role}, format="json")
+        self.assertIn(r.status_code, (200, 201), r.content)
+        return CustomUser.objects.get(username=name)
+
+    def test_each_built_in_role_gets_its_defaults(self):
+        for role in ("doctor", "nurse", "receptionist", "registrar", "admin"):
+            u = self.post(role, f"u_{role}")
+            self.assertEqual(self.eff(u), self.defaults(role), role)
+
+    def test_custom_role_gets_rights_of_its_base(self):
+        DictionaryEntry.objects.create(dictionary=self.d, value="scheduler", label="Scheduler", behaves_like="receptionist")
+        u = self.post("scheduler", "u_sched")
+        self.assertEqual(self.eff(u), self.defaults("receptionist"))
+
+    def test_changing_role_drops_stale_label(self):
+        e = DictionaryEntry.objects.create(dictionary=self.d, value="scheduler", label="Scheduler", behaves_like="receptionist")
+        u = self.post("scheduler", "u_sched2")
+        u.role = "nurse"
+        u.save()
+        u.refresh_from_db()
+        self.assertIsNone(u.role_entry)
+        self.assertEqual(self.eff(u), self.defaults("nurse"))
