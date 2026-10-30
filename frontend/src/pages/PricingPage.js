@@ -1,477 +1,290 @@
 /*
- * POWER IT Healthcare Scheduling - Pricing Page Component
+ * POWER Pricing Page
  *
- * PAGE LAYOUT STRUCTURE:
- * =====================
- * 1. Navigation Header - Same as landing page with logo, menu, login/trial buttons
- * 2. Page Title - "Pick your plan" heading
- * 3. Tab Navigation - Professional, Clinic, Group tabs (functionality to be added later)
- * 4. Pricing Cards Section - Three pricing tiers copied from landing page
- * 5. Footer - Same footer as landing page
+ * Pricing is one flat base price for every organization. The first service is included and each further
+ * service adds the same amount. The plan (Professional, Clinic, Group) only sets how many people can sign in.
+ * Services, descriptions and prices come from the server's catalog (/api/users/modules/) so this page cannot
+ * drift from what is billed; the capability bullets below describe what each service does today.
  */
-
-// Import styles for the pricing page component
 import "../PricingPage/PricingPage.css";
-// Import React hooks for state management
-import { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-// Import reusable Header component
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import axios from "axios";
 import Header from "../components/Header";
-// Import logo for footer
 import Footer from "../components/Footer";
+import { API_BASE_URL } from "../config/api";
+import {
+  BASE_PRICE,
+  EXTRA_MODULE_PRICE,
+  GROUP_ORDER,
+  formatMoney,
+  monthlyTotal,
+  pricedModules,
+  userLimitLabel,
+} from "../utils/modulePricing";
 
-// Main pricing page component for POWER IT healthcare scheduling software
-export const PricingPage = ({ className, ...props }) => {
-  // Get URL search parameters to check for plan pre-selection
-  const [searchParams] = useSearchParams();
+// What each service does today, in plain words. Keep these to things the product really does.
+const CAPABILITIES = {
+  patient_portal: [
+    "Patients sign in, see and update their information",
+    "Patients request appointments; staff approve or deny",
+    "Announcements for patients and staff",
+    "Text and email preferences with opt-out",
+  ],
+  clinical_documentation: [
+    "Ready-made admission, triage, ambulatory, progress and nursing notes",
+    "Note and flowsheet builders for your own forms",
+    "Vital signs and intake and output flowsheets",
+    "Growth charts and vaccine schedules",
+    "Problem list, home medications and allergies",
+    "Signed notes lock; changes are added as addenda",
+  ],
+  orders_labs: [
+    "Place, sign and cosign orders, with order sets",
+    "Nurse task list built from medication orders",
+    "Enter and review lab results with trend views",
+    "Full history on every order and result",
+  ],
+  prescriptions_referrals: [
+    "Write and sign prescriptions for non-controlled drugs; print or record a fax",
+    "Pharmacy list, favorites and renewals",
+    "Referral tracking from sent to report received, with overdue timers",
+  ],
+  triage_boards: [
+    "ESI triage note with a suggested level and the reasons",
+    "Suicide-risk screening with a safety alert",
+    "Live emergency department board and a follow-up board",
+    "Status board builder for views you design",
+  ],
+  scheduling: [
+    "Calendar with daily, weekly and monthly recurring appointments",
+    "Provider availability, holidays and clinic events",
+    "Patient requests, check-in and no-show tracking",
+    "CSV upload for availability, events and patients",
+  ],
+  staffing: [
+    "Roster, units and recurring shift patterns",
+    "Coverage status against your staffing requirements, including hours per patient day",
+    "Time-off requests, call-outs and shift pick-up",
+    "Shift reminders by text and email",
+    "Daily staffing report PDFs and scheduled report emails",
+  ],
+  communicator: [
+    "Bulk text and email to a contact list",
+    "Automatic appointment reminders",
+    "Consent and opt-out handling for texts",
+    "Message log showing what was sent or blocked",
+  ],
+  telehealth: [
+    "Video visits; patients join from a link, no account needed",
+    "Waiting room; the provider admits the patient",
+    "No recording, with an audit log of every session",
+  ],
+  dictation: [
+    "Speak into a note (US English medical dictation)",
+    "Optional AI clean-up that you review and accept field by field",
+    "Audio is not stored by POWER",
+  ],
+  lab_interface: [
+    "Receive results by HL7 v2 or FHIR R4 over HTTPS",
+    "Send lab orders to your lab's interface engine",
+    "Results that cannot be matched wait for staff to file",
+  ],
+};
 
-  // Get initial tab from URL parameter, defaulting to 'personal'
-  const getInitialTab = () => {
-    const planParam = searchParams.get("plan");
-    // Only allow 'personal' or 'clinic' pre-selection (Group goes to contact page)
-    if (planParam === "clinic") {
-      return "clinic";
-    }
-    return "personal"; // Default to personal for any other value or no parameter
-  };
+const EXAMPLES = [
+  { title: "Nursing home staffing", services: "Staffing and coverage", count: 1 },
+  { title: "Staffing with resident and family texts", services: "Staffing + Communicator", count: 2 },
+  { title: "Small clinic", services: "Scheduling + Clinical documentation + Orders and labs", count: 3 },
+];
 
-  // State for active tab with URL parameter support
-  const [activeTab, setActiveTab] = useState(getInitialTab());
+const INCLUDED_EVERYWHERE = [
+  "Reports: build, save, share and export reports to PDF or CSV",
+  "Secure staff messaging",
+  "Role-based access you can adjust for each person",
+  "7-day free trial; your card is charged from day 8",
+  "Change your services at any time",
+];
 
-  // Update tab when URL parameters change
+export const PricingPage = ({ className }) => {
+  const [catalog, setCatalog] = useState({ plans: [], modules: [] });
+  const [error, setError] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [open, setOpen] = useState({});
+
   useEffect(() => {
-    setActiveTab(getInitialTab());
-  }, [searchParams]);
+    let alive = true;
+    axios
+      .get(`${API_BASE_URL}/api/users/modules/`)
+      .then((r) => alive && setCatalog({ plans: r.data.plans || [], modules: r.data.modules || [] }))
+      .catch(() => alive && setError(true));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  // Handler function for tab clicks
-  const handleTabClick = (tab) => {
-    setActiveTab(tab);
-  };
+  const toggle = (code) =>
+    setSelected((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
+
+  const groups = useMemo(
+    () =>
+      GROUP_ORDER.map((g) => ({ name: g, items: catalog.modules.filter((m) => m.group === g) })).filter(
+        (g) => g.items.length > 0
+      ),
+    [catalog.modules]
+  );
+
+  const priced = pricedModules(selected, catalog.modules);
+  const extras = Math.max(0, priced.length - 1);
+  const total = monthlyTotal(selected, catalog.modules);
+  const labQuoted = selected.some((c) => catalog.modules.find((m) => m.code === c)?.quoted);
+  const planByKey = Object.fromEntries(catalog.plans.map((p) => [p.key, p]));
+  const limitFor = (key, fallback) => userLimitLabel(planByKey[key] ? planByKey[key].user_limit : fallback);
+
   return (
     <div className={"pricing-page " + (className || "")}>
-      {/* ===================================================================
-          SECTION 1: NAVIGATION HEADER - TOP OF PAGE
-          - Company logo and branding
-          - Main navigation menu (Solutions, Resources, Pricing)
-          - Login and "Try POWER for free" buttons
-          ================================================================= */}
       <Header />
-      {/* ===================================================================
-          SECTION 2: PAGE TITLE AND TAB NAVIGATION
-          - "Pick your plan" main heading
-          - Tab navigation for Personal, Clinic, Group (to be implemented)
-          ================================================================= */}
+
       <div className="pricing-page-header">
         <div className="page-title-section">
-          <h1 className="page-title">Pick your plan</h1>
+          <h1 className="page-title">One price. Pick the services your team uses.</h1>
           <p className="page-subtitle">
-            Whether you're practicing solo or with a clinic or Physician Group,
-            we have a plan that fits your needs.
+            Every organization pays {formatMoney(BASE_PRICE)} a month with its first service included. Each additional
+            service adds {formatMoney(EXTRA_MODULE_PRICE)}. Reports are free.
           </p>
-        </div>{" "}
-        {/* Tab Navigation - Functional implementation */}
-        <div className="tab-navigation">
-          <div className="tab-container">
-            <div
-              className={`tab-item ${activeTab === "personal" ? "active" : ""}`}
-              onClick={() => handleTabClick("personal")}
-            >
-              Professional
+        </div>
+      </div>
+
+      <div className="pricing-section">
+      <div className="pp-section">
+        <h2 className="pp-heading">1. Choose your services</h2>
+        {error && <p className="pp-note">The service list could not be loaded. Please refresh the page.</p>}
+        <div className="pp-builder">
+          <div className="pp-groups">
+            {groups.map((g) => (
+              <div className="pp-group" key={g.name}>
+                <h3>{g.name}</h3>
+                {g.items.map((m) => {
+                  const id = `svc-${m.code}`;
+                  const caps = CAPABILITIES[m.code] || [];
+                  return (
+                    <div className="pp-svc" key={m.code}>
+                      <label htmlFor={id} className="pp-svc-row">
+                        <input
+                          id={id}
+                          type="checkbox"
+                          checked={selected.includes(m.code)}
+                          onChange={() => toggle(m.code)}
+                        />
+                        <span>
+                          <b>{m.label}</b>
+                          <span className="pp-desc">{m.description}</span>
+                        </span>
+                        {m.quoted && <span className="pp-tag">Quoted separately</span>}
+                      </label>
+                      {caps.length > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            className="pp-more"
+                            aria-expanded={!!open[m.code]}
+                            onClick={() => setOpen((o) => ({ ...o, [m.code]: !o[m.code] }))}
+                          >
+                            {open[m.code] ? "Hide what is included" : "See what is included"}
+                          </button>
+                          {open[m.code] && (
+                            <ul className="pp-caps">
+                              {caps.map((c) => (
+                                <li key={c}>{c}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          <aside className="pp-total" aria-live="polite">
+            <div className="pp-note">Your monthly price</div>
+            <div className="pp-big">{formatMoney(total)}</div>
+            <div className="pp-row">
+              <span>Base, first service included</span>
+              <span>{formatMoney(BASE_PRICE)}</span>
             </div>
-            <div
-              className={`tab-item ${activeTab === "clinic" ? "active" : ""}`}
-              onClick={() => handleTabClick("clinic")}
-            >
-              Clinic
+            <div className="pp-row">
+              <span>Additional services ({extras})</span>
+              <span>{formatMoney(EXTRA_MODULE_PRICE * extras)}</span>
             </div>
-            <div
-              className={`tab-item ${activeTab === "group" ? "active" : ""}`}
-              onClick={() => handleTabClick("group")}
-            >
-              Group
+            <div className="pp-row">
+              <span>Reports</span>
+              <span className="pp-tag pp-free">Free</span>
             </div>
+            {labQuoted && (
+              <div className="pp-note">Electronic lab interface is set up by arrangement and quoted separately.</div>
+            )}
+            <a className="btn-panel" href="#pricing-plans">
+              Continue to plan
+            </a>
+          </aside>
+        </div>
+
+        <h2 className="pp-heading" id="pricing-plans">
+          2. Choose how many people sign in
+        </h2>
+        <div className="pp-plans">
+          <div className="pp-plan">
+            <h3>Professional</h3>
+            <div className="pp-users">{limitFor("basic", 1)}</div>
+            <p>For a solo provider or manager, with the services you picked.</p>
+            <Link to="/enroll?plan=personal&tier=basic" className="btn-panel">
+              Start free trial
+            </Link>
+          </div>
+          <div className="pp-plan">
+            <h3>Clinic</h3>
+            <div className="pp-users">{limitFor("premium", 10)}</div>
+            <p>For a clinic, unit or small facility, with the services you picked.</p>
+            <Link to="/enroll?plan=clinic&tier=premium" className="btn-panel">
+              Start free trial
+            </Link>
+          </div>
+          <div className="pp-plan">
+            <h3>Group</h3>
+            <div className="pp-users">{limitFor("enterprise", 999999)}</div>
+            <p>For larger organizations and multiple sites. Priced by a quote based on your size.</p>
+            <Link to="/contact" className="btn-panel">
+              Contact sales
+            </Link>
           </div>
         </div>
-      </div>{" "}
-      {/* ===================================================================
-          SECTION 3: PRICING CARDS WITH TAB CONTENT
-          - Two panels per tab: Personal, Clinic, Group
-          - Each panel shows different pricing options or features
-          ================================================================= */}
-      <div className="pricing-section">
-        {/* Personal Tab Content */}
-        {activeTab === "personal" && (
-          <div className="tab-content">
-            <div className="pricing-panels">
-              {/* Personal Panel 1 - Basic */}
-              <div className="pricing-panel">
-                <div className="panel-header">
-                  <div className="panel-badge">Starter</div>
-                  <div className="panel-title">Professional</div>
-                  <div className="panel-price">
-                    <span className="price-amount">$49.99</span>
-                    <span className="price-period">per month</span>
-                  </div>
-                </div>
-                <div className="panel-description">
-                  Perfect for individual healthcare providers just getting
-                  started
-                </div>{" "}
-                <div className="panel-features">
-                  <div className="feature">
-                    Basic scheduling with up to 200 appointments
-                  </div>
+        <p className="pp-note">The plan changes only the number of users. The price comes from the services you pick.</p>
 
-                  <div className="feature">
-                    Basic calendar view with daily/weekly views
-                  </div>
-                  <div className="feature">
-                    SMS + Email appointment notifications
-                  </div>
-                  {/*
-                  <div className="feature">
-                    Mobile app access for on-the-go management
-                  </div>
-                  */}
-                  <div className="feature">
-                    Basic reporting on appointment statistics
-                  </div>
-                </div>{" "}
-                <div className="panel-button">
-                  <Link
-                    to="/enroll?plan=personal&tier=basic"
-                    className="btn-panel"
-                  >
-                    Get Started Free
-                  </Link>
-                </div>
-              </div>
-
-              {/* Personal Panel 2 - Pro */}
-              <div className="pricing-panel featured">
-                <div className="panel-header">
-                  <div className="panel-title">Features</div>
-                  {/*<div className="panel-badge popular">Most Popular</div>
-                  <div className="panel-title">Personal Pro</div>
-                  <div className="panel-price">
-                    <span className="price-amount">$15</span>
-                    <span className="price-period">per month</span>
-                  </div>*/}
-                </div>
-                <div className="panel-description">
-                  Advanced features for growing individual practices
-                </div>
-                <div className="panel-features">
-                  <div className="feature">
-                    Simple appointment scheduling for individual providers -
-                    Easily schedule and manage appointments for individual
-                    healthcare providers using an intuitive, user-friendly
-                    interface designed to streamline your daily workflow.
-                  </div>
-                  <div className="feature">
-                    Standard calendar with daily and weekly views - Stay
-                    organized with a standard calendar that offers both daily
-                    and weekly views, allowing you to quickly review, add, or
-                    update appointments at a glance.
-                  </div>
-                  <div className="feature">
-                    Basic patient notification system via SMS and email - Keep
-                    patients informed and reduce no-shows with an integrated
-                    notification system that automatically sends appointment
-                    reminders and updates via SMS and email.
-                  </div>
-                  {/*}
-                  <div className="feature">
-                    Access your schedule on iOS and Android devices - Enjoy the
-                    convenience of accessing your appointment schedule anytime,
-                    anywhere, from any iOS or Android mobile device, ensuring
-                    you are always up to date.
-                  </div>
-                  */}
-                  <div className="feature">
-                    Essential reporting for appointment analytics - Make
-                    informed decisions with essential reporting tools that
-                    provide clear analytics on appointment trends, patient
-                    attendance, and provider utilization.
-                  </div>
-                  {/*<div className="feature">Appointments with comprehensive patient history tracking to monitor progress over time</div>
-                  <div className="feature">Calendar system with customizable color coding, multiple view options, and filtering capabilities</div>
-                  <div className="feature">SMS template builder and email communication system with delivery tracking</div>
-                  <div className="feature">Full patient records management including medical history, documents, and custom fields</div>
-                  <div className="feature">Intelligent reminder system with automated patient confirmation and follow-up sequences</div>
-                  <div className="feature">Comprehensive analytics dashboard with custom reporting and exportable data insights</div>
-                  <div className="feature">Fully branded appointment scheduling page with your practice's logo and color scheme</div>
-                  <div className="feature">Integration capabilities with EHR systems and third-party healthcare applications</div>*/}
-                </div>
-                {/*<div className="panel-button">
-                  <div className="btn-panel">Start Free Trial</div>
-                </div>*/}
-              </div>
+        <h2 className="pp-heading">Examples</h2>
+        <div className="pp-examples">
+          {EXAMPLES.map((e) => (
+            <div key={e.title}>
+              <b>{e.title}</b>
+              <span>{e.services}</span>
+              <span className="pp-example-price">
+                {formatMoney(BASE_PRICE + EXTRA_MODULE_PRICE * (e.count - 1))} / month
+              </span>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
 
-        {/* Clinic Tab Content */}
-        {activeTab === "clinic" && (
-          <div className="tab-content">
-            <div className="pricing-panels">
-              {/* Clinic Panel 1 - Standard */}
-              <div className="pricing-panel">
-                <div className="panel-header">
-                  <div className="panel-badge">Standard</div>
-                  <div className="panel-title">Clinic</div>
-                  <div className="panel-price">
-                    <span className="price-amount">$299.99</span>
-                    <span className="price-period">per month</span>
-                  </div>
-                </div>
-                <div className="panel-description">
-                  Essential tools for small to medium healthcare clinics
-                </div>
-                <div className="panel-features">
-                  <div className="feature">Everything in Professional</div>
-                  <div className="feature">Up to 10 providers</div>
-                  <div className="feature">Unlimited appointments</div>
-                  <div className="feature">Advanced calendar features</div>
-                  <div className="feature">Team collaboration tools</div>
-                  <div className="feature">SMS + Email notifications</div>
-                  <div className="feature">Bulk SMS notifications</div>
-                  <div className="feature">Patient management system</div>
-                  <div className="feature">Automated reminders</div>
-                  <div className="feature">Advanced reporting & analytics</div>
-                </div>{" "}
-                <div className="panel-button">
-                  <Link
-                    to="/enroll?plan=clinic&tier=premium"
-                    className="btn-panel"
-                  >
-                    Start Free Trial
-                  </Link>
-                </div>
-              </div>
-
-              {/* Clinic Panel 2 - Premium */}
-              <div className="pricing-panel featured">
-                <div className="panel-header">
-                  <div className="panel-title">Features</div>
-                </div>
-                <div className="panel-description">
-                  Advanced features for busy clinics with complex needs
-                </div>
-                <div className="panel-features">
-                  <div className="feature">
-                    Everything in Professional - Includes all the essential features
-                    from the Professional plan, ensuring a strong foundation for
-                    your clinic or group practice.
-                  </div>
-                  <div className="feature">
-                    Up to 10 providers - Manage scheduling and appointments for
-                    up to ten individual healthcare providers within your
-                    organization, supporting group practices and clinics of
-                    varying sizes.
-                  </div>
-                  <div className="feature">
-                    Unlimited appointments - Enjoy the flexibility of booking
-                    and managing an unlimited number of appointments without any
-                    restrictions, allowing your team to grow without limits.
-                  </div>
-                  <div className="feature">
-                    Advanced calendar features - Benefit from enhanced calendar
-                    capabilities, including color-coded schedules, recurring
-                    appointments, and customizable views to better organize your
-                    practice.
-                  </div>
-                  <div className="feature">
-                    Team collaboration tools - Improve coordination and
-                    efficiency with built-in team collaboration tools, enabling
-                    staff members to share notes, assign tasks, and communicate
-                    seamlessly within the platform.
-                  </div>
-                  <div className="feature">
-                    SMS + Email notifications - Automatically send appointment
-                    confirmations, reminders, and updates to patients through
-                    both SMS and email, ensuring timely communication and
-                    improved attendance.
-                  </div>
-                  <div className="feature">
-                    Bulk SMS notifications - Easily send bulk SMS notifications
-                    to groups of patients or staff for important announcements,
-                    last-minute changes, or promotional messages.
-                  </div>
-                  <div className="feature">
-                    Patient management system - Streamline patient care with a
-                    comprehensive management system that allows you to store,
-                    update, and access essential patient information securely.
-                  </div>
-                  <div className="feature">
-                    Automated reminders - Reduce missed appointments and improve
-                    patient engagement with automated reminders delivered
-                    directly to patients through their preferred communication
-                    channels.
-                  </div>
-                  <div className="feature">
-                    Advanced reporting & analytics - Leverage advanced reporting
-                    and analytics tools to gain deeper insights into appointment
-                    trends, patient flow, and staff performance, supporting
-                    data-driven decision making.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Group Tab Content */}
-        {activeTab === "group" && (
-          <div className="tab-content">
-            <div className="pricing-panels">
-              {/* Group Panel 1 - Enterprise */}
-              <div className="pricing-panel">
-                <div className="panel-header">
-                  <div className="panel-badge">Enterprise</div>
-                  <div className="panel-title">Group</div>
-                </div>
-                <div className="panel-description">
-                  For larger teams, contact sales for a custom quote.
-                </div>
-                <div className="panel-features">
-                  <div className="feature">Everything in Clinic</div>
-                  <div className="feature">Unlimited users</div>
-                  <div className="feature">Advanced analytics</div>
-                  <div className="feature">Priority support</div>
-                  <div className="feature">Custom integrations</div>
-                  <div className="feature">Multi-organization support</div>
-                  <div className="feature">Advanced analytics & reporting</div>
-                  <div className="feature">Custom branding</div>
-                  <div className="feature">24/7 dedicated support</div>
-                  <div className="feature">On-premise deployment option</div>
-                  <div className="feature">Custom feature development</div>
-                  <div className="feature">White-label solutions</div>
-                  <div className="feature">Custom integrations</div>
-                  <div className="feature">Dedicated account manager</div>
-                  <div className="feature">SLA guarantees</div>
-                  <div className="feature">Professional services</div>
-                </div>{" "}
-                <div className="panel-button">
-                  <Link
-                    to="/enroll?plan=group&tier=enterprise"
-                    className="btn-panel"
-                  >
-                    Contact Sales
-                  </Link>
-                </div>
-              </div>
-
-              {/* Group Panel 2 - Custom */}
-              <div className="pricing-panel featured">
-                <div className="panel-header">
-                  <div className="panel-title">Features</div>
-                </div>
-                <div className="panel-description">
-                  Tailored solutions for unique organizational requirements
-                </div>
-                <div className="panel-features">
-                  <div className="feature">
-                    Everything in Clinic - Access all the robust features
-                    included in the Clinic plan, providing a comprehensive
-                    solution to manage your organization’s scheduling and
-                    communications at scale.
-                  </div>
-                  <div className="feature">
-                    Unlimited users - Add and manage an unlimited number of
-                    users, making it easy for large teams and growing
-                    organizations to collaborate without limitations.
-                  </div>
-                  <div className="feature">
-                    Advanced analytics - Utilize powerful analytics tools to
-                    track key performance metrics, monitor appointment trends,
-                    and optimize operational efficiency across your
-                    organization.
-                  </div>
-                  <div className="feature">
-                    Priority support - Receive expedited, high-priority support
-                    from our expert team, ensuring your issues are addressed
-                    promptly and your operations remain uninterrupted.
-                  </div>
-                  <div className="feature">
-                    Custom integrations - Integrate seamlessly with your
-                    existing systems and third-party applications through
-                    customized integrations tailored to your specific needs.
-                  </div>
-                  <div className="feature">
-                    Multi-organization support - Manage multiple organizations
-                    or locations from a single platform, enabling centralized
-                    oversight and flexible configuration for complex healthcare
-                    networks.
-                  </div>
-                  <div className="feature">
-                    Advanced analytics & reporting - Access comprehensive
-                    analytics and detailed reporting features to gain actionable
-                    insights and support data-driven decision making at every
-                    level of your organization.
-                  </div>
-                  <div className="feature">
-                    Custom branding - Customize the look and feel of your
-                    application with your own logos, color schemes, and branding
-                    elements to deliver a cohesive experience for your staff and
-                    patients.
-                  </div>
-                  <div className="feature">
-                    24/7 dedicated support - Benefit from around-the-clock
-                    dedicated support, ensuring assistance is always available
-                    whenever you need it, day or night.
-                  </div>
-                  <div className="feature">
-                    On-premise deployment option - Choose to deploy the
-                    application on your own servers or infrastructure for
-                    enhanced control, security, and compliance with
-                    organizational requirements.
-                  </div>
-                  <div className="feature">
-                    Custom feature development - Request bespoke feature
-                    development to address unique workflows or specialized needs
-                    within your organization, ensuring the platform evolves with
-                    you.
-                  </div>
-                  <div className="feature">
-                    White-label solutions - Offer the platform under your own
-                    brand with a complete white-label solution, providing your
-                    clients or partners with a seamless, branded experience.
-                  </div>
-                  <div className="feature">
-                    Custom integrations - Connect your system to other critical
-                    applications through tailor-made integrations designed to
-                    fit your operational ecosystem.
-                  </div>
-                  <div className="feature">
-                    Dedicated account manager - Work with a dedicated account
-                    manager who understands your organization’s goals, provides
-                    personalized assistance, and helps you maximize the value of
-                    your solution.
-                  </div>
-                  <div className="feature">
-                    SLA guarantees - Rely on service level agreement (SLA)
-                    guarantees that provide assurance of platform uptime,
-                    performance, and rapid issue resolution.
-                  </div>
-                  <div className="feature">
-                    Professional services - Access professional services
-                    including onboarding, training, technical consulting, and
-                    ongoing optimization to ensure your organization’s success
-                    with the platform.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <h2 className="pp-heading">Included with every plan</h2>
+        <ul className="pp-included">
+          {INCLUDED_EVERYWHERE.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
       </div>
-      {/* ===================================================================
-          SECTION 4: FOOTER - BOTTOM OF PAGE
-          - Company branding and logo
-          - Navigation links in columns
-          - Footer bottom bar with copyright and legal links
-          ================================================================= */}
+      </div>
+
       <Footer pricingLink="/pricing" featuresLink="/features" />
     </div>
   );
