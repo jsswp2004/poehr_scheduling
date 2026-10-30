@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
+import { useActingOrg } from '../utils/actingOrg';
 import SettingsToolbarPortal, { SETTINGS_STICKY_TOP } from './settings/SettingsToolbarSlot';
 import {
     Box,
@@ -74,6 +75,9 @@ function OrganizationManagement() {
     const [deleteConfirmDialog, setDeleteConfirmDialog] = useState(false);
     const [organizationToDelete, setOrganizationToDelete] = useState(null);
 
+    // A system administrator working in another organization (header) sees and edits that one.
+    const acting = useActingOrg();
+
     // Check user permissions
     const isSystemAdmin = currentUser && (currentUser.role === 'system_admin' || currentUser.role === 'admin');
     const isAdmin = currentUser && ['admin', 'system_admin'].includes(currentUser.role);
@@ -90,7 +94,7 @@ function OrganizationManagement() {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentUser, isSystemAdmin]);
+    }, [currentUser, isSystemAdmin, acting?.id]);
 
     useEffect(() => {
         // Filter organizations based on search query
@@ -123,9 +127,10 @@ function OrganizationManagement() {
     const fetchUserOrganization = async () => {
         try {
             const token = await getValidToken();
-            if (!token || !currentUser?.organization) return;
+            const shownOrgId = (currentUser?.role === 'system_admin' && acting?.id) || currentUser?.organization;
+            if (!token || !shownOrgId) return;
 
-            const response = await axios.get(`${API_BASE_URL}/api/users/organizations/${currentUser.organization}/`, {
+            const response = await axios.get(`${API_BASE_URL}/api/users/organizations/${shownOrgId}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -422,7 +427,7 @@ function OrganizationManagement() {
                 <Box sx={{ flex: 1 }} />
                 {isAdmin && userOrganization && (
                     <Button variant="outlined" startIcon={<Edit />} onClick={() => handleEditClick(userOrganization)} size="small">
-                        Edit my organization
+                        {acting && currentUser?.role === 'system_admin' ? 'Edit this organization' : 'Edit my organization'}
                     </Button>
                 )}
                 {isSystemAdmin && (

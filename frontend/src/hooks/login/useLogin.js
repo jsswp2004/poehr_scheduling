@@ -1,3 +1,4 @@
+import { clearActingOrg } from '../../utils/actingOrg';
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -145,6 +146,7 @@ export const useLogin = () => {
 
             // Store tokens using centralized token manager
             storeTokens(access, refresh);
+            clearActingOrg(); // every sign-in starts on the person's own organization
             axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
             // Decode token to get role

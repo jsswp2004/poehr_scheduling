@@ -5,6 +5,7 @@ import { api } from "../../api/client";
 import { getValidToken } from "../../utils/auth";
 import { authHeader } from "../patientHeader/headerApi";
 import SettingsToolbarPortal from "../settings/SettingsToolbarSlot";
+import { clearActingOrg, ownOrgIdFromToken, setActingOrg, useActingOrg } from "../../utils/actingOrg";
 import { ALL, chooseFacility, configureFacilityScope, resetFacilityScope, useFacilityScope } from "../../utils/facilityScope";
 
 const roleOf = async () => {
@@ -23,6 +24,8 @@ const roleOf = async () => {
  */
 export default function FacilityPicker({ children }) {
   const scope = useFacilityScope();
+  const acting = useActingOrg();
+  const actingId = acting?.id || "";
   const [role, setRole] = useState(null);
   const [problem, setProblem] = useState("");
   const [loading, setLoading] = useState(true);
@@ -54,6 +57,28 @@ export default function FacilityPicker({ children }) {
     };
   }, []);
 
+  // The header's organization choice drives this picker (and the picker updates the header), so the two never disagree.
+  // "All facilities" is the one choice that exists only here; picking an organization in the header leaves it.
+  useEffect(() => {
+    if (role !== "system_admin" || loading || scope.facilities.length === 0) return;
+    const want = actingId || ownOrgIdFromToken();
+    if (want && scope.choice !== want) chooseFacility(String(want));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, loading, actingId, scope.facilities.length]);
+
+  const onPick = (value) => {
+    if (value === ALL) {
+      chooseFacility(ALL);
+      return;
+    }
+    const own = ownOrgIdFromToken();
+    const facility = scope.facilities.find((f) => String(f.id) === String(value));
+    if (!facility) return;
+    if (String(value) === own) clearActingOrg();
+    else setActingOrg({ id: facility.id, name: facility.name }, { id: own, name: scope.facilities.find((f) => String(f.id) === own)?.name || "" });
+    chooseFacility(String(value));
+  };
+
   if (role === null || loading) {
     return (
       <Box sx={{ p: 3, textAlign: "center" }}>
@@ -79,7 +104,7 @@ export default function FacilityPicker({ children }) {
             data-testid="facility-picker"
             value={choice}
             displayEmpty
-            onChange={(e) => chooseFacility(e.target.value)}
+            onChange={(e) => onPick(e.target.value)}
             renderValue={(v) => (v === ALL ? "All facilities (system-wide)" : facilities.find((f) => String(f.id) === String(v))?.name || "Choose a facility")}
           >
             <ListSubheader>Change one facility</ListSubheader>
@@ -96,7 +121,7 @@ export default function FacilityPicker({ children }) {
           </Select>
         </FormControl>
         <Typography variant="body2" color="text.secondary">
-          Settings below apply to the facility you choose here.
+          Settings below apply to the facility you choose here, the same one chosen in the header.
         </Typography>
       </Box>
 

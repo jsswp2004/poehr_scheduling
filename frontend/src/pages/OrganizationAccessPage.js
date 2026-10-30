@@ -9,6 +9,7 @@ import {
 import { BuilderShell, BuilderToolbar } from "../components/builders/BuilderShell";
 import OrganizationManagement from "../components/OrganizationManagement";
 import { API_BASE_URL } from "../config/api";
+import { useActingOrg } from "../utils/actingOrg";
 import { EXTRA_MODULE_PRICE, GROUP_ORDER, formatMoney, monthlyTotal, planTerms, userLimitLabel } from "../utils/modulePricing";
 
 const URL = `${API_BASE_URL}/api/users/organization-access/`;
@@ -40,8 +41,9 @@ export default function OrganizationAccessPage() {
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(searchParams.get("tab") === "management" ? "management" : "access");
   const [role, setRole] = useState("");
-  const [orgs, setOrgs] = useState([]);
   const [orgId, setOrgId] = useState("");
+  const acting = useActingOrg(); // the organization chosen in the header (system administrators)
+  const actingId = acting?.id || "";
   const [data, setData] = useState(null);
   const [draft, setDraft] = useState(null); // {plan, status, user_limit, modules[]}
   const [loading, setLoading] = useState(true);
@@ -69,14 +71,12 @@ export default function OrganizationAccessPage() {
     try { r = jwtDecode(token).role || ""; } catch (e) { navigate("/login"); return; }
     if (r !== "admin" && r !== "system_admin") { navigate("/"); return; }
     setRole(r);
-    if (r === "system_admin") {
-      axios.get(`${API_BASE_URL}/api/users/organizations/`).then((res) => {
-        const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
-        setOrgs(list.map((o) => ({ id: o.id, name: o.name })).sort((a, b) => a.name.localeCompare(b.name)));
-      }).catch(() => {});
-    }
-    load();
-  }, [navigate, load]);
+  }, [navigate]);
+
+  // Load the organization chosen in the header, or the person's own.
+  useEffect(() => {
+    if (role) load(role === "system_admin" ? actingId : "");
+  }, [role, actingId, load]);
 
   const canEdit = !!data?.can_edit;
   const modules = data?.modules || [];
@@ -132,14 +132,6 @@ export default function OrganizationAccessPage() {
       {tab === "access" && (<>
       <BuilderToolbar>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1, flexWrap: "wrap" }}>
-          {role === "system_admin" && (
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel id="org-pick">Organization</InputLabel>
-              <Select labelId="org-pick" label="Organization" value={orgId} onChange={(e) => load(e.target.value)}>
-                {orgs.map((o) => <MenuItem key={o.id} value={String(o.id)}>{o.name}</MenuItem>)}
-              </Select>
-            </FormControl>
-          )}
           <Box sx={{ flex: 1 }} />
           {canEdit && (
             <>

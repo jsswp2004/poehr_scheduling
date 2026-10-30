@@ -23,6 +23,8 @@ import ListItemText from "@mui/material/ListItemText";
 import Divider from "@mui/material/Divider";
 import MenuIcon from "@mui/icons-material/Menu";
 import useForceUpdate from "../utils/useForceUpdate";
+import OrganizationSwitcher from "./OrganizationSwitcher";
+import { clearActingOrg, useActingOrg } from "../utils/actingOrg";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ChatIcon from "@mui/icons-material/Chat";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -187,6 +189,8 @@ function Navbar() {
   const [role, setRole] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Make it stateful
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const actingOrg = useActingOrg();
   const [logoUrl, setLogoUrl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const forceUpdate = useForceUpdate();
@@ -369,6 +373,7 @@ function Navbar() {
 
     // Clear all authentication data using the centralized function
     clearAuthData();
+    clearActingOrg(); // the next sign-in starts on the person's own organization
 
     // Also clear any legacy token storage that might exist
     localStorage.removeItem("access_token"); // Old format key
@@ -479,6 +484,11 @@ function Navbar() {
   }, [isAuthenticated, canSeeLab, refreshLabWaiting, location.pathname]);
 
   const isSystemAdmin = role === "system_admin";
+  // Only a system administrator can work in another organization.
+  useEffect(() => {
+    if (role && role !== "system_admin") clearActingOrg();
+  }, [role]);
+  const openSwitcher = () => setSwitcherOpen(true);
 
   // Unread secure messages: a badge on the Secure Messages icon.
   const secureUnread = useSecureUnread(isAuthenticated && SECURE_MESSAGE_ROLES.includes(role));
@@ -536,7 +546,21 @@ function Navbar() {
             minWidth: 0,
             cursor: "pointer",
           }}
-          onClick={handleLogoClick}
+          {...(isSystemAdmin
+            ? {
+                onClick: openSwitcher,
+                role: "button",
+                tabIndex: 0,
+                "aria-haspopup": "dialog",
+                "aria-label": "Work in another organization",
+                onKeyDown: (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openSwitcher();
+                  }
+                },
+              }
+            : { onClick: handleLogoClick })}
         >
           <Avatar
             src={logoUrl || logo}
@@ -573,7 +597,8 @@ function Navbar() {
               ? `${organizationName || "POWER"} Communicator`
               : location.pathname === "/dashboard"
               ? `${organizationName || "POWER"} Portal`
-              : `${organizationName || "POWER"}`}
+              : `${(isSystemAdmin && actingOrg?.name) || organizationName || "POWER"}`}
+            {isSystemAdmin && " ▾"}
           </Typography>
           {/*{organizationName && (
             <Typography
@@ -910,6 +935,7 @@ function Navbar() {
           )}
         </Box>
       </Toolbar>
+      {isSystemAdmin && <OrganizationSwitcher open={switcherOpen} onClose={() => setSwitcherOpen(false)} />}
     </AppBar>
   );
 }
