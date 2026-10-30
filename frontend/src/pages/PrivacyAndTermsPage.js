@@ -21,7 +21,7 @@ function PrivacyAndTermsPage() {
         </Typography>
 
         <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 4 }}>
-          Last Updated: August 19, 2025
+          Last Updated: October 30, 2026
         </Typography>
 
         <Divider sx={{ mb: 4 }} />
@@ -244,9 +244,7 @@ function PrivacyAndTermsPage() {
                 7. Modifications
               </Typography>
               <Typography variant="body1" paragraph>
-                We reserve the right to revise these terms of service at any time without notice. 
-                By using this application, you are agreeing to be bound by the then current version 
-                of these terms of service.
+                We may revise these terms of service from time to time. For material changes we will give notice by email or in the application at least 30 days before they take effect. By continuing to use this application after a change takes effect, you agree to be bound by the then current version of these terms of service.
               </Typography>
             </Box>
 
@@ -289,7 +287,7 @@ function PrivacyAndTermsPage() {
 
         <Box sx={{ mt: 4, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
           <Typography variant="caption" color="text.secondary">
-            This Privacy Policy and Terms of Service document is effective as of August 19, 2025. 
+            This Privacy Policy and Terms of Service document is effective as of October 30, 2026. 
             We may update this document from time to time to reflect changes in our practices or 
             applicable laws. Please check this page periodically for updates.
           </Typography>
