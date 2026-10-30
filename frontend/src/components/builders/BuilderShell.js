@@ -84,7 +84,7 @@ export function BuilderShell({ title, subtitle, chips, tabs, tab, onTab, maxWidt
         <Box
           ref={setSlot}
           data-testid="builder-toolbar"
-          sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", py: 1, minHeight: 44 }}
+          sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", py: 1, minHeight: 44, "&:empty": { display: "none" } }}
         />
       </Box>
       <BuilderToolbarSlotContext.Provider value={slot}>
