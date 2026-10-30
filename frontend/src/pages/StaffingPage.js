@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Tabs, Tab, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Tabs, Tab, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import axios from "axios";
 import { StaffingHeaderSlotContext } from "../components/staffing/StaffingTabHeader";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import BackButton from "../components/BackButton";
 import { getAccessToken } from "../utils/tokenManager";
-import { API_BASE_URL, apiEndpoints, getAuthHeaders } from "../config/api";
+import { ownOrgIdFromToken, useActingOrg } from "../utils/actingOrg";
+import { apiEndpoints, getAuthHeaders } from "../config/api";
 import {
   clearSelectedOrg,
   installStaffingOrgInterceptor,
@@ -60,11 +61,8 @@ function StaffingPage() {
   const clearAssignPrefill = useCallback(() => setAssignPrefill(null), []);
   const [role, setRole] = useState("");
   // Organization switcher (system admin only). Everyone else is ready at once.
-  const [orgs, setOrgs] = useState([]);
   const [orgId, setOrgId] = useState("");
   const [orgReady, setOrgReady] = useState(false);
-  const [ownOrgId, setOwnOrgId] = useState("");
-  const [orgError, setOrgError] = useState("");
   const [timeOffCounts, setTimeOffCounts] = useState({ open_emergencies: 0, pending_requests: 0 });
   const navigate = useNavigate();
 
@@ -87,8 +85,9 @@ function StaffingPage() {
     }
   }, [navigate]);
 
-  // System admins can act on any organization. Load the list, restore their
-  // last pick, and make sure the choice is set before any tab loads data.
+  // A system admin works in the organization chosen in the header (their own until they switch). The
+  // choice is set before any tab loads data, and the tabs reload when it changes.
+  const acting = useActingOrg();
   useEffect(() => {
     if (!role) return undefined;
     if (role !== "system_admin") {
@@ -96,47 +95,15 @@ function StaffingPage() {
       setOrgReady(true);
       return undefined;
     }
-    let cancelled = false;
     installStaffingOrgInterceptor();
-    (async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
-          headers: getAuthHeaders(getAccessToken()),
-        });
-        const list = (Array.isArray(res.data) ? res.data : res.data?.results || [])
-          .slice()
-          .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        if (cancelled) return;
-        setOrgs(list);
-        // Always start on the account's own organization; switching is deliberate.
-        let own = "";
-        try {
-          own = String(jwtDecode(getAccessToken()).organization_id || "");
-        } catch (e) {
-          own = "";
-        }
-        setOwnOrgId(own);
-        const pick = list.find((o) => String(o.id) === own) || list[0];
-        if (pick) {
-          setSelectedOrgId(pick.id);
-          setOrgId(String(pick.id));
-        }
-      } catch (err) {
-        if (!cancelled) setOrgError("Could not load the organization list.");
-      } finally {
-        if (!cancelled) setOrgReady(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [role]);
-
-  const changeOrg = (value) => {
-    setSelectedOrgId(value);
-    setOrgId(String(value));
+    const own = ownOrgIdFromToken();
+    const pick = acting?.id || own;
+    setSelectedOrgId(pick || null);
+    setOrgId(pick ? String(pick) : "");
     setTimeOffCounts({ open_emergencies: 0, pending_requests: 0 });
-  };
+    setOrgReady(true);
+    return undefined;
+  }, [role, acting?.id]);
 
   // Light poll so an open emergency call-out is visible from any tab.
   useEffect(() => {
@@ -167,7 +134,6 @@ function StaffingPage() {
   }, [role, orgReady, orgId]);
 
   const isAdmin = ADMIN_ROLES.includes(role);
-  const isSystemAdmin = role === "system_admin";
   const isStaff = role === "staff";
 
   // Staff accounts get their own schedule, time off and assistant -- the web twin of the phone app.
@@ -190,35 +156,10 @@ function StaffingPage() {
       <Box ref={stickyRef} sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper", pb: 0.5, pt: "18px", mt: "-18px" }}>
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
         <Typography variant="h5">Staffing Center</Typography>
-        {isSystemAdmin && orgs.length > 0 && (
-          <TextField
-            select
-            size="small"
-            label="Organization"
-            value={orgId}
-            onChange={(e) => changeOrg(e.target.value)}
-            sx={{ minWidth: 280 }}
-          >
-            {orgs.map((o) => (
-              <MenuItem key={o.id} value={String(o.id)}>
-                {o.name}
-                {o.state ? ` (${o.state})` : ""}
-              </MenuItem>
-            ))}
-          </TextField>
-        )}
-        {isSystemAdmin && orgId && ownOrgId && orgId !== ownOrgId && (
-          <Chip size="small" color="warning" label="Viewing another organization" />
-        )}
         <Box sx={{ flex: 1 }} />
         <BackButton to="/solutions" sx={{ mb: 0 }} />
       </Box>
 
-      {orgError && (
-        <Alert severity="warning" sx={{ mb: 1 }} onClose={() => setOrgError("")}>
-          {orgError} Showing data for all organizations.
-        </Alert>
-      )}
       {orgReady && (
       <>
       {timeOffCounts.open_emergencies > 0 && tab !== "timeoff" && (

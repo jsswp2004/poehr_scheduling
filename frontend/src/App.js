@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import { LandingPageV1Desktop1920Px as LandingPage } from './pages/LandingPage';
+import ViewingOrgStrip from './components/ViewingOrgStrip';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
@@ -192,7 +193,7 @@ function AppContent() {
       body.classList.remove('bg-gray-100');
     }
   }, [location.pathname]); return (
-    <>      {showNavbar && <Navbar />}      <ToastContainer
+    <>      {showNavbar && <Navbar />}{showNavbar && <ViewingOrgStrip />}      <ToastContainer
       position="top-center"
       autoClose={2000}
       hideProgressBar={false}
