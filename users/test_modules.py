@@ -276,3 +276,34 @@ class AssistantBillingTests(TestCase):
         self.assertEqual(r["results"]["assistant"]["reported_units"], 3)
         self.assertTrue(r["results"]["assistant"]["identifier"].startswith("org%d-assistant-" % org.id))
         self.assertAlmostEqual(r["total_cost"], 0.15)
+
+
+class AssistantCostReportTests(TestCase):
+    def run_cmd(self, *args):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("report_assistant_cost", *args, stdout=out)
+        return out.getvalue()
+
+    def test_empty_period_says_so(self):
+        out = self.run_cmd("--input-price", "1", "--output-price", "5")
+        self.assertIn("nothing to price from yet", out)
+
+    def test_average_cost_from_logged_tokens(self):
+        import uuid
+
+        from communicator.models import CommunicatorAssistantMessage as Log
+
+        org = make_org("G")
+        for tin, tout, err in ((1000, 100, ""), (3000, 300, ""), (9999, 999, "Boom")):
+            Log.objects.create(organization=org, conversation_id=uuid.uuid4(), question="q", answer="a",
+                               input_tokens=tin, output_tokens=tout, error=err)
+        # $2 / M in, $10 / M out: (1000*2+100*10)/1e6 = 0.003 and (3000*2+300*10)/1e6 = 0.009 -> avg 0.006
+        out = self.run_cmd("--input-price", "2", "--output-price", "10", "--margin", "3")
+        self.assertIn("2 questions", out)
+        self.assertIn("$0.0060 average per question", out)
+        self.assertIn("$0.02 per question", out)
+        self.assertIn(f"org {org.id}: 2 questions", out)
