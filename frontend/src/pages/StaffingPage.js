@@ -310,7 +310,8 @@ function StaffingPage() {
         </Box>
       ) : (
       <StaffingHeaderSlotContext.Provider value={headerSlot}>
-      <Box key={orgId || "own"}>
+      {/* Room under the frozen header so floating field labels (date pickers, selects) are not clipped by it. */}
+      <Box key={orgId || "own"} sx={{ pt: 1.25 }}>
 
       {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} onAssign={startAssign} onNavigate={setTab} />}
       {tab === "roster" && <StaffingRosterTab isAdmin={isAdmin} />}
