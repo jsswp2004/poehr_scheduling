@@ -40,7 +40,8 @@
 .three-panel-layout {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0;
+  gap: 16px;
+  padding: 12px 64px 28px;
   background: #ffffff;
   min-height: 600px;
 }
@@ -97,12 +98,10 @@
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  border-right: 1px solid #e2e8f0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
   transition: all 0.3s ease;
-}
-
-.application-panel:last-child {
-  border-right: none;
 }
 
 .application-panel:hover {
@@ -299,7 +298,9 @@
   .three-panel-layout.cols-2,
   .three-panel-layout.cols-3 {
     grid-template-columns: 1fr;
-    gap: 2px;
+    gap: 16px;
+    padding: 8px 20px 24px;
+    min-height: 0;
   }
 
   .group-heading {
@@ -307,12 +308,7 @@
   }
 
   .application-panel {
-    border-right: none;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .application-panel:last-child {
-    border-bottom: none;
+    border: 1px solid #e2e8f0;
   }
 
   .application-panel:hover {
