@@ -42,6 +42,8 @@ export const landingForCurrentUser = () => {
 // The tiles on the Solutions page: what each one opens, the service it needs and the roles that may use it.
 // Same rules the sign-in redirects have always applied. `modules` null means everything is on.
 export const SOLUTIONS = [
+  // Administrators only; not tied to a service, so it is always there for them.
+  { key: 'management', label: 'Management Portal', module: null, path: '/admin', roles: ['admin', 'system_admin'] },
   { key: 'notes', label: 'POWER Notes', module: 'clinical_documentation', path: '/patients', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar', 'receptionist'] },
   { key: 'scheduler', label: 'POWER Scheduler', module: 'scheduling', path: '/patients?tab=appointments', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar'] },
   { key: 'communicator', label: 'POWER Communicator', module: 'communicator', path: '/communicator', roles: ['admin', 'system_admin', 'registrar'] },
@@ -54,15 +56,15 @@ export const SOLUTIONS = [
 /** The solutions a person may open: their organization has the service and their role may use it. */
 export const solutionsFor = (role, modules) => {
   const all = !Array.isArray(modules);
-  return SOLUTIONS.filter((t) => t.roles.includes(role) && (all || modules.includes(t.module)));
+  return SOLUTIONS.filter((t) => t.roles.includes(role) && (t.module === null || all || modules.includes(t.module)));
 };
 
 /**
- * Where a person goes right after signing in: administrators to the Management Portal, patients to their
- * dashboard, someone with a single available solution straight into it, everyone else to the Solutions page.
+ * Where a person goes right after signing in: patients to their dashboard, someone with a single available
+ * solution straight into it, everyone else (administrators included, who also have the Management Portal tile)
+ * to the Solutions page.
  */
 export const postLoginPath = (role, modules) => {
-  if (role === 'admin' || role === 'system_admin') return '/admin';
   if (!role || role === 'patient') return '/dashboard';
   const list = solutionsFor(role, modules);
   if (list.length === 0) return '/dashboard';

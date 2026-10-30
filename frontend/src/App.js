@@ -77,7 +77,7 @@ import DictatePage from './pages/DictatePage';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/privacy', '/terms', '/telehealth/join'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/privacy', '/terms', '/telehealth/join'].includes(location.pathname);
 
   // Run token migration on app startup
   useEffect(() => {

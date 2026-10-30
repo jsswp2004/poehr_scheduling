@@ -4,8 +4,6 @@ import SolutionsPage from './SolutionsPage';
 
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate }), { virtual: true });
-jest.mock('../components/Header', () => ({ __esModule: true, default: () => null }));
-jest.mock('../components/Footer', () => ({ __esModule: true, default: () => null }));
 
 // A token the page can decode: header.payload.signature with a JSON payload.
 const signIn = (payload) => {
@@ -42,4 +40,20 @@ test('only the services the organization has are shown', () => {
   expect(screen.getByText('POWER Communicator')).toBeInTheDocument();
   expect(screen.queryByText('POWER Notes')).toBeNull();
   expect(screen.queryByText('POWER Telehealth')).toBeNull();
+});
+
+test('an administrator sees the Management Portal first and it opens the portal', () => {
+  signIn({ role: 'admin', modules: ['staffing'] });
+  render(<SolutionsPage />);
+  expect(screen.getByText('Management Portal')).toBeInTheDocument();
+  expect(screen.getByText('POWER Staffing')).toBeInTheDocument();
+  expect(screen.queryByText('POWER Notes')).toBeNull();
+  fireEvent.click(screen.getByText('Management Portal'));
+  expect(mockNavigate).toHaveBeenCalledWith('/admin');
+});
+
+test('nobody but an administrator sees the Management Portal', () => {
+  signIn({ role: 'nurse', modules: null });
+  render(<SolutionsPage />);
+  expect(screen.queryByText('Management Portal')).toBeNull();
 });
