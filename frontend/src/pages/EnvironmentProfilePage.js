@@ -15,7 +15,6 @@ import {
 import axios from "axios";
 import { API_BASE_URL } from '../config/api';
 import HolidaysTab from "./HolidaysPage";
-import OrganizationManagement from "../components/OrganizationManagement";
 import ClinicEventsManagement from "../components/ClinicEventsManagement";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -128,7 +127,6 @@ function EnvironmentProfilePage() {
     { value: "blocked-days", label: "Default Blocked Days" },
     { value: "clinic-events", label: "Clinic Events" },
     { value: "holidays", label: "Holidays" },
-    { value: "organization", label: "Organization" },
   ];
 
   return (
@@ -234,14 +232,6 @@ function EnvironmentProfilePage() {
         </SingleFacilityOnly>
       )}
 
-      {tabKey === "organization" && (
-        <Box sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Organization Management
-          </Typography>
-          <OrganizationManagement />
-        </Box>
-      )}
     </Box>
   );
 }

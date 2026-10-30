@@ -25,7 +25,7 @@ export const useAdminPage = () => {
         { id: 'triage-settings', module: 'triage_boards', label: 'Triage Settings', description: 'Triage scales and prompts', group: 'build', icon: 'FaHeartbeat', path: '/triage-settings', requiredRoles: ['admin', 'system_admin'] },
         { id: 'location-manager', module: ['clinical_documentation', 'triage_boards', 'scheduling'], label: 'Location Manager', description: 'Facilities, units and rooms', group: 'facility', icon: 'FaHospital', path: '/location-manager', requiredRoles: ['admin', 'system_admin'] },
         { id: 'settings', module: ['scheduling', 'clinical_documentation', 'orders_labs', 'prescriptions_referrals', 'triage_boards', 'patient_portal', 'communicator', 'telehealth', 'dictation', 'lab_interface'], label: 'Settings', description: 'Clinic settings', group: 'facility', icon: 'FaTools', path: '/settings', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'organization-access', label: 'Organization Access', description: 'Plan, users and services', group: 'facility', icon: 'FaKey', path: '/organization-access', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'organization-access', label: 'Organization Management', description: 'Plan, users, services and organization details', group: 'facility', icon: 'FaKey', path: '/organization-access', requiredRoles: ['admin', 'system_admin'] },
         { id: 'system-dictionaries', label: 'System Dictionaries', description: 'Dropdown lists used across the app', group: 'facility', icon: 'FaBook', path: '/system-dictionaries', requiredRoles: ['system_admin'] },
         { id: 'profile', label: 'Profile', description: 'Your account', group: 'facility', icon: 'FaUserCog', path: '/profile', requiredRoles: ['admin', 'system_admin'] },
     ];
