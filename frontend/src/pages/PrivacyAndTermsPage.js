@@ -1,299 +1,173 @@
 import React from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-  Paper,
-  Divider,
-  Stack,
-} from '@mui/material';
+import { LegalPage, LegalSection } from '../components/LegalPage';
+
+const UPDATED = 'October 30, 2026';
+
+const PRIVACY = [
+  {
+    title: "1. Information We Collect",
+    content: [
+      "We collect information you provide directly to us, such as when you:",
+      { list: ["Create an account or profile", "Schedule, modify, or cancel appointments", "Communicate with healthcare providers", "Use our messaging services", "Provide feedback or contact us"] },
+      "This may include your name, email address, phone number, date of birth, medical information, appointment details, and communication preferences.",
+    ],
+  },
+  {
+    title: "2. How We Use Your Information",
+    content: [
+      "We use the information we collect to:",
+      { list: ["Provide, maintain, and improve our scheduling services", "Process and manage your appointments", "Send appointment reminders and health alerts via SMS (with your consent)", "Facilitate communication between you and your healthcare providers", "Respond to your comments, questions, and requests", "Ensure the security and integrity of our services", "Comply with legal obligations and healthcare regulations"] },
+    ],
+  },
+  {
+    title: "3. SMS Communications",
+    content: [
+      "By providing your phone number and consenting to SMS communications, you agree to receive:",
+      { list: ["Automated appointment reminders", "Health alerts and notifications", "Service-related messages"] },
+      "Message frequency varies. Message and data rates may apply. You can opt out at any time by replying STOP to any message. Reply HELP for support information.",
+    ],
+  },
+  {
+    title: "4. Information Sharing and Disclosure",
+    content: [
+      "We do not sell, trade, or otherwise transfer your personal information to third parties except in the following circumstances:",
+      { list: ["With your healthcare providers as necessary for your care", "With your explicit consent", "To comply with legal obligations or court orders", "To protect our rights, property, or safety, or that of others", "In connection with a business transfer or acquisition"] },
+    ],
+  },
+  {
+    title: "5. Data Security",
+    content: [
+      "We implement appropriate technical and organizational security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet or electronic storage is 100% secure.",
+    ],
+  },
+  {
+    title: "6. HIPAA Compliance",
+    content: [
+      "As a healthcare technology service, we are committed to maintaining the privacy and security of your protected health information (PHI) in accordance with the Health Insurance Portability and Accountability Act (HIPAA) and other applicable healthcare privacy laws.",
+    ],
+  },
+  {
+    title: "7. Your Rights",
+    content: [
+      "Depending on your location, you may have the following rights regarding your personal information:",
+      { list: ["Access and obtain a copy of your personal information", "Correct inaccurate personal information", "Request deletion of your personal information", "Withdraw consent for SMS communications", "Request restrictions on how we use your information"] },
+    ],
+  },
+];
+
+const TERMS = [
+  {
+    title: "1. Acceptance of Terms",
+    content: [
+      "By accessing and using the POWER Healthcare IT Systems scheduling application, you accept and agree to be bound by the terms and provision of this agreement.",
+    ],
+  },
+  {
+    title: "2. Use License",
+    content: [
+      "Permission is granted to temporarily use this application for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:",
+      { list: ["Modify or copy the materials", "Use the materials for any commercial purpose or for any public display", "Attempt to reverse engineer any software contained in the application", "Remove any copyright or other proprietary notations from the materials"] },
+    ],
+  },
+  {
+    title: "3. User Responsibilities",
+    content: [
+      "As a user of our scheduling application, you agree to:",
+      { list: ["Provide accurate and complete information", "Maintain the security of your account credentials", "Use the service only for its intended healthcare scheduling purposes", "Comply with all applicable laws and regulations", "Respect the privacy and rights of other users", "Not use the service for any unlawful or prohibited activities"] },
+    ],
+  },
+  {
+    title: "4. Appointment Scheduling",
+    content: [
+      "Our application facilitates appointment scheduling between patients and healthcare providers. Please note:",
+      { list: ["All appointments are subject to provider availability and confirmation", "You are responsible for arriving on time for scheduled appointments", "Cancellation policies may vary by provider", "Emergency medical situations should not be handled through this application"] },
+    ],
+  },
+  {
+    title: "5. Service Availability",
+    content: [
+      "We strive to maintain high availability of our services, but we do not guarantee uninterrupted access. The service may be temporarily unavailable due to maintenance, updates, or circumstances beyond our control.",
+    ],
+  },
+  {
+    title: "6. Limitation of Liability",
+    content: [
+      "POWER Healthcare IT Systems shall not be liable for any damages arising from the use or inability to use this application, including but not limited to direct, indirect, incidental, punitive, and consequential damages.",
+    ],
+  },
+  {
+    title: "7. Modifications",
+    content: [
+      "We may revise these terms of service from time to time. For material changes we will give notice by email or in the application at least 30 days before they take effect. By continuing to use this application after a change takes effect, you agree to be bound by the then current version of these terms of service.",
+    ],
+  },
+  {
+    title: "8. Medical Disclaimer",
+    content: [
+      "This application is for scheduling purposes only and does not provide medical advice, diagnosis, or treatment. Always consult with qualified healthcare professionals for medical concerns. In case of emergency, call 911 or your local emergency services.",
+    ],
+  },
+];
+
+function renderContent(content) {
+  return content.map((c, i) =>
+    typeof c === 'string' ? (
+      <p key={i}>{c}</p>
+    ) : (
+      <ul key={i}>
+        {c.list.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    )
+  );
+}
 
 function PrivacyAndTermsPage() {
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom align="center" color="primary">
-          Privacy Policy and Terms of Service
-        </Typography>
-        
-        <Typography variant="h6" align="center" color="text.secondary" sx={{ mb: 4 }}>
-          POWER Healthcare IT Systems - Scheduling Application
-        </Typography>
+    <LegalPage
+      title="Privacy Policy and Terms of Service"
+      subtitle="POWER Healthcare IT Systems - Scheduling Application"
+      updated={UPDATED}
+    >
+      <nav className="lg-jump" aria-label="On this page">
+        <a href="#privacy-policy">Privacy Policy</a>
+        <a href="#terms-of-service">Terms of Service</a>
+        <a href="#contact">Contact</a>
+      </nav>
 
-        <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 4 }}>
-          Last Updated: October 30, 2026
-        </Typography>
+      <h2 className="lg-part" id="privacy-policy">Privacy Policy</h2>
+      {PRIVACY.map((s) => (
+        <LegalSection key={s.title} title={s.title} level={3}>
+          {renderContent(s.content)}
+        </LegalSection>
+      ))}
 
-        <Divider sx={{ mb: 4 }} />
+      <h2 className="lg-part" id="terms-of-service">Terms of Service</h2>
+      {TERMS.map((s) => (
+        <LegalSection key={s.title} title={s.title} level={3}>
+          {renderContent(s.content)}
+        </LegalSection>
+      ))}
 
-        {/* Privacy Policy Section */}
-        <Box sx={{ mb: 6 }}>
-          <Typography variant="h4" component="h2" gutterBottom color="primary">
-            Privacy Policy
-          </Typography>
+      <h2 className="lg-part" id="contact">Contact Information</h2>
+      <LegalSection title="POWER Healthcare IT Systems" level={3}>
+        <p>
+          If you have any questions about this Privacy Policy and Terms of Service, please contact us at:
+        </p>
+        <p>
+          Email: <a href="mailto:power@powerhealthit.com">power@powerhealthit.com</a>
+          <br />
+          Website: <a href="https://powerhealthit.com">https://powerhealthit.com</a>
+        </p>
+      </LegalSection>
 
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                1. Information We Collect
-              </Typography>
-              <Typography variant="body1" paragraph>
-                We collect information you provide directly to us, such as when you:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                <li>Create an account or profile</li>
-                <li>Schedule, modify, or cancel appointments</li>
-                <li>Communicate with healthcare providers</li>
-                <li>Use our messaging services</li>
-                <li>Provide feedback or contact us</li>
-              </Box>
-              <Typography variant="body1" paragraph>
-                This may include your name, email address, phone number, date of birth, 
-                medical information, appointment details, and communication preferences.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                2. How We Use Your Information
-              </Typography>
-              <Typography variant="body1" paragraph>
-                We use the information we collect to:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                <li>Provide, maintain, and improve our scheduling services</li>
-                <li>Process and manage your appointments</li>
-                <li>Send appointment reminders and health alerts via SMS (with your consent)</li>
-                <li>Facilitate communication between you and your healthcare providers</li>
-                <li>Respond to your comments, questions, and requests</li>
-                <li>Ensure the security and integrity of our services</li>
-                <li>Comply with legal obligations and healthcare regulations</li>
-              </Box>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                3. SMS Communications
-              </Typography>
-              <Typography variant="body1" paragraph>
-                By providing your phone number and consenting to SMS communications, you agree to receive:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                <li>Automated appointment reminders</li>
-                <li>Health alerts and notifications</li>
-                <li>Service-related messages</li>
-              </Box>
-              <Typography variant="body1" paragraph>
-                Message frequency varies. Message and data rates may apply. You can opt out at any time 
-                by replying STOP to any message. Reply HELP for support information.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                4. Information Sharing and Disclosure
-              </Typography>
-              <Typography variant="body1" paragraph>
-                We do not sell, trade, or otherwise transfer your personal information to third parties 
-                except in the following circumstances:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                <li>With your healthcare providers as necessary for your care</li>
-                <li>With your explicit consent</li>
-                <li>To comply with legal obligations or court orders</li>
-                <li>To protect our rights, property, or safety, or that of others</li>
-                <li>In connection with a business transfer or acquisition</li>
-              </Box>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                5. Data Security
-              </Typography>
-              <Typography variant="body1" paragraph>
-                We implement appropriate technical and organizational security measures to protect 
-                your personal information against unauthorized access, alteration, disclosure, or 
-                destruction. However, no method of transmission over the Internet or electronic 
-                storage is 100% secure.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                6. HIPAA Compliance
-              </Typography>
-              <Typography variant="body1" paragraph>
-                As a healthcare technology service, we are committed to maintaining the privacy and 
-                security of your protected health information (PHI) in accordance with the Health 
-                Insurance Portability and Accountability Act (HIPAA) and other applicable healthcare 
-                privacy laws.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                7. Your Rights
-              </Typography>
-              <Typography variant="body1" paragraph>
-                Depending on your location, you may have the following rights regarding your personal information:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                <li>Access and obtain a copy of your personal information</li>
-                <li>Correct inaccurate personal information</li>
-                <li>Request deletion of your personal information</li>
-                <li>Withdraw consent for SMS communications</li>
-                <li>Request restrictions on how we use your information</li>
-              </Box>
-            </Box>
-          </Stack>
-        </Box>
-
-        <Divider sx={{ mb: 4 }} />
-
-        {/* Terms of Service Section */}
-        <Box sx={{ mb: 6 }}>
-          <Typography variant="h4" component="h2" gutterBottom color="primary">
-            Terms of Service
-          </Typography>
-
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                1. Acceptance of Terms
-              </Typography>
-              <Typography variant="body1" paragraph>
-                By accessing and using the POWER Healthcare IT Systems scheduling application, 
-                you accept and agree to be bound by the terms and provision of this agreement.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                2. Use License
-              </Typography>
-              <Typography variant="body1" paragraph>
-                Permission is granted to temporarily use this application for personal, 
-                non-commercial transitory viewing only. This is the grant of a license, 
-                not a transfer of title, and under this license you may not:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                <li>Modify or copy the materials</li>
-                <li>Use the materials for any commercial purpose or for any public display</li>
-                <li>Attempt to reverse engineer any software contained in the application</li>
-                <li>Remove any copyright or other proprietary notations from the materials</li>
-              </Box>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                3. User Responsibilities
-              </Typography>
-              <Typography variant="body1" paragraph>
-                As a user of our scheduling application, you agree to:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                <li>Provide accurate and complete information</li>
-                <li>Maintain the security of your account credentials</li>
-                <li>Use the service only for its intended healthcare scheduling purposes</li>
-                <li>Comply with all applicable laws and regulations</li>
-                <li>Respect the privacy and rights of other users</li>
-                <li>Not use the service for any unlawful or prohibited activities</li>
-              </Box>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                4. Appointment Scheduling
-              </Typography>
-              <Typography variant="body1" paragraph>
-                Our application facilitates appointment scheduling between patients and healthcare 
-                providers. Please note:
-              </Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                <li>All appointments are subject to provider availability and confirmation</li>
-                <li>You are responsible for arriving on time for scheduled appointments</li>
-                <li>Cancellation policies may vary by provider</li>
-                <li>Emergency medical situations should not be handled through this application</li>
-              </Box>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                5. Service Availability
-              </Typography>
-              <Typography variant="body1" paragraph>
-                We strive to maintain high availability of our services, but we do not guarantee 
-                uninterrupted access. The service may be temporarily unavailable due to maintenance, 
-                updates, or circumstances beyond our control.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                6. Limitation of Liability
-              </Typography>
-              <Typography variant="body1" paragraph>
-                POWER Healthcare IT Systems shall not be liable for any damages arising from the 
-                use or inability to use this application, including but not limited to direct, 
-                indirect, incidental, punitive, and consequential damages.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                7. Modifications
-              </Typography>
-              <Typography variant="body1" paragraph>
-                We may revise these terms of service from time to time. For material changes we will give notice by email or in the application at least 30 days before they take effect. By continuing to use this application after a change takes effect, you agree to be bound by the then current version of these terms of service.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="h5" component="h3" gutterBottom>
-                8. Medical Disclaimer
-              </Typography>
-              <Typography variant="body1" paragraph>
-                This application is for scheduling purposes only and does not provide medical advice, 
-                diagnosis, or treatment. Always consult with qualified healthcare professionals for 
-                medical concerns. In case of emergency, call 911 or your local emergency services.
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
-
-        <Divider sx={{ mb: 4 }} />
-
-        {/* Contact Information */}
-        <Box>
-          <Typography variant="h4" component="h2" gutterBottom color="primary">
-            Contact Information
-          </Typography>
-          <Typography variant="body1" paragraph>
-            If you have any questions about this Privacy Policy and Terms of Service, 
-            please contact us at:
-          </Typography>
-          <Box sx={{ pl: 2 }}>
-            <Typography variant="body1">
-              <strong>POWER Healthcare IT Systems</strong>
-            </Typography>
-            <Typography variant="body1">
-              Email: power@powerhealthit.com
-            </Typography>
-            <Typography variant="body1">
-              Website: https://powerhealthit.com
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box sx={{ mt: 4, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            This Privacy Policy and Terms of Service document is effective as of October 30, 2026. 
-            We may update this document from time to time to reflect changes in our practices or 
-            applicable laws. Please check this page periodically for updates.
-          </Typography>
-        </Box>
-      </Paper>
-    </Container>
+      <p className="lg-note">
+        This Privacy Policy and Terms of Service document is effective as of {UPDATED}. We may update this document
+        from time to time to reflect changes in our practices or applicable laws. Please check this page periodically
+        for updates.
+      </p>
+    </LegalPage>
   );
 }
 

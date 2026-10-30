@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Container, Divider, Link, Paper, Stack, Typography } from "@mui/material";
+import { LegalPage, LegalSection } from "../components/LegalPage";
 
 const UPDATED = "October 30, 2026";
 const EMAIL = "power@powerhealthit.com";
@@ -102,52 +102,34 @@ const SECTIONS = [
 
 function PrivacyPolicy() {
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: { xs: 2.5, sm: 4 } }}>
-        <Typography variant="h4" component="h1" gutterBottom color="primary">
-          POWER Staffing Privacy Policy
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          POWER Healthcare IT Systems · Last updated: {UPDATED}
-        </Typography>
-        <Divider sx={{ mb: 3 }} />
-        <Stack spacing={3}>
-          {SECTIONS.map((s) => (
-            <Box key={s.title} component="section">
-              <Typography variant="h6" component="h2" gutterBottom>
-                {s.title}
-              </Typography>
-              {(s.body || []).map((p) => (
-                <Typography key={p} variant="body1" paragraph>
-                  {p}
-                </Typography>
-              ))}
-              {s.list && (
-                <Box component="ul" sx={{ pl: 3, mt: 0, mb: 1 }}>
-                  {s.list.map((item) => (
-                    <Typography key={item} component="li" variant="body1" sx={{ mb: 0.5 }}>
-                      {item}
-                    </Typography>
-                  ))}
-                </Box>
-              )}
-              {s.after && (
-                <Typography variant="body1" paragraph>
-                  {s.after}
-                </Typography>
-              )}
-              {s.contact && (
-                <Typography variant="body1" component="div">
-                  Email: <Link href={`mailto:${EMAIL}`}>{EMAIL}</Link>
-                  <br />
-                  Phone: <Link href="tel:+13018806015">301-880-6015</Link>
-                </Typography>
-              )}
-            </Box>
+    <LegalPage
+      title="POWER Staffing Privacy Policy"
+      subtitle="POWER Healthcare IT Systems"
+      updated={UPDATED}
+    >
+      {SECTIONS.map((s) => (
+        <LegalSection key={s.title} title={s.title}>
+          {(s.body || []).map((p) => (
+            <p key={p}>{p}</p>
           ))}
-        </Stack>
-      </Paper>
-    </Container>
+          {s.list && (
+            <ul>
+              {s.list.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          )}
+          {s.after && <p>{s.after}</p>}
+          {s.contact && (
+            <p>
+              Email: <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
+              <br />
+              Phone: <a href="tel:+13018806015">301-880-6015</a>
+            </p>
+          )}
+        </LegalSection>
+      ))}
+    </LegalPage>
   );
 }
 
