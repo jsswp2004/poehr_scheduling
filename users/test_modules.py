@@ -307,3 +307,16 @@ class AssistantCostReportTests(TestCase):
         self.assertIn("$0.0060 average per question", out)
         self.assertIn("$0.02 per question", out)
         self.assertIn(f"org {org.id}: 2 questions", out)
+
+    def test_lists_the_models_that_answered(self):
+        import uuid
+
+        from communicator.models import CommunicatorAssistantMessage as Log
+
+        org = make_org("H")
+        for m in ("claude-sonnet-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"):
+            Log.objects.create(organization=org, conversation_id=uuid.uuid4(), question="q", answer="a",
+                               model=m, input_tokens=1000, output_tokens=100)
+        out = self.run_cmd("--input-price", "1", "--output-price", "5")
+        self.assertIn("claude-sonnet-5-5 (2), claude-haiku-5-5 (1)", out)
+        self.assertIn("More than one model appears", out)
