@@ -38,7 +38,7 @@ import { moduleEnabled } from "../utils/orgModules";
 import ReportRelationshipMap from "../components/reports/ReportRelationshipMap";
 import { STANDARD_REPORTS, dayTime, errorText, headers, listReports } from "../components/reports/reportUtils";
 
-const TABS = ["all", "std", "mine", "shared", "doc", "analytics", "map", "audit"];
+const TABS = ["all", "std", "mine", "shared", "analytics", "map", "audit"];
 // Roles that can see appointment and patient analytics (same as the old Analytics page).
 const ANALYTICS_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar"];
 const tokenRole = () => {
@@ -156,7 +156,6 @@ export default function ReportsHomePage() {
       std: rows.filter((r) => r.standard).length,
       mine: rows.filter((r) => !r.standard && r.is_mine).length,
       shared: rows.filter((r) => !r.standard && !r.is_mine).length,
-      doc: rows.filter((r) => r.source === "note_documentation").length,
     }),
     [rows, analyticsCount]
   );
@@ -166,7 +165,6 @@ export default function ReportsHomePage() {
     if (tab === "std" && !r.standard) return false;
     if (tab === "mine" && (r.standard || !r.is_mine)) return false;
     if (tab === "shared" && (r.standard || r.is_mine)) return false;
-    if (tab === "doc" && r.source !== "note_documentation") return false;
     return !query || r.name.toLowerCase().includes(query.toLowerCase());
   });
 
@@ -211,7 +209,6 @@ export default function ReportsHomePage() {
         { key: "std", label: "Standard", count: counts.std },
         { key: "mine", label: "My reports", count: counts.mine },
         { key: "shared", label: "Shared with me", count: counts.shared },
-        { key: "doc", label: "Documentation", count: counts.doc },
         ...(showAnalytics ? [{ key: "analytics", label: "Appointments and patients", count: analyticsCount }] : []),
         { key: "map", label: "Relationship map" },
         ...(audit ? [{ key: "audit", label: "Audit log", count: audit.length }] : []),
@@ -343,21 +340,6 @@ export default function ReportsHomePage() {
         </Alert>
       )}
 
-      {tab === "doc" && (
-        <Alert
-          severity="info"
-          icon={false}
-          sx={{ mb: 1.5 }}
-          action={
-            <Button color="inherit" size="small" startIcon={<AddIcon />} onClick={() => navigate("/reports/documentation/new")}>
-              New documentation report
-            </Button>
-          }
-        >
-          Reports on documented notes and screens, structured or free text, such as every PHQ-9 with its total score, date, nurse, attending physician and discipline. Pick the notes, the columns and the observations to include.
-        </Alert>
-      )}
-
       <Paper variant="outlined" sx={{ overflowX: { xs: "auto", md: "clip" } }}>
         <Table size="small" aria-label="Reports">
           <TableHead>
@@ -384,11 +366,7 @@ export default function ReportsHomePage() {
               <TableRow>
                 <TableCell colSpan={7}>
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                    {tab === "mine"
-                      ? "You have not built a report yet. Choose New report to start one."
-                      : tab === "doc"
-                        ? "No documentation reports yet. Choose New documentation report to build one."
-                        : "No reports match."}
+                    {tab === "mine" ? "You have not built a report yet. Choose New report to start one." : "No reports match."}
                   </Typography>
                 </TableCell>
               </TableRow>
