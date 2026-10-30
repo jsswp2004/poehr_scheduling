@@ -16,7 +16,6 @@ import {
   PatientsTable,
   TeamTable,
   AppointmentsSection,
-  AnalyticsSection,
   EmailModal,
 } from "../components/patients";
 import RegisterPage from "./RegisterPage";
@@ -58,7 +57,6 @@ import { useTeam } from "../hooks/useTeam";
 import { secure, errorText } from "../components/secureMessages/secureApi";
 import { usePatientsAppointments } from "../hooks/usePatientsAppointments";
 import { useAnalytics } from "../hooks/useAnalytics";
-import { useSubscriptionAccess, SubscriptionGate } from "../hooks/useSubscriptionAccess";
 // import { useAuth } from "../hooks/useAuth"; // Commented out since not used
 
 // Utils
@@ -77,7 +75,6 @@ const SIDE_GAP = { pl: 2, pr: 2 };
 const VIEW_TITLES = {
   team: "Team",
   appointments: "Appointments",
-  analytics: "Analytics",
   register: "Register",
 };
 
@@ -94,6 +91,11 @@ function PatientsPage() {
 
   // Header module links (Documentation / Scheduler) change ?tab= while this
   // page is already mounted, so follow the URL after the first render.
+  // Analytics now lives on the Reports page ("Appointments and patients"); old links land there.
+  useEffect(() => {
+    if (tabParam === "analytics") navigate("/reports?tab=analytics", { replace: true });
+  }, [tabParam, navigate]);
+
   const lastTabParam = useRef(tabParam);
   useEffect(() => {
     if (lastTabParam.current === tabParam) return;
@@ -200,9 +202,6 @@ function PatientsPage() {
     await patients.fetchPatients();
   }, [patients]);
 
-  // Subscription access control
-  const { userTier, permissions } = useSubscriptionAccess();
-
   // Get current user from token
   useEffect(() => {
     const token = getAccessToken();
@@ -301,8 +300,6 @@ function PatientsPage() {
       patients.fetchPatients();
     } else if (tab === "team") {
       team.fetchTeam();
-    } else if (tab === "analytics") {
-      analytics.fetchProviders(token);
     } else if (tab === "appointments") {
       analytics.fetchProviders(token);
       appointments.fetchTodaysAppointments(token);
@@ -444,11 +441,6 @@ function PatientsPage() {
     },
     [token, appointments]
   );
-
-  // Analytics handlers
-  const handleDownloadReport = (reportName) => {
-    analytics.downloadCSVReport(reportName, token);
-  };
 
   if (!token || !currentUser) {
     return (
@@ -770,31 +762,6 @@ function PatientsPage() {
             />
           )}
 
-          {tab === "analytics" && (
-            <SubscriptionGate
-              feature="analyticsSection"
-              userTier={userTier}
-              permissions={permissions}
-              showUpgradePrompt={true}
-            >
-              <AnalyticsSection
-                analyticsTab={analytics.analyticsTab}
-                setAnalyticsTab={analytics.setAnalyticsTab}
-                reportStartDate={analytics.reportStartDate}
-                setReportStartDate={analytics.setReportStartDate}
-                reportEndDate={analytics.reportEndDate}
-                setReportEndDate={analytics.setReportEndDate}
-                reportProvider={analytics.reportProvider}
-                setReportProvider={analytics.setReportProvider}
-                providers={analytics.providers}
-                analyticsReports={analytics.analyticsReports}
-                advancedAnalyticsReports={analytics.advancedAnalyticsReports}
-                onDownloadReport={handleDownloadReport}
-                organizationData={analytics.organizationData}
-                organizationLogo={analytics.organizationLogo}
-              />
-            </SubscriptionGate>
-          )}
 
           {tab === "register" && (
             // RegisterPage pads its own sides by 16px; pull it out by the same amount so it lines up with Team.

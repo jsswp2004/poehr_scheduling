@@ -34,7 +34,6 @@ import VideocamIcon from "@mui/icons-material/Videocam";
 import MicIcon from "@mui/icons-material/Mic";
 import ScienceIcon from "@mui/icons-material/Science";
 import PeopleIcon from "@mui/icons-material/People";
-import BarChartIcon from "@mui/icons-material/BarChart";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -60,7 +59,7 @@ const STAFF_MODULE_ROLES = [
 // kept in ?tab=, so Documentation and Scheduler share /patients and are told
 // apart by that parameter.
 // Views of the Patients page that have their own header icon (opened with ?tab=...).
-const PATIENTS_PAGE_VIEWS = ["appointments", "team", "analytics", "register"];
+const PATIENTS_PAGE_VIEWS = ["appointments", "team", "register"];
 
 // Roles that can use secure staff messaging (the server decides; this only hides the icon).
 const SECURE_MESSAGE_ROLES = ["doctor", "nurse", "registrar", "receptionist", "admin"];
@@ -105,15 +104,6 @@ const MODULE_LINKS = [
     Icon: PeopleIcon,
     roles: STAFF_MODULE_ROLES,
     isActive: (path, tab) => path === "/patients" && tab === "team",
-  },
-  {
-    key: "analytics",
-    module: "scheduling",
-    label: "Analytics",
-    to: "/patients?tab=analytics",
-    Icon: BarChartIcon,
-    roles: STAFF_MODULE_ROLES,
-    isActive: (path, tab) => path === "/patients" && tab === "analytics",
   },
   {
     key: "register",
