@@ -6,7 +6,7 @@ import { toast } from '../../components/SimpleToast';
 import { notifyProfileUpdated, refreshAuthState } from '../../utils/events';
 import { storeTokens } from '../../utils/tokenManager';
 import { API_BASE_URL } from '../../config/api';
-import { landingPath } from '../../utils/landing';
+import { postLoginPath } from '../../utils/landing';
 
 /**
  * Custom hook for managing login functionality
@@ -122,8 +122,9 @@ export const useLogin = () => {
             }
         } else {
             console.log('Login Debug - Using default role-based redirect');
-            // Default: the organization's own landing, from its services (administrators: Management Portal)
-            navigate(landingPath(userRole, modules));
+            // Default: the Solutions page with the services this person can open (administrators: Management
+            // Portal; patients: dashboard; a single available service: straight into it)
+            navigate(postLoginPath(userRole, modules));
         }
     };
 
