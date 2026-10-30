@@ -37,6 +37,8 @@ import MicIcon from "@mui/icons-material/Mic";
 import ScienceIcon from "@mui/icons-material/Science";
 import PeopleIcon from "@mui/icons-material/People";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import AppsIcon from "@mui/icons-material/Apps";
+import { currentSignIn, solutionsFor } from "../utils/landing";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ForumIcon from "@mui/icons-material/Forum";
@@ -518,6 +520,10 @@ function Navbar() {
   const showAdminPortal =
     (role === "admin" || role === "system_admin") && location.pathname !== "/dashboard";
   const showAccount = role === "admin" || role === "system_admin";
+  // Back to the Solutions page: only for people who have something to choose there (two or more solutions).
+  const me = currentSignIn();
+  const showSolutions = isAuthenticated && !!me && solutionsFor(me.role, me.modules).length >= 2;
+  const onSolutions = location.pathname === "/solutions";
   const showReports = STAFF_MODULE_ROLES.includes(role);  // Reports is always on, for every organization
   const goTo = (path) => {
     closeMenu();
@@ -621,6 +627,25 @@ function Navbar() {
         <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           {isAuthenticated && (
             <>
+              {/* Solutions icon: one click back to the Solutions page */}
+              {showSolutions && (
+                <Tooltip title="Solutions">
+                  <IconButton
+                    color="inherit"
+                    sx={{
+                      mr: 1,
+                      display: { xs: "none", lg: "inline-flex" },
+                      bgcolor: onSolutions ? "rgba(255,255,255,0.2)" : "transparent",
+                    }}
+                    onClick={() => navigate("/solutions")}
+                    aria-label="Solutions"
+                    aria-current={onSolutions ? "page" : undefined}
+                  >
+                    <AppsIcon sx={{ color: "white" }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+
               {/* Module links: Documentation, Scheduler, Patient Portal, Staffing */}
               {role && moduleLinks.length > 0 && (
                 <Box
@@ -718,6 +743,14 @@ function Navbar() {
                     onClose={closeMenu}
                     PaperProps={{ sx: { minWidth: 240, maxHeight: "70vh" } }}
                   >
+                    {showSolutions && (
+                      <MenuItem selected={onSolutions} onClick={() => goTo("/solutions")}>
+                        <ListItemIcon>
+                          <AppsIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Solutions</ListItemText>
+                      </MenuItem>
+                    )}
                     {moduleLinks.map(({ key, label, to, Icon, active }) => (
                       <MenuItem
                         key={key}
