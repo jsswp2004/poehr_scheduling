@@ -1764,6 +1764,10 @@ class ReferralSettings(models.Model):
     organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="referral_settings")
     schedule_days = models.JSONField(default=dict, blank=True)  # {"routine": 14, "urgent": 3, "emergent": 1}
     report_days = models.PositiveIntegerField(default=14)
+    # Who is told when a specialist replies through the secure link (the in-app status always changes).
+    notify_clinic_email = models.BooleanField(default=True)
+    notify_clinic_sms = models.BooleanField(default=False)
+    notify_specialist_receipt = models.BooleanField(default=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )

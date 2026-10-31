@@ -146,6 +146,7 @@ const URGENCIES = [
 function Timers({ canEdit }) {
   const [days, setDays] = useState({ routine: "14", urgent: "3", emergent: "1" });
   const [report, setReport] = useState("14");
+  const [notice, setNotice] = useState({ clinicEmail: true, clinicSms: false, receipt: true });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -156,6 +157,11 @@ function Timers({ canEdit }) {
         const d = res.data.schedule_days || {};
         setDays({ routine: String(d.routine ?? 14), urgent: String(d.urgent ?? 3), emergent: String(d.emergent ?? 1) });
         setReport(String(res.data.report_days ?? 14));
+        setNotice({
+          clinicEmail: res.data.notify_clinic_email !== false,
+          clinicSms: res.data.notify_clinic_sms === true,
+          receipt: res.data.notify_specialist_receipt !== false,
+        });
       } catch (err) {
         setError(errorText(err, "Could not load the timers."));
       }
@@ -175,9 +181,19 @@ function Timers({ canEdit }) {
     setBusy(true);
     try {
       await applyToFacilities(async () =>
-        api.put(apiEndpoints.referralSettings, { schedule_days: parsed, report_days: r }, { headers: await authHeader() })
+        api.put(
+          apiEndpoints.referralSettings,
+          {
+            schedule_days: parsed,
+            report_days: r,
+            notify_clinic_email: notice.clinicEmail,
+            notify_clinic_sms: notice.clinicSms,
+            notify_specialist_receipt: notice.receipt,
+          },
+          { headers: await authHeader() }
+        )
       );
-      toast.success("Timers saved. They apply to referrals sent from now on.");
+      toast.success("Saved. Timers apply to referrals sent from now on.");
     } catch (err) {
       setError(errorText(err, "Could not save the timers."));
     } finally {
@@ -214,6 +230,32 @@ function Timers({ canEdit }) {
           onChange={(e) => setReport(e.target.value)}
           inputProps={{ min: 1, max: 365, "data-testid": "timer-report" }}
         />
+      </Stack>
+      <Typography variant="subtitle1" sx={{ mt: 3 }}>
+        When a specialist replies through the secure link
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        The referral's status always changes and shows in the Referral List. These choices add a message. The clinic message goes to the person the referral is assigned to, or the referring physician if no one is. Neither message has patient details. Each text or email counts toward your monthly messages.
+      </Typography>
+      <Stack>
+        {[
+          ["clinicEmail", "Email the clinic when a specialist replies"],
+          ["clinicSms", "Text the clinic when a specialist replies"],
+          ["receipt", "Send the specialist a receipt, by the way their link was sent"],
+        ].map(([key, label]) => (
+          <FormControlLabel
+            key={key}
+            control={
+              <Switch
+                checked={notice[key]}
+                disabled={!canEdit}
+                onChange={(e) => setNotice((n) => ({ ...n, [key]: e.target.checked }))}
+                inputProps={{ "data-testid": `notice-${key}` }}
+              />
+            }
+            label={label}
+          />
+        ))}
       </Stack>
       {canEdit && (
         <SettingsToolbarPortal>

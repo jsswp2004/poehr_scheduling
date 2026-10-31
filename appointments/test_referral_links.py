@@ -496,3 +496,90 @@ class EndingTests(LinkBase):
         packet_two = self.authed(self.open_and_verify(key_two)).get(PACKET).json()
         self.assertEqual(packet_one["reason"], "Chest pain on exertion")
         self.assertEqual(packet_two["reason"], "A different problem")
+
+
+class ReplyNoticeTests(LinkBase):
+    """Who is told when a specialist replies. No patient details and none of the reply's words."""
+
+    def setUp(self):
+        super().setUp()
+        self.doctor.email = "doc@clinic.example"
+        self.doctor.phone_number = "301-555-0199"
+        self.doctor.save()
+        self.data, self.key = self.sent_key()
+        self.ref_id = self.data["id"]
+        self.c = self.authed(self.open_and_verify(self.key))
+        self.sms.reset_mock()
+        self.mail.reset_mock()
+
+    def reply(self, action="needs_info", **fields):
+        fields.setdefault("message", "Please send the last ECG, Bcs chest pain.")
+        return self.c.post(REPLY, {"action": action, **fields}, format="multipart")
+
+    def settings(self, **fields):
+        return self.as_(self.admin).put("/api/referral-settings/", fields, format="json")
+
+    def test_by_default_the_clinic_is_emailed_and_the_specialist_gets_a_receipt(self):
+        self.assertEqual(self.reply().status_code, 200)
+        subjects = [c.args[1] for c in self.mail.call_args_list]
+        self.assertIn("A referral has a reply", subjects)
+        self.assertTrue(any("received your reply" in s for s in subjects))
+        # texts: the clinic text is off by default, the specialist's receipt goes by the way the link came
+        texts = [c.args[1] for c in self.sms.call_args_list]
+        self.assertEqual(len(texts), 1)
+        self.assertIn("received your reply", texts[0])
+        addressed = [c.args[0] for c in self.mail.call_args_list]
+        self.assertIn("doc@clinic.example", addressed)
+
+    def test_no_patient_details_and_none_of_the_reply_are_in_any_message(self):
+        self.settings(notify_clinic_sms=True)
+        self.reply()
+        messages = [c.args[1] for c in self.sms.call_args_list] + [a for c in self.mail.call_args_list for a in c.args[1:3]]
+        self.assertTrue(messages)
+        for m in messages:
+            for secret in ("Bcs", "Test", "Chest pain", "ECG", "Cardiology", "R07.9"):
+                self.assertNotIn(secret, m)
+
+    def test_clinic_text_can_be_turned_on_and_email_and_receipt_off(self):
+        r = self.settings(notify_clinic_sms=True, notify_clinic_email=False, notify_specialist_receipt=False)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["notify_clinic_sms"], True)
+        self.reply()
+        self.assertEqual(self.mail.call_count, 0)
+        self.assertEqual([c.args[0] for c in self.sms.call_args_list], ["301-555-0199"])
+
+    def test_everything_off_sends_nothing_and_the_reply_still_lands(self):
+        self.settings(notify_clinic_email=False, notify_specialist_receipt=False)
+        self.assertEqual(self.reply().status_code, 200)
+        self.assertEqual(self.sms.call_count + self.mail.call_count, 0)
+        self.assertEqual(self.as_(self.nurse).get(DETAIL.format(self.ref_id)).json()["status"], "needs_info")
+
+    def test_the_assigned_person_is_told_instead_of_the_referring_physician(self):
+        ref = Referral.objects.get(pk=self.ref_id)
+        ref.assigned_to = self.nurse
+        ref.save()
+        self.nurse.email = "nurse@clinic.example"
+        self.nurse.save()
+        self.reply()
+        addressed = [c.args[0] for c in self.mail.call_args_list]
+        self.assertIn("nurse@clinic.example", addressed)
+        self.assertNotIn("doc@clinic.example", addressed)
+
+    def test_a_failing_message_never_blocks_the_reply(self):
+        self.mail.side_effect = RuntimeError("smtp down")
+        self.assertEqual(self.reply().status_code, 200)
+        d = self.as_(self.nurse).get(DETAIL.format(self.ref_id)).json()
+        self.assertEqual(d["status"], "needs_info")
+        notice = [e for e in d["events"] if e["type"] == "reply_notified"][0]
+        self.assertTrue(all(not r["sent"] for r in notice["detail"]["results"] if r["channel"] == "email"))
+
+    def test_the_notice_is_in_the_history_and_is_not_shown_as_the_specialists_words(self):
+        self.reply()
+        d = self.as_(self.nurse).get(DETAIL.format(self.ref_id)).json()
+        self.assertIn("reply_notified", [e["type"] for e in d["events"]])
+        shown = self.c.get(PACKET).json()["conversation"]
+        self.assertEqual([c["type"] for c in shown], ["needs_info"])
+
+    def test_the_settings_only_take_on_or_off(self):
+        self.assertEqual(self.settings(notify_clinic_sms="yes").status_code, 400)
+        self.assertEqual(self.as_(self.nurse).put("/api/referral-settings/", {"notify_clinic_sms": True}, format="json").status_code, 403)
