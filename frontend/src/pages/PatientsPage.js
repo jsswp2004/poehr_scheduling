@@ -63,6 +63,7 @@ import { useAnalytics } from "../hooks/useAnalytics";
 import { getValidToken, clearAuthData } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
 import { hasUnsaved } from "../utils/unsavedWork";
+import useChartParam from "../hooks/useChartParam";
 
 // Team, Appointments, Analytics and Register are opened from the icons in the top header (?tab=...).
 // Chart tab content sits right under the tab strip: panels bring their own top margin
@@ -120,7 +121,8 @@ function PatientsPage() {
   // It is remembered for this browser tab only, and per user, so a shared computer never shows
   // the previous user's patient.
   const [selectedPatient, setSelectedPatient] = useState(null); // { id, name }
-  const [chartTab, setChartTab] = useState("patient_list");
+  // The open chart tab follows ?chart= (Documentation icon opens Documents, Patients icon the Patient List).
+  const [chartTab, setChartTab] = useChartParam(tab);
   // What the patient header is showing: the visit that Orders, Documents and Flowsheets chart on.
   const [headerData, setHeaderData] = useState(null);
   const showPatientContext = tab === "patients" || !!selectedPatient;
@@ -153,7 +155,7 @@ function PatientsPage() {
       selectPatient(patient);
       setChartTab(nextTab);
     },
-    [selectPatient]
+    [selectPatient, setChartTab]
   );
 
   // The list the chart was opened from (My schedule, the Patient list, the ED Board), in the order it shows.
@@ -220,6 +222,8 @@ function PatientsPage() {
   // Referrals and tasks waiting for action: shown on their chart tabs (they used to sit on the header icons).
   const worklists = useWorklistCounts(userRole, !!currentUser);
   const landedFor = useRef(null);
+  // The Documentation icon opened this page on Documents: the module settling after load must not move it.
+  const openedOnChart = useRef(searchParams.get("chart") === "documents");
   useEffect(() => {
     if (!chartLayout.loaded) return;
     if (landedFor.current === null) {
@@ -229,9 +233,10 @@ function PatientsPage() {
     } else if (landedFor.current !== careKey) {
       // moved to another module: start on that module's tab
       landedFor.current = careKey;
-      setChartTab(chartLayout.defaultTab);
+      if (openedOnChart.current) openedOnChart.current = false;
+      else setChartTab(chartLayout.defaultTab);
     }
-  }, [chartLayout.loaded, chartLayout.defaultTab, careKey, chartTab]);
+  }, [chartLayout.loaded, chartLayout.defaultTab, careKey, chartTab, setChartTab]);
   const followUpTabOn = tab === "patients" && careKey === "emergency" && visibleChartTabs(userRole, chartLayout.tabs, "emergency").some((t) => t.value === "ed_follow_up");
   const [followUpCount, setFollowUpCount] = useFollowUpCount(followUpTabOn, 0);
   const team = useTeam(navigate);

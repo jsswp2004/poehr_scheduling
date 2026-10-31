@@ -28,6 +28,7 @@ import { clearActingOrg, useActingOrg } from "../utils/actingOrg";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ChatIcon from "@mui/icons-material/Chat";
 import DescriptionIcon from "@mui/icons-material/Description";
+import PersonIcon from "@mui/icons-material/Person";
 import HowToRegIcon from "@mui/icons-material/HowToReg";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
@@ -79,15 +80,26 @@ const MODULE_LINKS = [
     isActive: (path) => path.startsWith("/check-in"),
   },
   {
+    // The Patients page on its Patient List.
+    key: "patients",
+    module: "clinical_documentation",
+    label: "Patients",
+    to: "/patients",
+    Icon: PersonIcon,
+    roles: STAFF_MODULE_ROLES,
+    isActive: (path, tab, chart) => path === "/patients" && !PATIENTS_PAGE_VIEWS.includes(tab) && chart !== "documents",
+  },
+  {
+    // The same page, opened on the Documents tab (and the standalone chart pages under /patients/<id>).
     key: "documentation",
     module: "clinical_documentation",
     label: "Documentation",
-    to: "/patients",
+    to: "/patients?chart=documents",
     Icon: DescriptionIcon,
     roles: STAFF_MODULE_ROLES,
-    isActive: (path, tab) =>
-      path.startsWith("/patients") &&
-      !(path === "/patients" && PATIENTS_PAGE_VIEWS.includes(tab)),
+    isActive: (path, tab, chart) =>
+      path.startsWith("/patients/") ||
+      (path === "/patients" && !PATIENTS_PAGE_VIEWS.includes(tab) && chart === "documents"),
   },
   {
     key: "scheduler",
@@ -497,12 +509,13 @@ function Navbar() {
 
   // Module links this user may see, with the current page flagged.
   const currentTab = new URLSearchParams(location.search).get("tab");
+  const currentChart = new URLSearchParams(location.search).get("chart");
   const moduleLinks = MODULE_LINKS.filter(
     (m) =>
       (!m.roles || m.roles.includes(role)) &&
       !(m.notFor && m.notFor.includes(role)) &&
       moduleEnabled(m.module)
-  ).map((m) => ({ ...m, active: m.isActive(location.pathname, currentTab) }));
+  ).map((m) => ({ ...m, active: m.isActive(location.pathname, currentTab, currentChart) }));
 
   // Waiting-item count per module, shown next to the label in the compact menu.
   const menuBadge = (key) =>
