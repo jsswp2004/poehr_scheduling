@@ -75,13 +75,14 @@ import ReportDocumentationPage from './pages/ReportDocumentationPage';
 import ReportViewerPage from './pages/ReportViewerPage';
 import TelehealthPage from './pages/TelehealthPage';
 import TelehealthJoinPage from './pages/TelehealthJoinPage';
+import ReferralLinkPage from './pages/ReferralLinkPage';
 import DictatePage from './pages/DictatePage';
 
 function AppContent() {
   const location = useLocation();
   // Pages remount when a system administrator switches organization, so nothing from the old one stays on screen.
   const actingOrg = useActingOrg();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/privacy', '/terms', '/telehealth/join'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/privacy', '/terms', '/telehealth/join', '/referral'].includes(location.pathname);
 
   // Run token migration on app startup
   useEffect(() => {
@@ -268,6 +269,7 @@ function AppContent() {
         <Route path="/reports/:id" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportViewerPage /></PrivateRoute>} />
         <Route path="/telehealth" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><TelehealthPage /></PrivateRoute>} />
         <Route path="/telehealth/join" element={<TelehealthJoinPage />} />
+        <Route path="/referral" element={<ReferralLinkPage />} />
         <Route path="/dictate" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><DictatePage /></PrivateRoute>} />
       </Routes>
       {showNavbar && <SimpleFooter />}

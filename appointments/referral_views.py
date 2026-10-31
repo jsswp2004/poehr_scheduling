@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from users.models import CustomUser
 
+from . import referral_links as rl
 from . import referrals as rf
 from .models import Referral, ReferralDestination, ReferralSettings
 from .patient_header import _patient_for, _target_org
@@ -47,7 +48,7 @@ def _destination_json(d):
     return {
         "id": d.pk, "name": d.name, "specialty": d.specialty, "kind": d.kind, "kind_label": d.get_kind_display(),
         "provider": d.provider_id, "npi": d.npi, "phone": d.phone, "fax": d.fax, "address": d.address,
-        "direct_address": d.direct_address, "notes": d.notes, "is_active": d.is_active,
+        "direct_address": d.direct_address, "mobile": d.mobile, "email": d.email, "notes": d.notes, "is_active": d.is_active,
     }
 
 
@@ -87,6 +88,7 @@ def serialize(ref, user, detail=False, now=None):
         "overdue_reason": reason,
         "has_report": bool(ref.report_text),
         "actions": rf.allowed_actions(user, ref),
+        "can_send_link": ref.status in rl.LINK_STATUSES and getattr(user, "role", None) in rf.STAFF_ROLES,
     }
     if detail:
         profile = getattr(ref.patient, "patient_profile", None)
@@ -98,6 +100,8 @@ def serialize(ref, user, detail=False, now=None):
                 "signed_at": _iso(ref.signed_at),
                 "clinical_snapshot": ref.clinical_snapshot or {},
                 "destination_detail": _destination_json(ref.destination) if ref.destination_id else None,
+                "link": rl.current_link_json(ref, now),
+                "attachments": [rl.attachment_json(a) for a in ref.attachments.select_related("lab_report")],
                 "events": [
                     {
                         "id": e.pk, "type": e.event_type, "from_status": e.from_status, "to_status": e.to_status,
@@ -281,12 +285,101 @@ class ReferralActionView(APIView):
         ref = qs.filter(pk=pk).first()
         if ref is None:
             return Response({"detail": "Referral not found."}, status=404)
+        action = request.data.get("action")
+        # Signing (or sending again) can also send the secure link. Check the "how" before anything is signed.
+        delivery = None
+        if action in ("sign_send", "resend"):
+            try:
+                delivery = rl.clean_delivery(request.data.get("delivery"))
+            except rf.ReferralError as exc:
+                return Response({"detail": exc.message}, status=exc.status_code)
         try:
-            rf.apply_action(ref, request.user, request.data.get("action"), request.data)
+            rf.apply_action(ref, request.user, action, request.data)
         except rf.ReferralError as exc:
             return Response({"detail": exc.message}, status=exc.status_code)
-        ref = qs.get(pk=pk)
-        return Response(serialize(ref, request.user, detail=True))
+        sent = None
+        if delivery is not None:
+            channels, mobile, email, copy = delivery
+            try:
+                sent = rl.send_link(qs.get(pk=pk), request.user, channels=channels, mobile=mobile, email=email, copy=copy)
+            except rf.ReferralError as exc:
+                sent = {"error": exc.message, "deliveries": []}
+        data = serialize(qs.get(pk=pk), request.user, detail=True)
+        if sent is not None:
+            data["delivery"] = sent
+        return Response(data)
+
+
+class ReferralSendLinkView(APIView):
+    """Send (or send again) the secure link to the specialist. A new link switches off the one before."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        denied = _need_staff(request)
+        if denied:
+            return denied
+        qs, _org = _scope(request)
+        ref = qs.filter(pk=pk).first()
+        if ref is None:
+            return Response({"detail": "Referral not found."}, status=404)
+        d = request.data
+        try:
+            result = rl.send_link(
+                ref, request.user, channels=d.get("channels"), mobile=d.get("mobile"), email=d.get("email"), copy=bool(d.get("copy"))
+            )
+        except rf.ReferralError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        return Response({**result, "referral": serialize(qs.get(pk=pk), request.user, detail=True)})
+
+
+class ReferralRevokeLinkView(APIView):
+    """Turn the secure link off."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        denied = _need_staff(request)
+        if denied:
+            return denied
+        qs, _org = _scope(request)
+        ref = qs.filter(pk=pk).first()
+        if ref is None:
+            return Response({"detail": "Referral not found."}, status=404)
+        rl.revoke_links(ref, request.user)
+        return Response(serialize(qs.get(pk=pk), request.user, detail=True))
+
+
+class ReferralAttachmentFileView(APIView):
+    """Open a file the specialist attached. It is the same document as on the chart, and every opening is recorded there."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk, attachment_id):
+        denied = _need_staff(request)
+        if denied:
+            return denied
+        qs, _org = _scope(request)
+        ref = qs.filter(pk=pk).first()
+        if ref is None:
+            return Response({"detail": "Referral not found."}, status=404)
+        att = ref.attachments.select_related("lab_report").filter(pk=attachment_id).first()
+        if att is None:
+            return Response({"detail": "File not found."}, status=404)
+        from django.http import HttpResponse
+
+        from . import lab_results
+
+        try:
+            content, content_type, filename = lab_results.read_report_file(att.lab_report, request.user)
+        except lab_results.LabResultError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        response = HttpResponse(content, content_type=content_type)
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "no-store"
+        response["Content-Security-Policy"] = "sandbox"
+        return response
 
 
 class ReferralQueuesView(APIView):
@@ -336,6 +429,7 @@ class ReferralMetaView(APIView):
 
 DEST_FIELDS = {
     "name": 200, "specialty": 80, "npi": 10, "phone": 30, "fax": 30, "address": 300, "direct_address": 120, "notes": 2000,
+    "mobile": 30, "email": 254,
 }
 
 
@@ -365,6 +459,12 @@ def _dest_values(data, org, partial):
         return None, "Give the destination a name."
     if values.get("npi") and (not values["npi"].isdigit() or len(values["npi"]) != 10):
         return None, "An NPI is 10 digits."
+    for key, cleaner in (("mobile", rl.clean_mobile), ("email", rl.clean_email)):
+        if key in values:
+            try:
+                values[key] = cleaner(values[key])
+            except rf.ReferralError as exc:
+                return None, exc.message
     return values, None
 
 

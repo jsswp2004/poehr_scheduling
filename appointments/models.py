@@ -1740,6 +1740,9 @@ class ReferralDestination(models.Model):
     fax = models.CharField(max_length=30, blank=True)
     address = models.CharField(max_length=300, blank=True)
     direct_address = models.CharField(max_length=120, blank=True)
+    # Where the secure referral link is sent: a mobile number for texts and an email address.
+    mobile = models.CharField(max_length=30, blank=True)
+    email = models.CharField(max_length=254, blank=True)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1846,6 +1849,66 @@ class ReferralEvent(models.Model):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+
+class ReferralLink(models.Model):
+    """
+    A private link that lets the receiving specialist open one referral and answer it.
+
+    Only a hash of the link's key is stored (the key itself goes out in the text or email and in
+    the address after the "#", which browsers never send to a server). The link stops working when
+    it expires, is turned off, or the referral closes. A new link replaces the one before it.
+    """
+
+    referral = models.ForeignKey(Referral, on_delete=models.CASCADE, related_name="links")
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    # where it went: [{"channel": "sms"|"email", "to": "masked", "sent": bool, "reason": "", "at": iso}]
+    deliveries = models.JSONField(default=list, blank=True)
+    recipient_mobile = models.CharField(max_length=30, blank=True)
+    recipient_email = models.CharField(max_length=254, blank=True)
+
+    # the second check: a 6-digit code sent to the other contact; only a hash is kept
+    require_code = models.BooleanField(default=True)
+    code_hash = models.CharField(max_length=64, blank=True)
+    code_expires_at = models.DateTimeField(null=True, blank=True)
+    code_attempts = models.PositiveSmallIntegerField(default=0)
+    code_sends = models.JSONField(default=list, blank=True)  # ISO times of the last hour's sends
+
+    first_opened_at = models.DateTimeField(null=True, blank=True)
+    last_opened_at = models.DateTimeField(null=True, blank=True)
+    open_count = models.PositiveIntegerField(default=0)
+    verify_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["referral", "revoked_at"])]
+
+
+class ReferralAttachment(models.Model):
+    """A file the specialist sent back (a consult letter). The bytes live on the lab document it was filed as."""
+
+    referral = models.ForeignKey(Referral, on_delete=models.CASCADE, related_name="attachments")
+    lab_report = models.ForeignKey(
+        "appointments.LabReport", on_delete=models.PROTECT, related_name="referral_attachments"
+    )
+    link = models.ForeignKey(ReferralLink, null=True, blank=True, on_delete=models.SET_NULL, related_name="attachments")
+    file_name = models.CharField(max_length=150)
+    file_content_type = models.CharField(max_length=50)
+    file_size = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

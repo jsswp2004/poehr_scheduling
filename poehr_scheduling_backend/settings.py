@@ -206,6 +206,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "telehealth_join": "60/min",
         "telehealth_assistant": "30/min",
+        "referral_link": "60/min",
+        "referral_code": "10/min",
         "dictation": "120/min",
         "dictation_cleanup": "20/min",
     },
@@ -251,6 +253,18 @@ TELEHEALTH_CREATE_CHART_DRAFT = os.environ.get("TELEHEALTH_CREATE_CHART_DRAFT", 
 # Staff assistant. Off unless a backend is named, e.g. "telehealth.assistant.anthropic_backend.complete".
 # Read the PHI notes in telehealth/README.md (BAA with the model provider) before turning it on.
 TELEHEALTH_ASSISTANT_BACKEND = os.environ.get("TELEHEALTH_ASSISTANT_BACKEND") or None
+
+# ---- Referral Manager: secure link to the receiving specialist -----------------------
+# The text/email link is <REFERRAL_PUBLIC_URL>#<key>. Unset, it is the site that hosts the telehealth
+# page plus /referral, so setting TELEHEALTH_PUBLIC_URL for the live site is enough.
+from urllib.parse import urlsplit as _urlsplit
+
+_telehealth_site = _urlsplit(TELEHEALTH_PUBLIC_URL)
+REFERRAL_PUBLIC_URL = os.environ.get("REFERRAL_PUBLIC_URL") or f"{_telehealth_site.scheme}://{_telehealth_site.netloc}/referral"
+REFERRAL_LINK_TTL_DAYS = int(os.environ.get("REFERRAL_LINK_TTL_DAYS", "30"))
+# A 6-digit code sent to the specialist's other contact, asked for when the link is opened.
+REFERRAL_LINK_REQUIRE_CODE = os.environ.get("REFERRAL_LINK_REQUIRE_CODE", "true").lower() in ("1", "true", "yes")
+REFERRAL_SESSION_TTL_SECONDS = int(os.environ.get("REFERRAL_SESSION_TTL_SECONDS", "28800"))
 
 from datetime import timedelta
 
