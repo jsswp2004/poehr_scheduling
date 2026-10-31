@@ -81,7 +81,11 @@ from .prescription_views import (
     PrescriptionMetaView,
     PrescriptionPdfView,
 )
+from . import referral_public_views
 from .referral_views import (
+    ReferralAttachmentFileView,
+    ReferralRevokeLinkView,
+    ReferralSendLinkView,
     DestinationDetailView,
     DestinationListCreateView,
     ReferralActionView,
@@ -282,6 +286,19 @@ urlpatterns = router.urls + [
     path("referrals/queues/", ReferralQueuesView.as_view(), name="referral-queues"),
     path("referrals/<int:pk>/", ReferralDetailView.as_view(), name="referral-detail"),
     path("referrals/<int:pk>/action/", ReferralActionView.as_view(), name="referral-action"),
+    path("referrals/<int:pk>/send-link/", ReferralSendLinkView.as_view(), name="referral-send-link"),
+    path("referrals/<int:pk>/revoke-link/", ReferralRevokeLinkView.as_view(), name="referral-revoke-link"),
+    path(
+        "referrals/<int:pk>/attachments/<int:attachment_id>/file/",
+        ReferralAttachmentFileView.as_view(),
+        name="referral-attachment-file",
+    ),
+    # what the specialist's secure link talks to (no login)
+    path("referral-link/open/", referral_public_views.open_link, name="referral-link-open"),
+    path("referral-link/code/", referral_public_views.resend_code, name="referral-link-code"),
+    path("referral-link/verify/", referral_public_views.verify_code, name="referral-link-verify"),
+    path("referral-link/packet/", referral_public_views.get_packet, name="referral-link-packet"),
+    path("referral-link/reply/", referral_public_views.post_reply, name="referral-link-reply"),
     path("referral-meta/", ReferralMetaView.as_view(), name="referral-meta"),
     path("referral-destinations/", DestinationListCreateView.as_view(), name="referral-destinations"),
     path("referral-destinations/<int:pk>/", DestinationDetailView.as_view(), name="referral-destination"),

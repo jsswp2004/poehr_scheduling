@@ -34,7 +34,7 @@ import SingleFacilityOnly from "../facility/SingleFacilityOnly";
 import { applyToFacilities } from "../../utils/facilityScope";
 import { authHeader, errorText, loadMeta } from "./referralShared";
 
-const BLANK = { name: "", specialty: "", kind: "external", provider: "", npi: "", phone: "", fax: "", address: "", direct_address: "", notes: "", is_active: true };
+const BLANK = { name: "", specialty: "", kind: "external", provider: "", npi: "", phone: "", fax: "", mobile: "", email: "", address: "", direct_address: "", notes: "", is_active: true };
 
 function DestinationDialog({ initial, meta, onClose, onSaved }) {
   const [form, setForm] = useState({ ...BLANK, ...initial, provider: initial?.provider || "" });
@@ -96,6 +96,24 @@ function DestinationDialog({ initial, meta, onClose, onSaved }) {
           <Stack direction="row" spacing={2}>
             <TextField size="small" fullWidth label="Phone" value={form.phone} onChange={set("phone")} />
             <TextField size="small" fullWidth label="Fax" value={form.fax} onChange={set("fax")} />
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <TextField
+              size="small"
+              fullWidth
+              label="Mobile (for texting the secure link)"
+              value={form.mobile}
+              onChange={set("mobile")}
+              inputProps={{ "data-testid": "destination-mobile" }}
+            />
+            <TextField
+              size="small"
+              fullWidth
+              label="Email (for the secure link)"
+              value={form.email}
+              onChange={set("email")}
+              inputProps={{ "data-testid": "destination-email" }}
+            />
           </Stack>
           <Stack direction="row" spacing={2}>
             <TextField size="small" fullWidth label="NPI (10 digits)" value={form.npi} onChange={set("npi")} inputProps={{ "data-testid": "destination-npi" }} />

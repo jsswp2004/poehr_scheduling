@@ -19,17 +19,23 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import ReferralFormDialog from "./ReferralFormDialog";
+import ReferralDeliveryFields, { deliveryPayload, initialDelivery } from "./ReferralDeliveryFields";
 import {
   ACTION_FORMS,
+  LINK_ACTIONS,
   STATUS_COLOR,
   URGENCY_COLOR,
   announceChange,
   authHeader,
+  deliverySummary,
   errorText,
   fmtDate,
   fmtDateTime,
+  openAttachment,
   overdueText,
+  revokeLink,
   runAction,
+  sendLink,
   toLocalInput,
 } from "./referralShared";
 
@@ -49,7 +55,108 @@ const EVENT_LABELS = {
   expired: "Expired",
   assigned: "Assigned",
   note: "Note",
+  link_sent: "Secure link sent",
+  link_opened: "Specialist opened the secure link",
+  link_revoked: "Secure link turned off",
 };
+
+const LINK_STATE = {
+  active: { label: "Active", color: "success" },
+  turned_off: { label: "Turned off", color: "default" },
+  expired: { label: "Expired", color: "warning" },
+  closed: { label: "Ended with the referral", color: "default" },
+};
+
+const fmtSize = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+
+/** Say in a toast what happened to the link the step was asked to send. */
+function announceDelivery(delivery) {
+  if (!delivery) return;
+  if (delivery.error) return toast.error(`Signed, but the secure link was not sent: ${delivery.error}`);
+  const lines = deliverySummary(delivery.deliveries);
+  const failed = (delivery.deliveries || []).some((d) => !d.sent);
+  if (failed) toast.error(`Secure link: ${lines.join("; ")}. You can send it again from the referral.`, { autoClose: 6000 });
+  else if (lines.length) toast.success(`Secure link sent. ${lines.join("; ")}.`);
+}
+
+/** Send (or send again) the secure link, or copy it to share another way. */
+function SendLinkDialog({ referral, onClose, onDone }) {
+  const [delivery, setDelivery] = useState(() => {
+    const start = initialDelivery(referral.destination_detail);
+    return start.mode === "none" ? { ...start, mode: "sms" } : start;
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState("");
+
+  const submit = async () => {
+    setError("");
+    const { payload, error: missing } = deliveryPayload(delivery);
+    if (missing) return setError(missing);
+    if (!payload) return setError("Choose text, email, both, or copy the link.");
+    setBusy(true);
+    try {
+      const result = await sendLink(referral.id, payload);
+      announceDelivery({ deliveries: result.deliveries });
+      announceChange();
+      if (result.url) {
+        setCopied(result.url);
+        onDone(result.referral, { keepOpen: true });
+      } else {
+        onDone(result.referral);
+      }
+    } catch (err) {
+      setError(errorText(err, "The link could not be sent."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="sm" data-testid="referral-send-link-dialog">
+      <DialogTitle>{referral.link ? "Send the secure link again" : "Send the secure link"}</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 0.5 }}>
+          {error && <Alert severity="error" data-testid="referral-send-link-error">{error}</Alert>}
+          {referral.link?.state === "active" && (
+            <Alert severity="warning">Sending a new link turns the earlier one off. The specialist will need to use the new one.</Alert>
+          )}
+          {copied ? (
+            <>
+              <Alert severity="success">Here is the new link. Anyone who has it can open the referral, so share it carefully.</Alert>
+              <TextField size="small" value={copied} InputProps={{ readOnly: true }} inputProps={{ "data-testid": "referral-copied-link" }} onFocus={(e) => e.target.select()} />
+              <Button
+                variant="outlined"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(copied);
+                    toast.success("Link copied.");
+                  } catch {
+                    toast.error("Select the link and copy it.");
+                  }
+                }}
+              >
+                Copy to clipboard
+              </Button>
+            </>
+          ) : (
+            <ReferralDeliveryFields value={delivery} onChange={setDelivery} allowCopy noneLabel="Cancel" />
+          )}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={busy}>
+          {copied ? "Done" : "Back"}
+        </Button>
+        {!copied && (
+          <Button variant="contained" onClick={submit} disabled={busy || delivery.mode === "none"} data-testid="referral-send-link-confirm">
+            {busy ? <CircularProgress size={18} /> : delivery.mode === "copy" ? "Make the link" : "Send"}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 // Buttons shown in this order, and which ones are the main next step
 const ORDER = ["sign_send", "resend", "schedule", "seen", "report", "needs_info", "decline", "close", "expire", "cancel", "assign", "note"];
@@ -76,8 +183,10 @@ function ActionDialog({ referral, action, meta, onClose, onDone }) {
   const [when, setWhen] = useState(cfg.when === "scheduled_for" ? toLocalInput(referral.scheduled_for) : "");
   const [where, setWhere] = useState(referral.appointment_location || "");
   const [assignee, setAssignee] = useState(referral.assigned_to || "");
+  const [delivery, setDelivery] = useState(() => initialDelivery(referral.destination_detail));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const canSendLink = LINK_ACTIONS.includes(action);
 
   const submit = async () => {
     setError("");
@@ -89,10 +198,16 @@ function ActionDialog({ referral, action, meta, onClose, onDone }) {
     if (cfg.when && when) body[cfg.when] = new Date(when).toISOString();
     if (cfg.location) body.appointment_location = where;
     if (cfg.assign) body.assigned_to = assignee || null;
+    if (canSendLink) {
+      const { payload, error: missing } = deliveryPayload(delivery);
+      if (missing) return setError(missing);
+      if (payload) body.delivery = payload;
+    }
     setBusy(true);
     try {
       const updated = await runAction(referral.id, action, body);
       toast.success(`${cfg.title}: done.`);
+      announceDelivery(updated.delivery);
       announceChange();
       onDone(updated);
     } catch (err) {
@@ -150,6 +265,7 @@ function ActionDialog({ referral, action, meta, onClose, onDone }) {
               inputProps={{ "data-testid": "referral-action-text" }}
             />
           )}
+          {canSendLink && <ReferralDeliveryFields value={delivery} onChange={setDelivery} noneLabel="Not now" />}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -174,6 +290,7 @@ export default function ReferralDetailDialog({ referralId, open, onClose, onChan
   const [error, setError] = useState("");
   const [action, setAction] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [linkDialog, setLinkDialog] = useState(false);
 
   const load = useCallback(async () => {
     if (!referralId) return;
@@ -200,6 +317,26 @@ export default function ReferralDetailDialog({ referralId, open, onClose, onChan
     setRef(updated);
     setAction(null);
     if (onChanged) onChanged(updated);
+  };
+
+  const turnLinkOff = async () => {
+    if (!window.confirm("Turn the secure link off? The specialist will no longer be able to open it.")) return;
+    try {
+      const updated = await revokeLink(ref.id);
+      toast.success("Secure link turned off.");
+      announceChange();
+      changed(updated);
+    } catch (err) {
+      toast.error(errorText(err, "Could not turn the link off."));
+    }
+  };
+
+  const openFile = async (attachment) => {
+    try {
+      await openAttachment(ref.id, attachment);
+    } catch (err) {
+      toast.error(errorText(err, "Could not open that file."));
+    }
   };
 
   const removeDraft = async () => {
@@ -263,6 +400,86 @@ export default function ReferralDetailDialog({ referralId, open, onClose, onChan
               <Row label="Schedule by">{ref.schedule_due ? fmtDate(ref.schedule_due) : ""}</Row>
               <Row label="Report due">{ref.report_due ? fmtDate(ref.report_due) : ""}</Row>
 
+              {(ref.link || ref.can_send_link) && (
+                <>
+                  <Divider sx={{ my: 1.5 }} />
+                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                    Secure link to the specialist
+                  </Typography>
+                  {ref.link ? (
+                    <Box data-testid="referral-link">
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <Chip
+                          size="small"
+                          color={LINK_STATE[ref.link.state]?.color || "default"}
+                          label={LINK_STATE[ref.link.state]?.label || ref.link.state}
+                          data-testid="referral-link-state"
+                        />
+                        {ref.link.state === "active" && (
+                          <Typography variant="body2" color="text.secondary">
+                            works until {fmtDate(ref.link.expires_at)}
+                          </Typography>
+                        )}
+                      </Stack>
+                      {deliverySummary(ref.link.deliveries).map((line) => (
+                        <Typography key={line} variant="body2" data-testid="referral-link-delivery">
+                          {line}
+                        </Typography>
+                      ))}
+                      <Typography variant="body2" color="text.secondary" data-testid="referral-link-opened">
+                        {ref.link.first_opened_at
+                          ? `Opened ${fmtDateTime(ref.link.first_opened_at)}${ref.link.open_count > 1 ? ` (${ref.link.open_count} times)` : ""}${ref.link.verified ? ", code confirmed" : ""}`
+                          : "Not opened yet"}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" data-testid="referral-link-none">
+                      No secure link has been sent. Without one, the specialist's answers are entered by hand here.
+                    </Typography>
+                  )}
+                  {ref.can_send_link && (
+                    <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                      <Button size="small" variant="outlined" onClick={() => setLinkDialog(true)} data-testid="referral-send-link">
+                        {ref.link ? "Send link again" : "Send secure link"}
+                      </Button>
+                      {ref.link?.state === "active" && (
+                        <Button size="small" color="error" onClick={turnLinkOff} data-testid="referral-revoke-link">
+                          Turn link off
+                        </Button>
+                      )}
+                    </Stack>
+                  )}
+                </>
+              )}
+
+              {(ref.attachments || []).length > 0 && (
+                <>
+                  <Divider sx={{ my: 1.5 }} />
+                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                    Files from the specialist
+                  </Typography>
+                  {ref.attachments.map((a) => (
+                    <Stack key={a.id} direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }} data-testid="referral-attachment">
+                      <Button size="small" onClick={() => openFile(a)} sx={{ textTransform: "none" }}>
+                        {a.file_name}
+                      </Button>
+                      <Typography variant="caption" color="text.secondary">
+                        {fmtSize(a.size)}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color={a.review_status === "reviewed" ? "success" : "warning"}
+                        label={a.review_status === "reviewed" ? "Reviewed" : "Not yet reviewed"}
+                      />
+                    </Stack>
+                  ))}
+                  <Typography variant="caption" color="text.secondary">
+                    Filed on the patient's chart as an outside document. A person on the care team reviews it under Results.
+                  </Typography>
+                </>
+              )}
+
               {ref.report_text && (
                 <>
                   <Divider sx={{ my: 1.5 }} />
@@ -295,8 +512,13 @@ export default function ReferralDetailDialog({ referralId, open, onClose, onChan
                 {(ref.events || []).map((e) => (
                   <Box key={e.id} sx={{ mb: 0.75 }} data-testid="referral-event">
                     <Typography variant="body2">
-                      <strong>{EVENT_LABELS[e.type] || e.type}</strong> · {e.user || "System"} · {fmtDateTime(e.at)}
+                      <strong>{EVENT_LABELS[e.type] || e.type}</strong> · {e.user || (e.detail?.via === "secure_link" ? "Specialist (secure link)" : "System")} · {fmtDateTime(e.at)}
                     </Typography>
+                    {e.detail?.files?.length > 0 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                        Attached: {e.detail.files.join(", ")}
+                      </Typography>
+                    )}
                     {e.detail?.note && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block", whiteSpace: "pre-wrap" }}>
                         {e.detail.note}
@@ -336,6 +558,17 @@ export default function ReferralDetailDialog({ referralId, open, onClose, onChan
       </Dialog>
 
       {ref && action && <ActionDialog referral={ref} action={action} meta={meta} onClose={() => setAction(null)} onDone={changed} />}
+      {ref && linkDialog && (
+        <SendLinkDialog
+          referral={ref}
+          onClose={() => setLinkDialog(false)}
+          onDone={(updated, opts) => {
+            setRef(updated);
+            if (onChanged) onChanged(updated);
+            if (!opts?.keepOpen) setLinkDialog(false);
+          }}
+        />
+      )}
       {ref && editing && (
         <ReferralFormDialog
           open

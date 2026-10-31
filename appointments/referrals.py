@@ -236,7 +236,24 @@ def apply_action(ref, user, action, data=None, now=None):
         raise ReferralError("Not allowed.", 403)
     if user.role != "system_admin" and ref.organization_id != user.organization_id:
         raise ReferralError("Referral not found.", 404)
+    return _apply(ref, user, action, data, now)
 
+
+# What the receiving specialist may do from their secure link (see referral_links.py). Each is the
+# same step staff would take by hand, so timers, queues and history behave identically.
+EXTERNAL_ACTIONS = ("schedule", "needs_info", "decline", "report")
+
+
+@transaction.atomic
+def apply_external(ref, action, data, extra_detail, now=None):
+    """Do one of EXTERNAL_ACTIONS for the specialist. No staff user is involved; `extra_detail` marks the
+    history row as coming through the link."""
+    if action not in EXTERNAL_ACTIONS:
+        raise ReferralError("That reply isn't available.", 403)
+    return _apply(ref, None, action, data or {}, now or timezone.now(), extra_detail)
+
+
+def _apply(ref, user, action, data, now, extra_detail=None):
     ref = Referral.objects.select_for_update().get(pk=ref.pk)
     froms, to_status = ACTIONS[action]
     if ref.status not in froms:
@@ -351,5 +368,7 @@ def apply_action(ref, user, action, data=None, now=None):
     if to_status:
         ref.status = to_status
     ref.save()
+    if extra_detail:
+        detail = {**detail, **extra_detail}
     log_event(ref, event, user, from_status=old, to_status=ref.status, detail=detail)
     return ref
