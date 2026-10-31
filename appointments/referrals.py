@@ -241,7 +241,7 @@ def apply_action(ref, user, action, data=None, now=None):
 
 # What the receiving specialist may do from their secure link (see referral_links.py). Each is the
 # same step staff would take by hand, so timers, queues and history behave identically.
-EXTERNAL_ACTIONS = ("schedule", "needs_info", "decline", "report")
+EXTERNAL_ACTIONS = ("schedule", "seen", "needs_info", "decline", "report")
 
 
 @transaction.atomic

@@ -51,6 +51,7 @@ const URGENCY_COLOR = { routine: "default", urgent: "warning", emergent: "error"
 
 const TEXT_FOR = {
   schedule: { label: "Note to the referring clinic (optional)", required: false },
+  seen: { label: "Note to the referring clinic (optional)", required: false },
   needs_info: { label: "What information do you need?", required: true },
   decline: { label: "Reason for declining", required: true },
   report: { label: "Findings, impression and recommendations", required: false },
@@ -94,6 +95,7 @@ function Conversation({ items, organization }) {
     if (c.from === "clinic") return `Reply from ${organization}`;
     if (c.type === "scheduled" || c.type === "rescheduled")
       return `You scheduled the appointment for ${fmtDateTime(c.scheduled_for)}${c.location ? ` at ${c.location}` : ""}`;
+    if (c.type === "seen") return "You confirmed the patient was seen";
     if (c.type === "needs_info") return "You asked for more information";
     if (c.type === "declined") return "You declined the referral";
     if (c.type === "report_received") return "You sent your consult";
@@ -165,7 +167,7 @@ function ReplyForm({ packet, session, onSent }) {
       form.append("scheduled_for", new Date(when).toISOString());
       if (where.trim()) form.append("appointment_location", where.trim());
     }
-    if (action === "report" && seenOn) form.append("seen_on", seenOn);
+    if ((action === "report" || action === "seen") && seenOn) form.append("seen_on", seenOn);
     files.forEach((f) => form.append("files", f));
     setBusy(true);
     try {
@@ -235,11 +237,11 @@ function ReplyForm({ packet, session, onSent }) {
             />
           </Stack>
         )}
-        {action === "report" && (
+        {(action === "report" || action === "seen") && (
           <TextField
             size="small"
             type="date"
-            label="Date seen"
+            label={action === "seen" ? "Date seen (leave blank for today)" : "Date seen"}
             value={seenOn}
             onChange={(e) => setSeenOn(e.target.value)}
             InputLabelProps={{ shrink: true }}

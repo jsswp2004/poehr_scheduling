@@ -259,7 +259,7 @@ class OpeningTests(LinkBase):
         self.assertEqual(p["urgency_label"], "Urgent")
         self.assertEqual(p["reason"], "Chest pain on exertion")
         self.assertEqual(p["allergies"]["items"], [{"substance": "Penicillin", "reaction": "Rash"}])
-        self.assertEqual([x["action"] for x in p["replies"]], ["schedule", "needs_info", "decline", "report"])
+        self.assertEqual([x["action"] for x in p["replies"]], ["schedule", "seen", "needs_info", "decline", "report"])
         for private in ("events", "report_text", "assigned_to", "signed_by_name", "created_by", "mrn", "ssn"):
             self.assertNotIn(private, p)
         self.assertEqual(self.authed(session).get(PACKET)["Cache-Control"], "no-store")
@@ -314,7 +314,7 @@ class ReplyTests(LinkBase):
         self.assertEqual(event["detail"]["via"], "secure_link")
         self.assertEqual(event["user"], "")  # no staff member did this
         self.assertEqual(r.json()["status"], "scheduled")
-        self.assertEqual([x["action"] for x in r.json()["replies"]], ["schedule", "needs_info", "decline", "report"])
+        self.assertEqual([x["action"] for x in r.json()["replies"]], ["schedule", "seen", "needs_info", "decline", "report"])
 
     def test_a_date_is_required_to_schedule(self):
         self.assertEqual(self.reply("schedule").status_code, 400)
@@ -342,6 +342,24 @@ class ReplyTests(LinkBase):
         self.assertEqual(self.reply("decline", message="Not in our scope.").status_code, 200)
         self.assertEqual(self.detail()["status"], "declined")
         self.assertEqual(self.c.get(PACKET).status_code, 410)
+
+    def test_saying_the_patient_was_seen_starts_the_report_clock_and_keeps_the_consult_open(self):
+        day = (timezone.localdate() - timedelta(days=2)).isoformat()
+        r = self.reply("seen", seen_on=day, message="Seen in clinic.")
+        self.assertEqual(r.status_code, 200, r.content)
+        d = self.detail()
+        self.assertEqual(d["status"], "seen")
+        self.assertTrue(d["seen_at"].startswith(day))
+        self.assertIn("report", [x["action"] for x in r.json()["replies"]])
+        self.assertNotIn("seen", [x["action"] for x in r.json()["replies"]])
+        # the consult can still follow
+        self.assertEqual(self.reply("report", message="Normal study.").status_code, 200)
+
+    def test_seen_without_a_date_means_now_and_a_future_date_is_refused(self):
+        self.assertEqual(self.reply("seen", seen_on=(timezone.localdate() + timedelta(days=3)).isoformat()).status_code, 400)
+        self.assertEqual(self.reply("seen", seen_on="not a date").status_code, 400)
+        self.assertEqual(self.reply("seen", seen_on=timezone.localdate().isoformat()).status_code, 200)
+        self.assertEqual(self.detail()["status"], "seen")
 
     def test_sending_the_consult_files_the_report(self):
         r = self.reply("report", message="Stress test normal. Follow up in 6 months.", seen_on="2026-11-04")
