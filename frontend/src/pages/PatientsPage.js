@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Box, Typography, CircularProgress } from "@mui/material";
+import { Box, Typography, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -62,6 +62,7 @@ import { useAnalytics } from "../hooks/useAnalytics";
 // Utils
 import { getValidToken, clearAuthData } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
+import { hasUnsaved } from "../utils/unsavedWork";
 
 // Team, Appointments, Analytics and Register are opened from the icons in the top header (?tab=...).
 // Chart tab content sits right under the tab strip: panels bring their own top margin
@@ -154,6 +155,51 @@ function PatientsPage() {
     },
     [selectPatient]
   );
+
+  // The list the chart was opened from (My schedule, the Patient list, the ED Board), in the order it shows.
+  // The banner's arrows walk it. It stays after the list itself is closed, until another list reports.
+  const [navList, setNavList] = useState(null); // { label, patients: [{ user_id, full_name }] }
+  const reportList = useCallback((label, patients) => {
+    const seen = new Set();
+    const next = [];
+    (patients || []).forEach((p) => {
+      if (p && p.user_id && !seen.has(String(p.user_id))) {
+        seen.add(String(p.user_id));
+        next.push({ user_id: p.user_id, full_name: p.full_name || "" });
+      }
+    });
+    setNavList((prev) =>
+      prev && prev.label === label && prev.patients.length === next.length && prev.patients.every((p, i) => String(p.user_id) === String(next[i].user_id))
+        ? prev
+        : { label, patients: next }
+    );
+  }, []);
+  const [pendingMove, setPendingMove] = useState(null); // the patient to go to once the user agrees to leave unsaved work
+  const moveTo = useCallback(
+    (target) => {
+      if (!target) return;
+      if (hasUnsaved()) setPendingMove(target);
+      else selectPatient(target);
+    },
+    [selectPatient]
+  );
+  const nav = React.useMemo(() => {
+    if (!navList || !selectedPatient) return null;
+    const index = navList.patients.findIndex((p) => String(p.user_id) === String(selectedPatient.id));
+    if (index < 0 || navList.patients.length < 2) return null;
+    const list = navList.patients;
+    return {
+      label: navList.label,
+      index,
+      total: list.length,
+      patients: list,
+      prev: list[index - 1] || null,
+      next: list[index + 1] || null,
+      onPrev: () => moveTo(list[index - 1]),
+      onNext: () => moveTo(list[index + 1]),
+      onJump: (i) => moveTo(list[i]),
+    };
+  }, [navList, selectedPatient, moveTo]);
 
   // Being on this page keeps the person shown as online to colleagues.
   useOnlineStatus();
@@ -505,7 +551,7 @@ function PatientsPage() {
         {/* Patient header: only on the Patient List view, where it follows the selected patient
             (and reads "No patient selected" until one is chosen). */}
         {tab === "patients" && (
-          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} onLoaded={setHeaderData} />
+          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} onLoaded={setHeaderData} nav={nav} />
         )}
 
         {/* Chart tabs for the selected patient */}
@@ -547,6 +593,7 @@ function PatientsPage() {
                     refreshKey={boardKey}
                     selectedUserId={selectedPatient ? selectedPatient.id : null}
                     onSelectPatient={selectPatient}
+                    onListChange={reportList}
                     onOpenPatient={(p) => openChart(p, "orders")}
                     onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
                     onDischarge={(p) => setAdmission({ mode: "discharge", patient: p })}
@@ -588,6 +635,7 @@ function PatientsPage() {
               selectedId={selectedPatient ? selectedPatient.id : null}
               onSelect={selectPatient}
               onOpenChart={openChart}
+              onListChange={reportList}
               careSetting={patients.careSetting}
               onAdmit={(p) => setAdmission({ mode: "admit", patient: p })}
               onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
@@ -618,6 +666,7 @@ function PatientsPage() {
                   selectedId={selectedPatient ? selectedPatient.id : null}
                   onSelect={selectPatient}
                   onOpenChart={openChart}
+                  onListChange={reportList}
                   onSendText={handleSendText}
                   onOpenEmailModal={handleOpenEmailModal}
                 />
@@ -829,6 +878,31 @@ function PatientsPage() {
           patientName={selectedPatient ? selectedPatient.name : ""}
         />
       )}
+      {/* Moving to another patient while a note or flowsheet is half done */}
+      <Dialog open={!!pendingMove} onClose={() => setPendingMove(null)} maxWidth="xs" fullWidth data-testid="leave-unsaved-dialog">
+        <DialogTitle>Leave without saving?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            {selectedPatient?.name ? `${selectedPatient.name} has` : "This chart has"} work that is not saved yet (a note or flowsheet entry). Moving to{" "}
+            {pendingMove?.full_name || "the next patient"} will discard it.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingMove(null)} data-testid="leave-unsaved-stay">Stay here</Button>
+          <Button
+            color="warning"
+            variant="contained"
+            data-testid="leave-unsaved-go"
+            onClick={() => {
+              const target = pendingMove;
+              setPendingMove(null);
+              selectPatient(target);
+            }}
+          >
+            Leave without saving
+          </Button>
+        </DialogActions>
+      </Dialog>
     </LocalizationProvider>
   );
 }

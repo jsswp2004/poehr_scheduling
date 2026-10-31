@@ -71,6 +71,13 @@ class HeaderContentTests(Base):
         response = self.get()
         self.assertEqual([i["key"] for i in response.json()["items"]], ph.DEFAULT_VISIBLE)
 
+    def test_photo_is_the_profile_picture_or_blank(self):
+        self.assertEqual(self.get().json()["photo_url"], "")
+        self.patient.profile_picture = "profile_pics/test.png"
+        self.patient.save()
+        url = self.get().json()["photo_url"]
+        self.assertTrue(url.endswith("/media/profile_pics/test.png"), url)
+
     def test_values_without_a_visit(self):
         items = self.items()
         self.assertEqual(items["name"]["value"], "Bcs, Test")

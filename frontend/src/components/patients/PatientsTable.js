@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -67,8 +67,13 @@ function PatientsTable({
     unit = '',
     setUnit = null,
     units = [],
+    onListChange = null,
 }) {
     const navigate = useNavigate();
+    // Tell the page which patients are showing, in order, so the banner's arrows can walk this list.
+    useEffect(() => {
+        if (onListChange) onListChange(careSetting === 'emergency' ? 'ED Board' : 'Patient list', patients || []);
+    }, [onListChange, patients, careSetting]);
     // On the Patients page the chart opens in place (under the patient header). Anywhere else it falls back to the standalone pages.
     const openChart = (patient, chartTab, path) => {
         if (onOpenChart) onOpenChart(patient, chartTab);

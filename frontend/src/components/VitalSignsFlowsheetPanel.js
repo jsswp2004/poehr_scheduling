@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
+import { setUnsaved } from "../utils/unsavedWork";
 import {
   Box,
   Paper,
@@ -123,6 +124,11 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
   const [loadingFlowsheet, setLoadingFlowsheet] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Tell the patient banner's arrows when this grid holds changes that are not saved yet.
+  useEffect(() => {
+    setUnsaved("flowsheet", dirty);
+    return () => setUnsaved("flowsheet", false);
+  }, [dirty]);
 
   // Intake & Output: totals and alerts come from the server (it adds up across time columns, which
   // an ordinary flowsheet row cannot), and are refreshed shortly after the grid changes.
