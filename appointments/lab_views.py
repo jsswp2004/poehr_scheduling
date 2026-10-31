@@ -1,5 +1,6 @@
 """API for lab reports: GET/POST/PATCH /api/lab-reports/ plus review and mark-in-error."""
 
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 import json
 
 from django.http import HttpResponse
@@ -73,7 +74,7 @@ class LabReportViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = LabReport.objects.all()
-        if getattr(user, "role", None) != "system_admin":
+        if not sees_all_orgs(user):
             qs = qs.filter(organization=user.organization)
         p = self.request.query_params
         for param, lookup in (
@@ -152,7 +153,7 @@ class LabReportViewSet(viewsets.ModelViewSet):
         from .models import LabInboundMessage
 
         unmatched = LabInboundMessage.objects.filter(status="unmatched")
-        if getattr(request.user, "role", None) != "system_admin":
+        if not sees_all_orgs(request.user):
             unmatched = unmatched.filter(organization=request.user.organization)
         if request.query_params.get("summary") in ("1", "true", "True"):
             # Counts only, for the badge on the menu icon: no result rows.
@@ -245,7 +246,7 @@ class LabReportViewSet(viewsets.ModelViewSet):
             return Response([])
         User = get_user_model()
         qs = User.objects.filter(role="patient", patient_profile__isnull=False).select_related("patient_profile")
-        if getattr(request.user, "role", None) != "system_admin":
+        if not sees_all_orgs(request.user):
             qs = qs.filter(organization=request.user.organization)
         match = Q(patient_profile__mrn__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q)
         parts = q.replace(",", " ").split()
