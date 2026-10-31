@@ -71,7 +71,7 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
                 {badges[t.value] > 0 && (
                   <Box
                     component="span"
-                    aria-label={`${badges[t.value]} need review${badgeOverdue[t.value] > 0 ? `, ${badgeOverdue[t.value]} overdue` : ""}`}
+                    aria-label={`${badges[t.value]} need review${badgeOverdue[t.value] > 0 ? `, ${badgeOverdue[t.value]} ${t.value === "results" ? "critical" : "overdue"}` : ""}`}
                     data-testid={`chart-tab-badge-${t.value}`}
                     sx={{ ml: 0.75, minWidth: 18, height: 18, px: 0.5, borderRadius: 9, bgcolor: badgeOverdue[t.value] === 0 ? "warning.main" : "error.main", color: "#fff", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                   >

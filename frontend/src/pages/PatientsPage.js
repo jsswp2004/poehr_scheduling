@@ -516,8 +516,8 @@ function PatientsPage() {
             role={userRole}
             keys={chartLayout.tabs}
             careSetting={careKey}
-            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count }}
-            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue }}
+            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count }}
+            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue, results: worklists.results.overdue }}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
           />
         ) : tab === "team" ? null : (
