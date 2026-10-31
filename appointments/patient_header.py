@@ -12,6 +12,7 @@ The server works out the text for every visible item, so adding or removing an
 item in Settings changes the header everywhere without a code change.
 """
 
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 import re
 from datetime import date
 
@@ -249,7 +250,7 @@ def _patient_for(request, patient_id):
     if user.role not in STAFF_ROLES:
         return None, Response({"detail": "Not allowed."}, status=403)
     patient = CustomUser.objects.filter(pk=patient_id, role="patient").select_related("organization", "provider").first()
-    if patient is None or (user.role != "system_admin" and patient.organization_id != user.organization_id):
+    if patient is None or (not sees_all_orgs(user) and patient.organization_id != user.organization_id):
         return None, Response({"detail": "Patient not found."}, status=404)
     return patient, None
 

@@ -122,6 +122,16 @@ class TenantScopeMiddleware(MiddlewareMixin):
         return None
 
 
+def sees_all_orgs(user):
+    """
+    True for a system administrator who has not chosen an organization to work in: their lists span every
+    organization. Once they choose one (at sign-in, in the header, or with a facility header), they see and
+    change that organization only. Use this where a view used to ask "is this a system admin?" to decide
+    WHICH DATA to show. Whether someone may do something still depends on their role.
+    """
+    return getattr(user, "role", None) == "system_admin" and not getattr(user, "acting_for_org", False)
+
+
 class TenantAwareJWTAuthentication(JWTAuthentication):
     """
     Drop-in replacement for rest_framework_simplejwt's JWTAuthentication
@@ -183,16 +193,20 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
         if getattr(user, "role", None) != "system_admin":
             return
         raw = request.META.get(self.FACILITY_HEADER, "")
-        if not raw:
-            return
         from rest_framework.exceptions import ParseError
 
         from users.models import Organization
 
-        try:
-            org = Organization.objects.get(pk=int(raw))
-        except (TypeError, ValueError, Organization.DoesNotExist):
-            raise ParseError("Unknown facility.")
+        if raw:
+            try:
+                org = Organization.objects.get(pk=int(raw))
+            except (TypeError, ValueError, Organization.DoesNotExist):
+                raise ParseError("Unknown facility.")
+        else:
+            # No header: use the organization this administrator chose at sign-in or in the header switcher.
+            org = getattr(user, "acting_organization", None)
+            if org is None:
+                return
 
         real_org_id = user.organization_id
         real_save = user.save
@@ -207,6 +221,8 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
 
         user.organization = org
         user.save = safe_save
+        # From here on this request is about ONE organization, so lists are limited to it (see sees_all_orgs).
+        user.acting_for_org = True
 
     # Roster-staff logins ("My Shifts") may only touch these API prefixes.
     # Everything else (patients, appointments, users, billing, ...) is

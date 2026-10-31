@@ -10,7 +10,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import { LandingPageV1Desktop1920Px as LandingPage } from './pages/LandingPage';
-import ViewingOrgStrip from './components/ViewingOrgStrip';
+import OrganizationPrompt from './components/OrganizationPrompt';
+import { useActingOrg } from './utils/actingOrg';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
@@ -78,6 +79,8 @@ import DictatePage from './pages/DictatePage';
 
 function AppContent() {
   const location = useLocation();
+  // Pages remount when a system administrator switches organization, so nothing from the old one stays on screen.
+  const actingOrg = useActingOrg();
   const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/privacy', '/terms', '/telehealth/join'].includes(location.pathname);
 
   // Run token migration on app startup
@@ -193,7 +196,7 @@ function AppContent() {
       body.classList.remove('bg-gray-100');
     }
   }, [location.pathname]); return (
-    <>      {showNavbar && <Navbar />}{showNavbar && <ViewingOrgStrip />}      <ToastContainer
+    <>      {showNavbar && <Navbar />}{showNavbar && <OrganizationPrompt />}      <ToastContainer
       position="top-center"
       autoClose={2000}
       hideProgressBar={false}
@@ -204,7 +207,7 @@ function AppContent() {
       draggable
       pauseOnHover
     />
-      <Routes>        <Route path="/" element={<LandingPage />} />
+      <Routes key={actingOrg?.id || 'own'}>        <Route path="/" element={<LandingPage />} />
         <Route path="/solutions" element={<SolutionsPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/enroll" element={<EnrollmentPage />} />

@@ -62,6 +62,8 @@ from .payment_views import (
     messaging_usage,
 )
 
+from .acting_org import acting_organization
+
 router = DefaultRouter()
 router.register(r"organizations", OrganizationViewSet, basename="organization")
 router.register(r"registrations", RegistrationViewSet, basename="registration")
@@ -69,6 +71,7 @@ router.register(r"registrations", RegistrationViewSet, basename="registration")
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("acting-organization/", acting_organization, name="acting-organization"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("doctors/", DoctorListView.as_view(), name="doctor-list"),
     path("patients/", get_patients, name="patient-list"),

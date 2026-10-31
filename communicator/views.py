@@ -1,3 +1,4 @@
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -319,10 +320,10 @@ class MessageLogViewSet(viewsets.ModelViewSet):
 
         user = self.request.user
 
-        if user.role == "system_admin":
-            # System admins see everything
+        if sees_all_orgs(user):
+            # System admins see everything, until they choose an organization to work in
             return MessageLog.objects.all().order_by("-created_at")
-        elif user.role in ["admin", "registrar"] and user.organization:
+        elif (user.role in ["admin", "registrar"] or user.role == "system_admin") and user.organization:
             # Admins and registrars see org messages and system-tagged org messages
             return MessageLog.objects.filter(
                 Q(user__organization=user.organization)

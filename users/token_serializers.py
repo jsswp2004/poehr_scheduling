@@ -55,6 +55,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             if not self.user.is_active:
                 raise serializers.ValidationError('This account is inactive.')
 
+            # A system administrator starts every sign-in with no organization chosen; they are asked which one.
+            if getattr(self.user, 'role', None) == 'system_admin' and self.user.acting_organization_id:
+                type(self.user).objects.filter(pk=self.user.pk).update(acting_organization=None)
+
             # Optional: Debug log
             print(f"[LOGIN DEBUG] User: {self.user.username} | Active: {self.user.is_active} | Role: {self.user.role}")
 

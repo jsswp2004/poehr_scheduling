@@ -1,3 +1,4 @@
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 from rest_framework import generics, filters, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
@@ -71,7 +72,7 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         base = Registration.objects.select_related(
             "patient__user", "attending_provider", "organization"
         )
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             qs = base.all()
         elif user.role not in ["doctor", "nurse", "registrar", "admin"]:
             return Registration.objects.none()
@@ -465,7 +466,7 @@ class DoctorListView(APIView):
 
     def get(self, request):
         user = request.user
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             doctors = CustomUser.objects.filter(role="doctor")
         else:
             doctors = CustomUser.objects.filter(
@@ -946,7 +947,7 @@ def get_patients(request):
                 .annotate(_attending_now=Exists(attending_now))
                 .filter(Q(user__provider=user) | Q(_attending_now=True))
             )
-        elif user.role == "system_admin":
+        elif sees_all_orgs(user):
             patients = Patient.objects.select_related(
                 "user", "user__provider", "organization"
             ).all()
@@ -1153,7 +1154,7 @@ def search_users(request):
     )
 
     # For system_admin, allow searching all users across organizations
-    if user.role == "system_admin":
+    if sees_all_orgs(user):
         users = CustomUser.objects.filter(search_filter)
     # For regular admins, restrict to their organization
     else:
@@ -1618,7 +1619,7 @@ class SMSOptOutManagementView(APIView):
             )
 
         # Filter users based on organization
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             users = CustomUser.objects.all()
         else:
             users = CustomUser.objects.filter(organization=user.organization)
@@ -2387,7 +2388,7 @@ def get_team_members(request):
     ]:
         return Response({"detail": "Access denied"}, status=403)
 
-    if user.role == "system_admin":
+    if sees_all_orgs(user):
         members = CustomUser.objects.exclude(role="patient").filter(is_active=True)
     else:
         members = CustomUser.objects.exclude(role="patient").filter(

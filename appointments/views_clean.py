@@ -1,4 +1,5 @@
 # filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 from rest_framework import viewsets, permissions
 from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent
 from .serializers import AppointmentSerializer, AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer
@@ -38,7 +39,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         print("User:", user, "Role field:", getattr(user, 'role', None))
 
         # === ADDED: System Admin sees all organizations ===
-        if user.role == 'system_admin':
+        if sees_all_orgs(user):
             queryset = Appointment.objects.all().order_by('appointment_datetime')
         else:
             # Start by limiting to the user's organization
@@ -312,7 +313,7 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'system_admin':
+        if sees_all_orgs(user):
             return Availability.objects.all().order_by('-start_time')
         return Availability.objects.filter(organization=user.organization).order_by('-start_time')
 

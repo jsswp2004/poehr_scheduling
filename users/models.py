@@ -21,6 +21,11 @@ class CustomUser(AbstractUser):
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="none"
     )  # 🔗 Link user to organization
+    # System administrators only: the organization they are working in right now. Chosen at sign-in or in the
+    # header, cleared at every sign-in. Empty means "not chosen yet" (lists span every organization).
+    acting_organization = models.ForeignKey(
+        "Organization", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     # A role added in System Dictionaries. `role` above holds the built-in role it behaves like, so every
     # access check keeps working; this only supplies the name people see.
     role_entry = models.ForeignKey(
@@ -893,6 +898,22 @@ class AssistantUsage(models.Model):
 
     def __str__(self):
         return f"{self.organization_id} {self.year}-{self.month:02d} {self.assistant}: {self.questions}"
+
+
+class ActingOrganizationLog(models.Model):
+    """Who worked in which organization, and when: one row each time a system administrator chooses one."""
+
+    user = models.ForeignKey("CustomUser", on_delete=models.CASCADE, related_name="acting_log")
+    organization = models.ForeignKey("Organization", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    organization_name = models.CharField(max_length=255, blank=True)
+    source = models.CharField(max_length=20, default="header")  # "login" or "header"
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user_id} -> {self.organization_name or self.organization_id} ({self.source})"
 
 
 class Dictionary(models.Model):
