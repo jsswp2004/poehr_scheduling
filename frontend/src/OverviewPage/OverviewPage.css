@@ -46,7 +46,8 @@
   min-height: 600px;
 }
 
-.three-panel-layout.cols-2 { grid-template-columns: repeat(2, 1fr); min-height: 0; }
+/* A two-tile row uses the same tile width as the three-tile rows and sits centered. */
+.three-panel-layout.cols-2 { grid-template-columns: repeat(2, calc((100% - 32px) / 3)); justify-content: center; min-height: 0; }
 .three-panel-layout.cols-3 { grid-template-columns: repeat(3, 1fr); min-height: 0; }
 
 .group-heading {
