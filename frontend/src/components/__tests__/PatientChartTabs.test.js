@@ -98,3 +98,13 @@ test("a count of patients to review shows on the tab, and nothing when it is zer
   rerender(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" careSetting="emergency" badges={{ ed_follow_up: 0 }} />);
   expect(screen.queryByTestId("chart-tab-badge-ed_follow_up")).toBeNull();
 });
+
+test("the Results tab shows how many lab results wait for review, and says how many are critical", () => {
+  const { rerender } = render(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" badges={{ results: 4 }} badgeOverdue={{ results: 0 }} />);
+  expect(screen.getByTestId("chart-tab-badge-results")).toHaveTextContent("4");
+  expect(screen.getByLabelText("4 need review")).toBeInTheDocument();
+  rerender(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" badges={{ results: 4 }} badgeOverdue={{ results: 2 }} />);
+  expect(screen.getByLabelText("4 need review, 2 critical")).toBeInTheDocument();
+  rerender(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" badges={{ results: 0 }} />);
+  expect(screen.queryByTestId("chart-tab-badge-results")).toBeNull();
+});
