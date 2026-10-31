@@ -351,6 +351,32 @@ class ActingOrganizationTests(TestCase):
         self.assertEqual(r.json()["own"]["id"], self.home.id)
         self.assertEqual(self._doctors(), {"doc_d"})
 
+    def test_the_team_page_follows_the_choice(self):
+        def team():
+            data = self.client.get("/api/users/team/").json()
+            rows = data["results"] if isinstance(data, dict) and "results" in data else data.get("members", data)
+            return {m["username"] for m in rows}
+
+        self.assertTrue({"doc_h", "doc_d", "doc_o"} <= team())
+        self.client.put("/api/users/acting-organization/", {"organization": self.demo.id}, format="json")
+        self.assertEqual(team(), {"doc_d"})
+
+    def test_the_registration_list_follows_the_choice(self):
+        from users.models import Patient, Registration
+
+        for org, name in ((self.demo, "pd"), (self.other, "po")):
+            u = CustomUser.objects.create_user(username=name, password="pw", role="patient", organization=org)
+            p, _ = Patient.objects.get_or_create(user=u, defaults={"organization": org})
+            Registration.objects.create(patient=p, organization=org)
+
+        def count():
+            data = self.client.get("/api/users/registrations/").json()
+            return len(data["results"] if isinstance(data, dict) and "results" in data else data)
+
+        self.assertEqual(count(), 2)
+        self.client.put("/api/users/acting-organization/", {"organization": self.demo.id}, format="json")
+        self.assertEqual(count(), 1)
+
     def test_choosing_their_own_organization_limits_to_it_too(self):
         self.client.put("/api/users/acting-organization/", {"organization": self.home.id}, format="json")
         self.assertEqual(self._doctors(), {"doc_h"})
