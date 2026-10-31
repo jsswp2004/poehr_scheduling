@@ -74,7 +74,7 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         )
         if sees_all_orgs(user):
             qs = base.all()
-        elif user.role not in ["doctor", "nurse", "registrar", "admin"]:
+        elif user.role not in ["doctor", "nurse", "registrar", "admin", "system_admin"]:
             return Registration.objects.none()
         elif user.role == "doctor":
             qs = base.filter(
