@@ -20,7 +20,7 @@ import hashlib
 import logging
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from django.conf import settings
 from django.core import signing
@@ -50,6 +50,7 @@ MAX_TEXT = 4000
 
 REPLY_LABELS = {
     "schedule": "Appointment scheduled",
+    "seen": "Patient was seen",
     "needs_info": "Need more information",
     "decline": "Decline",
     "report": "Send consult",
@@ -579,6 +580,25 @@ def _text(value):
     return str(value or "").strip()[:MAX_TEXT]
 
 
+def _seen_datetime(value, now):
+    """The day the specialist says the patient was seen (a date), as a moment that is never in the future.
+    Blank means now."""
+    from django.utils.dateparse import parse_date
+
+    raw = _text(value)[:40]
+    if not raw:
+        return now
+    day = parse_date(raw)
+    if day is None:
+        raise rf.ReferralError("Date seen is not a valid date.")
+    when = timezone.make_aware(datetime.combine(day, time(12, 0)))
+    if when > now:
+        if day > timezone.localdate(now):
+            raise rf.ReferralError("The patient can't have been seen in the future.")
+        when = now
+    return when
+
+
 def handle_reply(link, data, uploads, now=None):
     """Apply the specialist's reply. Raises ReferralError when something is missing or not allowed."""
     now = now or timezone.now()
@@ -601,6 +621,12 @@ def handle_reply(link, data, uploads, now=None):
         }
         if text:
             payload["note"] = text
+    elif action == "seen":
+        if uploads:
+            raise rf.ReferralError("Attach files when you send the consult.")
+        payload = {"seen_at": _seen_datetime(data.get("seen_on"), now)}
+        if text:
+            payload["note"] = text
     elif action in ("needs_info", "decline"):
         payload = {"note": text}
     else:  # report
@@ -618,7 +644,7 @@ def handle_reply(link, data, uploads, now=None):
     extra = {"via": "secure_link", "by": ref.destination_name, "link": link.pk}
     if names:
         extra["files"] = names
-    if action == "schedule" and text:
+    if action in ("schedule", "seen") and text:
         extra["note"] = text
 
     with transaction.atomic():
