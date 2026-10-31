@@ -20,6 +20,7 @@ flags (LL / HH) are never guessed -- the lab or the person entering the
 result has to say so.
 """
 
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 import hashlib
 import os
 import re
@@ -224,7 +225,7 @@ def _find_patient(user, patient_id):
     patient = User.objects.filter(pk=patient_id, role="patient").first()
     if patient is None:
         raise LabResultError("Patient not found.", 404)
-    if not _is_system_admin(user) and patient.organization_id != user.organization_id:
+    if not sees_all_orgs(user) and patient.organization_id != user.organization_id:
         raise LabResultError("Patient not found.", 404)
     return patient
 

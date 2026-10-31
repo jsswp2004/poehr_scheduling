@@ -9,6 +9,7 @@ authenticated with the connection's secret key (header X-Interface-Key) and not
 with a login. Staff work the unmatched queue through /api/lab-messages/.
 """
 
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 import json
 
 from django.http import HttpResponse, JsonResponse
@@ -167,7 +168,7 @@ class LabInboundMessageViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = LabInboundMessage.objects.select_related("connection", "resolved_by")
-        if getattr(user, "role", None) != "system_admin":
+        if not sees_all_orgs(user):
             qs = qs.filter(organization=user.organization)
         if self.action == "list":
             qs = qs.filter(status=self.request.query_params.get("status") or "unmatched")
@@ -241,7 +242,7 @@ class LabUsageView(APIView):
         user = request.user
         role = getattr(user, "role", None)
         if role == "system_admin":
-            org = None
+            org = None if sees_all_orgs(user) else user.organization
             if request.query_params.get("org"):
                 from users.models import Organization
 
