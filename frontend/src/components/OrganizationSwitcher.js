@@ -6,26 +6,30 @@ import {
 import axios from "axios";
 import { API_BASE_URL, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
-import { clearActingOrg, ownOrgIdFromToken, setActingOrg, useActingOrg } from "../utils/actingOrg";
+import { chooseActingOrg, ownOrgIdFromToken, useActingOrg } from "../utils/actingOrg";
 
 /**
- * "Work in another organization" window for system administrators. Opened from the organization name in
- * the header. The choice is kept by utils/actingOrg and followed by the pages that support it.
+ * "Which organization are you working in?" window for system administrators.
+ *
+ * `required` is the sign-in version: it cannot be closed (no button, Escape or click outside), nothing is
+ * preselected, and it stays until an organization is saved. Without it, it is the header switcher.
+ * The server keeps the choice and limits everything the person sees and changes to that organization.
  */
-export default function OrganizationSwitcher({ open, onClose }) {
+export default function OrganizationSwitcher({ open, onClose, required = false }) {
   const acting = useActingOrg();
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [pick, setPick] = useState("");
+  const [saving, setSaving] = useState(false);
   const ownId = ownOrgIdFromToken();
 
   useEffect(() => {
     if (!open) return undefined;
     let cancelled = false;
     setQuery("");
-    setPick(acting ? acting.id : ownId);
+    setPick(required ? "" : acting ? acting.id : ownId);
     setError("");
     setLoading(true);
     axios
@@ -45,28 +49,39 @@ export default function OrganizationSwitcher({ open, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const own = orgs.find((o) => o.id === ownId);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? orgs.filter((o) => o.name.toLowerCase().includes(q)) : orgs;
   }, [orgs, query]);
 
-  const apply = () => {
+  const apply = async () => {
     const chosen = orgs.find((o) => o.id === pick);
-    if (chosen) setActingOrg(chosen, own || { id: ownId, name: "" });
-    onClose();
+    if (!chosen) return;
+    setSaving(true);
+    setError("");
+    try {
+      await chooseActingOrg(chosen, required ? "login" : "header");
+      if (onClose) onClose();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Could not save your choice. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
-  const backToMine = () => {
-    clearActingOrg();
-    onClose();
+  // The sign-in window ignores Escape and clicks outside; the header one closes normally.
+  const handleClose = (event, reason) => {
+    if (required) return;
+    if (onClose) onClose(event, reason);
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" aria-labelledby="org-switch-title">
-      <DialogTitle id="org-switch-title">Work in another organization</DialogTitle>
+    <Dialog open={open} onClose={handleClose} disableEscapeKeyDown={required} fullWidth maxWidth="xs" aria-labelledby="org-switch-title">
+      <DialogTitle id="org-switch-title">{required ? "Which organization are you working in?" : "Work in another organization"}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          Choose the organization you want to look at and change. Pages that support it will follow your choice.
+          {required
+            ? "Everything you open and change in this session applies to the organization you choose. You can switch later from the header."
+            : "Everything you open and change applies to the organization you choose."}
         </Typography>
         <TextField
           autoFocus
@@ -101,9 +116,10 @@ export default function OrganizationSwitcher({ open, onClose }) {
         )}
       </DialogContent>
       <DialogActions sx={{ flexWrap: "wrap", gap: 0.5 }}>
-        <Button onClick={backToMine} disabled={!acting}>Back to my organization</Button>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={apply} disabled={!pick || loading}>Switch</Button>
+        {!required && <Button onClick={() => handleClose()}>Cancel</Button>}
+        <Button variant="contained" onClick={apply} disabled={!pick || loading || saving}>
+          {required ? "Work in this organization" : "Switch"}
+        </Button>
       </DialogActions>
     </Dialog>
   );

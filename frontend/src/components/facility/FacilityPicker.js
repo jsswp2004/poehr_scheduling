@@ -5,7 +5,7 @@ import { api } from "../../api/client";
 import { getValidToken } from "../../utils/auth";
 import { authHeader } from "../patientHeader/headerApi";
 import SettingsToolbarPortal from "../settings/SettingsToolbarSlot";
-import { clearActingOrg, ownOrgIdFromToken, setActingOrg, useActingOrg } from "../../utils/actingOrg";
+import { chooseActingOrg, ownOrgIdFromToken, useActingOrg } from "../../utils/actingOrg";
 import { ALL, chooseFacility, configureFacilityScope, resetFacilityScope, useFacilityScope } from "../../utils/facilityScope";
 
 const roleOf = async () => {
@@ -66,17 +66,19 @@ export default function FacilityPicker({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, loading, actingId, scope.facilities.length]);
 
-  const onPick = (value) => {
+  const onPick = async (value) => {
     if (value === ALL) {
       chooseFacility(ALL);
       return;
     }
-    const own = ownOrgIdFromToken();
     const facility = scope.facilities.find((f) => String(f.id) === String(value));
     if (!facility) return;
-    if (String(value) === own) clearActingOrg();
-    else setActingOrg({ id: facility.id, name: facility.name }, { id: own, name: scope.facilities.find((f) => String(f.id) === own)?.name || "" });
-    chooseFacility(String(value));
+    try {
+      await chooseActingOrg({ id: facility.id, name: facility.name }, "header");
+      chooseFacility(String(value));
+    } catch (err) {
+      setProblem("Could not switch organization.");
+    }
   };
 
   if (role === null || loading) {

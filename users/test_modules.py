@@ -320,3 +320,74 @@ class AssistantCostReportTests(TestCase):
         out = self.run_cmd("--input-price", "1", "--output-price", "5")
         self.assertIn("claude-sonnet-5-5 (2), claude-haiku-5-5 (1)", out)
         self.assertIn("More than one model appears", out)
+
+
+class ActingOrganizationTests(TestCase):
+    """A system administrator who chooses an organization works in that organization only."""
+
+    def setUp(self):
+        self.home = make_org("Home")
+        self.demo = make_org("Demo")
+        self.other = make_org("Other")
+        self.admin = CustomUser.objects.create_user(username="sa", password="pw", role="system_admin", organization=self.home)
+        from rest_framework_simplejwt.tokens import AccessToken
+
+        # A real token, so the request goes through the same authentication the app uses.
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.admin)}")
+        for org, name in ((self.home, "h"), (self.demo, "d"), (self.other, "o")):
+            CustomUser.objects.create_user(username="doc_" + name, password="pw", role="doctor", organization=org)
+
+    def _doctors(self):
+        return {d["username"] for d in self.client.get("/api/users/doctors/").json()}
+
+    def test_without_a_choice_the_lists_span_every_organization(self):
+        self.assertEqual(self._doctors(), {"doc_h", "doc_d", "doc_o"})
+
+    def test_choosing_an_organization_limits_the_lists_to_it(self):
+        r = self.client.put("/api/users/acting-organization/", {"organization": self.demo.id}, format="json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["organization"]["id"], self.demo.id)
+        self.assertEqual(r.json()["own"]["id"], self.home.id)
+        self.assertEqual(self._doctors(), {"doc_d"})
+
+    def test_choosing_their_own_organization_limits_to_it_too(self):
+        self.client.put("/api/users/acting-organization/", {"organization": self.home.id}, format="json")
+        self.assertEqual(self._doctors(), {"doc_h"})
+
+    def test_the_choice_never_changes_the_administrators_real_organization(self):
+        self.client.put("/api/users/acting-organization/", {"organization": self.demo.id}, format="json")
+        self._doctors()
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.organization_id, self.home.id)
+        self.assertEqual(self.admin.role, "system_admin")
+
+    def test_each_choice_is_logged(self):
+        from users.models import ActingOrganizationLog
+
+        self.client.put("/api/users/acting-organization/", {"organization": self.demo.id, "source": "login"}, format="json")
+        self.client.put("/api/users/acting-organization/", {"organization": self.other.id}, format="json")
+        rows = list(ActingOrganizationLog.objects.order_by("id").values_list("organization_name", "source"))
+        self.assertEqual(rows, [("Demo", "login"), ("Other", "header")])
+
+    def test_a_choice_is_required(self):
+        r = self.client.put("/api/users/acting-organization/", {}, format="json")
+        self.assertEqual(r.status_code, 400)
+        r = self.client.put("/api/users/acting-organization/", {"organization": 999999}, format="json")
+        self.assertEqual(r.status_code, 400)
+
+    def test_only_system_admins_can_choose(self):
+        doc = CustomUser.objects.get(username="doc_d")
+        c = APIClient()
+        c.force_authenticate(doc)
+        self.assertEqual(c.put("/api/users/acting-organization/", {"organization": self.home.id}, format="json").status_code, 403)
+        self.assertEqual(c.get("/api/users/acting-organization/").status_code, 403)
+        doc.refresh_from_db()
+        self.assertIsNone(doc.acting_organization_id)
+
+    def test_signing_in_clears_the_choice(self):
+        self.client.put("/api/users/acting-organization/", {"organization": self.demo.id}, format="json")
+        r = APIClient().post("/api/users/login/", {"username": "sa", "password": "pw"}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.admin.refresh_from_db()
+        self.assertIsNone(self.admin.acting_organization_id)

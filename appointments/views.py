@@ -1,4 +1,5 @@
 # filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 from rest_framework import viewsets, permissions
 from .models import (
     Appointment,
@@ -120,7 +121,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         # select_related that is about four extra queries per appointment, which made the
         # calendar's list request take ~11 seconds for a few dozen rows.
         related = ("patient", "provider", "unit__facility")
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             queryset = (
                 Appointment.all_objects.all()
                 .select_related(*related)
@@ -614,7 +615,7 @@ class ClinicEventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         # System admins can see clinic events from all organizations
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             return ClinicEvent.objects.filter(is_active=True).order_by("name")
 
         # Regular users only see clinic events from their organization
@@ -625,7 +626,7 @@ class ClinicEventViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         # Auto-assign the organization for non-system admins
-        if user.role != "system_admin":
+        if not sees_all_orgs(user):
             serializer.save(organization=user.organization)
         else:
             # System admins can specify organization or it defaults to their own
@@ -639,7 +640,7 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         # doctor_name reads each row's doctor, so fetch it in the same query
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             return Availability.objects.select_related("doctor").order_by("-start_time")
         return (
             Availability.objects.filter(organization=user.organization)
@@ -745,12 +746,12 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
         user = request.user
         User = get_user_model()
         doctors = User.objects.filter(id=doctor_id)
-        if user.role != "system_admin":
+        if not sees_all_orgs(user):
             doctors = doctors.filter(organization=user.organization)
         doctor = doctors.first()
         if doctor is None:
             return Response({"error": "Clinician not found."}, status=status.HTTP_404_NOT_FOUND)
-        organization = user.organization if user.role != "system_admin" else doctor.organization
+        organization = user.organization if not sees_all_orgs(user) else doctor.organization
 
         is_blocked = bool(request.data.get("is_blocked"))
         block_type = request.data.get("block_type") if is_blocked else None
@@ -1128,7 +1129,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
             self.ensure_holidays_for_year(year)
 
             # System admins see ALL holidays from ALL organizations
-            if user.role == "system_admin":
+            if sees_all_orgs(user):
                 return Holiday.objects.filter(
                     date__year=year, suppressed=False
                 ).order_by("date")
@@ -1146,7 +1147,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
             self.ensure_holidays_for_year(datetime.now().year)
 
             # System admins see ALL holidays from ALL organizations
-            if user.role == "system_admin":
+            if sees_all_orgs(user):
                 return Holiday.objects.filter(suppressed=False).order_by("date")
             else:
                 # Regular users see global holidays + their organization's holidays
@@ -1778,7 +1779,7 @@ def update_appointment_status(request, appointment_id):
     try:
         user = request.user
         # Get the appointment
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             appointment = Appointment.all_objects.get(id=appointment_id)
         else:
             appointment = Appointment.objects.get(
@@ -1838,7 +1839,7 @@ class CheckInSearchView(APIView):
         print(f"[DEBUG] CheckInSearchView: today={today}")
 
         # Build base queryset for today's appointments
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             queryset = Appointment.all_objects.filter(appointment_datetime__date=today)
         else:
             queryset = Appointment.objects.filter(
@@ -1891,7 +1892,7 @@ class CheckInStatusUpdateView(APIView):
             user = request.user
 
             # Get the appointment
-            if user.role == "system_admin":
+            if sees_all_orgs(user):
                 appointment = Appointment.all_objects.get(id=appointment_id)
             else:
                 appointment = Appointment.objects.get(
@@ -1946,7 +1947,7 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             queryset = ClinicalNote.objects.all()
         else:
             queryset = ClinicalNote.objects.filter(organization=user.organization)
@@ -2064,7 +2065,7 @@ class VitalSignsFlowsheetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             queryset = VitalSignsFlowsheet.objects.all()
         else:
             queryset = VitalSignsFlowsheet.objects.filter(organization=user.organization)
@@ -2440,7 +2441,7 @@ class DictionaryAdminViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 def _org_scoped(queryset, user, allow_global=False):
-    if user.role == "system_admin":
+    if sees_all_orgs(user):
         return queryset
     q = Q(organization=user.organization)
     if allow_global:

@@ -1,58 +1,42 @@
 import { useSyncExternalStore } from "react";
+import axios from "axios";
 import { jwtDecode } from "jwt-decode";
+import { API_BASE_URL, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "./tokenManager";
 import { installStaffingOrgInterceptor, setSelectedOrgId, clearSelectedOrg } from "./staffingOrg";
 
 /**
- * The organization a system administrator is working in, chosen in the header.
+ * The organization a system administrator is working in.
  *
- * Only the pages that can act on another organization follow it (Staffing, Organization Management and
- * Settings); the rest keep showing the administrator's own organization and say so. The choice lives only
- * in this tab (sessionStorage), so every sign-in starts on the administrator's own organization, and the
- * server still ignores the request to act elsewhere for anyone who is not a system administrator.
+ * The SERVER keeps the choice (for that person only) and limits everything they see and change to that
+ * organization, so every page follows it. This module only mirrors it for the screen: whether a choice has
+ * been made yet ("none" means the sign-in window must ask), and which one it is. Every sign-in starts with
+ * no choice. Nobody but a system administrator can set it.
  */
-const STORE_KEY = "power.actingOrg";
-
-// Pages that follow the choice. Anything else shows the signed-in user's own organization.
-export const FOLLOWING_PATHS = ["/staffing", "/organization-access", "/environment"];
-// Pages that show no organization data of their own (the menus), so they need no "still your own" warning.
-export const NEUTRAL_PATHS = ["/solutions", "/admin"];
-export const isNeutralPath = (pathname) => NEUTRAL_PATHS.includes(pathname);
-export const followsActingOrg = (pathname) => FOLLOWING_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-
 const listeners = new Set();
-let state = null; // { id, name, ownId, ownName } while working in another organization, else null
-
-const read = () => {
-  try {
-    const raw = window.sessionStorage.getItem(STORE_KEY);
-    const v = raw ? JSON.parse(raw) : null;
-    return v && v.id ? v : null;
-  } catch (err) {
-    return null;
-  }
-};
-const write = (value) => {
-  try {
-    if (value) window.sessionStorage.setItem(STORE_KEY, JSON.stringify(value));
-    else window.sessionStorage.removeItem(STORE_KEY);
-  } catch (err) {
-    /* the choice is then kept in memory only */
-  }
-};
-
-state = read();
-if (state) {
-  installStaffingOrgInterceptor();
-  setSelectedOrgId(state.id);
-}
+// status: "unknown" (not asked the server yet), "none" (nothing chosen: ask), "chosen"
+let state = { status: "unknown", org: null }; // org: { id, name, ownId, ownName }
 
 const publish = (next) => {
   state = next;
   listeners.forEach((l) => l());
 };
 
-export const getActingOrg = () => state;
+const apply = (data) => {
+  const o = data && data.organization;
+  if (!o) {
+    clearSelectedOrg();
+    publish({ status: "none", org: null });
+    return;
+  }
+  const org = { id: String(o.id), name: o.name || "", ownId: data.own ? String(data.own.id) : "", ownName: data.own?.name || "" };
+  installStaffingOrgInterceptor();
+  setSelectedOrgId(org.id);
+  publish({ status: "chosen", org });
+};
+
+export const getActingOrg = () => state.org;
+export const getActingStatus = () => state.status;
 
 /** The signed-in person's own organization id (from the token), as a string. */
 export const ownOrgIdFromToken = () => {
@@ -63,34 +47,43 @@ export const ownOrgIdFromToken = () => {
   }
 };
 
-/**
- * Work in `org` ({id, name}); `own` ({id, name}) is the administrator's own organization. Choosing the
- * own organization (or nothing) goes back to normal.
- */
-export function setActingOrg(org, own) {
-  if (!org || !org.id || (own && String(org.id) === String(own.id))) {
-    clearActingOrg();
-    return;
+/** Ask the server which organization is chosen (system administrators). Leaves the state alone on a network error. */
+export async function loadActingOrg() {
+  try {
+    const res = await axios.get(`${API_BASE_URL}/api/users/acting-organization/`, { headers: getAuthHeaders(getAccessToken()) });
+    apply(res.data);
+  } catch (err) {
+    if (err?.response?.status === 403) publish({ status: "unknown", org: null });
   }
-  const next = { id: String(org.id), name: org.name || "", ownId: own ? String(own.id) : "", ownName: own?.name || "" };
-  write(next);
-  installStaffingOrgInterceptor();
-  setSelectedOrgId(next.id);
-  publish(next);
 }
 
-export function clearActingOrg() {
-  write(null);
-  clearSelectedOrg();
-  publish(null);
-}
-
-export function useActingOrg() {
-  return useSyncExternalStore(
-    (cb) => {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
-    },
-    () => state
+/** Work in `org` ({id, name}). Resolves once the server has saved it; throws if it could not. */
+export async function chooseActingOrg(org, source = "header") {
+  const res = await axios.put(
+    `${API_BASE_URL}/api/users/acting-organization/`,
+    { organization: org.id, source },
+    { headers: getAuthHeaders(getAccessToken()) }
   );
+  apply(res.data);
+}
+
+/** Forget the choice on this screen (sign-in and sign-out); the server clears its own copy at sign-in. */
+export function clearActingOrg() {
+  clearSelectedOrg();
+  publish({ status: "unknown", org: null });
+}
+
+const subscribe = (cb) => {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+};
+
+/** The organization being worked in, or null until one is chosen. */
+export function useActingOrg() {
+  return useSyncExternalStore(subscribe, () => state).org;
+}
+
+/** "unknown" | "none" | "chosen" */
+export function useActingStatus() {
+  return useSyncExternalStore(subscribe, () => state).status;
 }
