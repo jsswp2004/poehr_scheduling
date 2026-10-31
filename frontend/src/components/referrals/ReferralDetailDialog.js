@@ -58,6 +58,7 @@ const EVENT_LABELS = {
   link_sent: "Secure link sent",
   link_opened: "Specialist opened the secure link",
   link_revoked: "Secure link turned off",
+  reply_notified: "Messages sent about the reply",
 };
 
 const LINK_STATE = {
@@ -514,6 +515,13 @@ export default function ReferralDetailDialog({ referralId, open, onClose, onChan
                     <Typography variant="body2">
                       <strong>{EVENT_LABELS[e.type] || e.type}</strong> · {e.user || (e.detail?.via === "secure_link" ? "Specialist (secure link)" : "System")} · {fmtDateTime(e.at)}
                     </Typography>
+                    {e.type === "reply_notified" && Array.isArray(e.detail?.results) && (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {e.detail.results
+                          .map((r) => `${r.to === "clinic" ? "Clinic" : "Specialist"} ${r.channel === "sms" ? "text" : "email"}: ${r.sent ? "sent" : "not sent"}`)
+                          .join(" · ")}
+                      </Typography>
+                    )}
                     {e.detail?.files?.length > 0 && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                         Attached: {e.detail.files.join(", ")}

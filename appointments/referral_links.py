@@ -580,6 +580,51 @@ def _text(value):
     return str(value or "").strip()[:MAX_TEXT]
 
 
+def notify_reply(link, action, now=None):
+    """Tell the clinic a specialist replied, and send the specialist a receipt, as the clinic's settings say.
+    No patient details and none of the reply's words go in either message. Returns what was tried."""
+    now = now or timezone.now()
+    ref = link.referral
+    clinic_email, clinic_sms, receipt = rf.notify_settings_for(ref.organization)
+    org_name = ref.organization.name
+    sent = []
+
+    owner = ref.assigned_to or ref.referring_provider
+    if owner is not None:
+        address = (getattr(owner, "email", "") or "").strip()
+        phone = (getattr(owner, "phone_number", "") or "").strip()
+        if clinic_email and address:
+            ok, reason = _send_mail(
+                address,
+                "A referral has a reply",
+                "A specialist replied to a referral. Sign in to POWER and open the Referral List to read it.",
+                ref, None, [],
+            )
+            sent.append({"to": "clinic", "channel": "email", "sent": ok, "reason": reason})
+        if clinic_sms and phone:
+            ok, reason = _send_text(
+                phone, f"{org_name}: a specialist replied to a referral. Sign in to POWER to read it.", ref, None, []
+            )
+            sent.append({"to": "clinic", "channel": "sms", "sent": ok, "reason": reason})
+
+    if receipt:
+        reached = {d.get("channel") for d in (link.deliveries or []) if d.get("sent")}
+        if "sms" in reached and link.recipient_mobile:
+            ok, reason = _send_text(
+                link.recipient_mobile, f"{org_name} received your reply. Thank you.\nReply STOP to opt out.", ref, None, []
+            )
+            sent.append({"to": "specialist", "channel": "sms", "sent": ok, "reason": reason})
+        if "email" in reached and link.recipient_email:
+            ok, reason = _send_mail(
+                link.recipient_email, f"{org_name} received your reply", f"{org_name} received your reply. Thank you.", ref, None, []
+            )
+            sent.append({"to": "specialist", "channel": "email", "sent": ok, "reason": reason})
+
+    if sent:
+        rf.log_event(ref, "reply_notified", None, detail={"reply": action, "results": sent, "at": _iso(now)})
+    return sent
+
+
 def _seen_datetime(value, now):
     """The day the specialist says the patient was seen (a date), as a moment that is never in the future.
     Blank means now."""
@@ -652,4 +697,8 @@ def handle_reply(link, data, uploads, now=None):
         for content, content_type, name in inspected:
             _file_document(Referral.objects.get(pk=ref.pk), link, content, content_type, name, now)
     link.referral.refresh_from_db()
+    try:
+        notify_reply(link, action, now)
+    except Exception:  # a failed notice must never undo or hide the specialist's reply
+        log.exception("referral link: notifying about a reply failed")
     return packet(link)

@@ -564,7 +564,11 @@ class ReferralSettingsView(APIView):
     @staticmethod
     def _json(org):
         days, report = rf.settings_for(org)
-        return {"organization": org.pk, "schedule_days": days, "report_days": report}
+        clinic_email, clinic_sms, receipt = rf.notify_settings_for(org)
+        return {
+            "organization": org.pk, "schedule_days": days, "report_days": report,
+            "notify_clinic_email": clinic_email, "notify_clinic_sms": clinic_sms, "notify_specialist_receipt": receipt,
+        }
 
     def get(self, request):
         denied = _need_staff(request)
@@ -597,7 +601,18 @@ class ReferralSettingsView(APIView):
             if not isinstance(report, int) or isinstance(report, bool) or not 1 <= report <= 365:
                 return Response({"detail": "Days must be a whole number from 1 to 365."}, status=400)
             current_report = report
+        notify = {}
+        for key in ("notify_clinic_email", "notify_clinic_sms", "notify_specialist_receipt"):
+            if key in request.data:
+                if not isinstance(request.data[key], bool):
+                    return Response({"detail": "Notification choices must be on or off."}, status=400)
+                notify[key] = request.data[key]
+        current_notify = dict(zip(
+            ("notify_clinic_email", "notify_clinic_sms", "notify_specialist_receipt"), rf.notify_settings_for(org)
+        ))
+        current_notify.update(notify)
         ReferralSettings.objects.update_or_create(
-            organization=org, defaults={"schedule_days": current, "report_days": current_report, "updated_by": request.user}
+            organization=org,
+            defaults={"schedule_days": current, "report_days": current_report, "updated_by": request.user, **current_notify},
         )
         return Response({**self._json(org), "can_edit": True})

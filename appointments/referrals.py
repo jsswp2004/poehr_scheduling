@@ -91,6 +91,14 @@ class ReferralError(Exception):
 
 # ---------------------------------------------------------------- timers
 
+def notify_settings_for(org):
+    """Who is told about a specialist's reply: (clinic_email, clinic_sms, specialist_receipt). Defaults when unset."""
+    row = ReferralSettings.objects.filter(organization=org).first() if org else None
+    if row is None:
+        return True, False, True
+    return row.notify_clinic_email, row.notify_clinic_sms, row.notify_specialist_receipt
+
+
 def settings_for(org):
     """(schedule_days by urgency, report_days) for a clinic, falling back to the defaults."""
     days = dict(ReferralSettings.DEFAULT_SCHEDULE_DAYS)
