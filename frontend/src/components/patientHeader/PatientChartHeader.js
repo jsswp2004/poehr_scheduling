@@ -15,7 +15,11 @@ import {
   Stack,
   Chip,
   Divider,
+  Avatar,
+  Menu,
 } from "@mui/material";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import EditIcon from "@mui/icons-material/Edit";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
@@ -23,6 +27,14 @@ import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "./headerApi";
 import AllergyAddForm from "./AllergyAddForm";
 import GrowthChartButton from "../growth/GrowthChartModal";
+
+/** The two letters shown when a patient has no photo: first letter of the first and last names. */
+function initialsOf(name) {
+  const text = String(name || "").trim();
+  if (!text) return "";
+  const parts = text.includes(",") ? text.split(",").map((x) => x.trim()).reverse() : text.split(/\s+/);
+  return ((parts[0] || "")[0] || "").concat((parts[parts.length - 1] || "")[0] || "").toUpperCase();
+}
 
 const VALUE_STYLE = {
   strong: { fontWeight: 700, fontSize: "1.15rem" },
@@ -38,13 +50,14 @@ const VALUE_STYLE = {
  * Allergies are red when there are any, and a patient with nothing recorded reads
  * "Not documented" (different from "No known allergies").
  */
-function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persistent = false, onLoaded = null }) {
+function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persistent = false, onLoaded = null, nav = null }) {
   // Lets the page know which visit this banner is showing (its id, number and chart record).
   const loadedRef = useRef(onLoaded);
   loadedRef.current = onLoaded;
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [jumpAnchor, setJumpAnchor] = useState(null);
 
   const load = useCallback(async () => {
     if (!patientId) return;
@@ -104,6 +117,14 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
       sx={{ p: 1.5, mb: persistent ? 1 : 2, flexShrink: 0, borderLeft: "6px solid", borderLeftColor: "primary.main", bgcolor: "#eff6ff" }}
     >
       <Stack direction="row" alignItems="flex-start" spacing={2}>
+        <Avatar
+          src={data.photo_url || undefined}
+          alt=""
+          data-testid="header-photo"
+          sx={{ width: 56, height: 56, bgcolor: "primary.light", color: "primary.contrastText", fontWeight: 600, flexShrink: 0 }}
+        >
+          {initialsOf(first?.value)}
+        </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           {first && (
             <Typography component="div" sx={{ ...VALUE_STYLE[first.emphasis], mb: rest.length ? 0.5 : 0 }}>
@@ -130,12 +151,77 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
             </Box>
           )}
         </Box>
-        {data.can_growth_chart && <GrowthChartButton patientId={patientId} ageMonths={data.age_months} size="small" />}
-        <Tooltip title="Update allergies and header details">
-          <IconButton size="small" onClick={() => setEditing(true)} aria-label="Update allergies and header details">
-            <EditIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <Stack alignItems="flex-end" spacing={0.5} sx={{ flexShrink: 0 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            {data.can_growth_chart && <GrowthChartButton patientId={patientId} ageMonths={data.age_months} size="small" />}
+            <Tooltip title="Update allergies and header details">
+              <IconButton size="small" onClick={() => setEditing(true)} aria-label="Update allergies and header details">
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+          {nav && (
+            <Stack alignItems="flex-end" data-testid="patient-nav">
+              <Stack direction="row" spacing={0.5}>
+                <Tooltip placement="top" title={nav.prev ? `Previous: ${nav.prev.full_name}` : ""}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={nav.onPrev}
+                      disabled={!nav.prev}
+                      aria-label={nav.prev ? `Previous patient: ${nav.prev.full_name}` : "No previous patient"}
+                      data-testid="patient-nav-prev"
+                      sx={{ border: 1, borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}
+                    >
+                      <ChevronLeftIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip placement="top" title={nav.next ? `Next: ${nav.next.full_name}` : ""}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={nav.onNext}
+                      disabled={!nav.next}
+                      aria-label={nav.next ? `Next patient: ${nav.next.full_name}` : "No next patient"}
+                      data-testid="patient-nav-next"
+                      sx={{ border: 1, borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}
+                    >
+                      <ChevronRightIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Stack>
+              <Button
+                size="small"
+                color="inherit"
+                onClick={(e) => setJumpAnchor(e.currentTarget)}
+                aria-haspopup="menu"
+                data-testid="patient-nav-count"
+                sx={{ minWidth: 0, py: 0, px: 0.5, fontSize: "0.75rem", color: "text.secondary", textTransform: "none" }}
+              >
+                {nav.index + 1} of {nav.total}
+              </Button>
+              <Menu anchorEl={jumpAnchor} open={!!jumpAnchor} onClose={() => setJumpAnchor(null)} slotProps={{ paper: { sx: { maxHeight: 360 } } }}>
+                <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: "block" }}>
+                  {nav.label}
+                </Typography>
+                {nav.patients.map((p, i) => (
+                  <MenuItem
+                    key={p.user_id}
+                    selected={i === nav.index}
+                    onClick={() => {
+                      setJumpAnchor(null);
+                      if (i !== nav.index) nav.onJump(i);
+                    }}
+                  >
+                    {i + 1}. {p.full_name}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </Stack>
+          )}
+        </Stack>
       </Stack>
 
       {editing && (

@@ -49,6 +49,7 @@ import { DictationProvider } from "./dictation/DictationContext";
 import DictationTextField from "./dictation/DictationTextField";
 import DictateNoteBar from "./dictation/DictateNoteBar";
 import PanelTitle from "./patients/PanelTitle";
+import { setUnsaved } from "../utils/unsavedWork";
 
 // The four SOAP boxes as dictation fields (see DictateNoteBar).
 const SOAP_DICTATION_FIELDS = ["Subjective", "Objective", "Assessment", "Plan"].map((label) => ({
@@ -154,6 +155,15 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [draftId, setDraftId] = useState(null); // id of the note being drafted/edited
+  // A brand-new note with something typed in it that has not been saved as a draft yet.
+  const holdsUnsavedNote =
+    !draftId &&
+    (["subjective", "objective", "assessment", "plan"].some((k) => String(form[k] || "").trim() !== "") ||
+      Object.values(form.structured_data || {}).some((v) => (typeof v === "string" ? v.trim() !== "" : Array.isArray(v) ? v.length > 0 : v != null && v !== false && typeof v !== "object")));
+  useEffect(() => {
+    setUnsaved("note", holdsUnsavedNote);
+    return () => setUnsaved("note", false);
+  }, [holdsUnsavedNote]);
   const [amendsId, setAmendsId] = useState(null); // set when writing an addendum
   const [activeTab, setActiveTab] = useState("documentation");
 

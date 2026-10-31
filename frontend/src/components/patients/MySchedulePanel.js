@@ -75,7 +75,7 @@ export function statusChip(appointment) {
  * The My Schedule tab: the Patient List narrowed to the patients with an appointment on a day.
  * A doctor sees their own. Anyone else sees the whole clinic's and can narrow to one provider.
  */
-function MySchedulePanel({ userRole, providers = [], selectedId = null, onSelect = null, onOpenChart = null, onSendText = null, onOpenEmailModal = null }) {
+function MySchedulePanel({ userRole, providers = [], selectedId = null, onSelect = null, onOpenChart = null, onSendText = null, onOpenEmailModal = null, onListChange = null }) {
   const navigate = useNavigate();
   const [day, setDay] = useState(() => localDateString());
   const [provider, setProvider] = useState("");
@@ -116,6 +116,11 @@ function MySchedulePanel({ userRole, providers = [], selectedId = null, onSelect
       cancelled = true;
     };
   }, [day, provider, search, isDoctor, reloadKey]);
+
+  // Tell the page who is on this schedule, in order, so the banner's arrows can walk it.
+  useEffect(() => {
+    if (onListChange && rows) onListChange("My schedule", rows.map((r) => r.patient).filter(Boolean));
+  }, [onListChange, rows]);
 
   const onSearch = useCallback((value) => setSearch(value), []);
   const today = localDateString();

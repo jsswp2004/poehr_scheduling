@@ -407,6 +407,9 @@ class PatientHeaderView(APIView):
             return error
         data = build_header(patient, request.query_params.get("visit"))
         data["can_edit"] = True
+        # The photo at the left of the banner: the patient's profile picture when there is one.
+        picture = getattr(patient, "profile_picture", None)
+        data["photo_url"] = request.build_absolute_uri(picture.url) if picture else ""
         # Drives the "Growth chart" button: only for patients under 20 years, and only for staff who may view flowsheets.
         from users.rights import user_has_right
         from .immunization_engine import age_in_months

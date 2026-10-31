@@ -121,6 +121,7 @@ export default function EDBoard({
   previewView = null,
   selectedUserId = null,
   onSelectPatient,
+  onListChange = null,
   onOpenPatient,
   onTransfer,
   onDischarge,
@@ -205,6 +206,14 @@ export default function EDBoard({
     const kept = filterByColumns(rows, columns, filters, tableCtx);
     return sortRows(kept, columns.find((c) => c.key === sort?.key), sort?.dir, tableCtx);
   }, [rows, columns, filters, sort, tableCtx]);
+  // Tell the page which patients are on the board, in the order shown, so the banner's arrows can walk it.
+  useEffect(() => {
+    if (!onListChange) return;
+    onListChange(
+      "ED Board",
+      shownRows.filter((r) => r.visit && r.visit.user_id).map((r) => ({ user_id: r.visit.user_id, full_name: r.visit.name }))
+    );
+  }, [onListChange, shownRows]);
   const filterCount = Object.values(filters).filter((t) => (t || "").trim() !== "").length;
   const widthOf = (c) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, widths[c.key] ?? c.width ?? 100));
   const tableWidth = columns.reduce((sum, c) => sum + widthOf(c), 0);
