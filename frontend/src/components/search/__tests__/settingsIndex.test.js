@@ -13,17 +13,32 @@ describe("findSettings", () => {
     expect(findSettings("medication pass", "admin").map((r) => r.label)).toContain("Tasks");
   });
 
-  it("lists settings before tools and includes the portal tools", () => {
+  it("includes the portal tools, and puts the group with the best match first", () => {
     const rows = findSettings("order", "admin");
-    expect(rows.map((r) => r.label)).toContain("Order Builder");
-    const groups = rows.map((r) => r.group);
-    expect(groups.indexOf("tool")).toBeGreaterThanOrEqual(groups.lastIndexOf("setting"));
+    expect(rows[0].label).toBe("Order Builder");
+    expect(rows[0].group).toBe("tool");
   });
 
-  it("offers nothing to staff who are not administrators, or for one letter", () => {
-    expect(findSettings("tab", "nurse")).toEqual([]);
-    expect(findSettings("tab", "registrar")).toEqual([]);
+  it("finds Staffing pages and each standard report for anyone who can use Staffing", () => {
+    expect(findSettings("labor", "admin").map((r) => r.path)).toContain("/staffing?tab=reports&report=labor_hours");
+    expect(findSettings("time off", "nurse").map((r) => r.path)).toContain("/staffing?tab=timeoff");
+  });
+
+  it("keeps administrator-only Staffing tabs and all settings away from other staff", () => {
+    expect(findSettings("assign", "nurse").map((r) => r.label)).not.toContain("Assign Schedule");
+    expect(findSettings("assign", "admin").map((r) => r.label)).toContain("Assign Schedule");
+    expect(findSettings("tab management", "nurse")).toEqual([]);
+  });
+
+  it("offers the module pages the header icons offer", () => {
+    expect(findSettings("lab results", "doctor").map((r) => r.path)).toContain("/lab-inbox");
+    expect(findSettings("lab results", "registrar").map((r) => r.path)).not.toContain("/lab-inbox");
+  });
+
+  it("offers no settings to staff who are not administrators, nothing to patients, and nothing for one letter", () => {
+    expect(findSettings("tab management", "nurse")).toEqual([]);
     expect(findSettings("t", "admin")).toEqual([]);
+    expect(findSettings("tab", "patient")).toEqual([]);
   });
 
   it("keeps Settings tabs out of the Tools group, and gives every tab a path", () => {

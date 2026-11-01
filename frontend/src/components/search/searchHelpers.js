@@ -91,12 +91,22 @@ export function dobText(iso) {
 export function flattenRows(data, chip) {
   const rows = [];
   if (!data) return rows;
-  let patients = data.patients || [];
+  const patients = data.patients || [];
   const visits = data.visits || [];
-  if (chip === "mrn") patients = patients.filter((p) => p.matched_by === "mrn");
-  if (chip !== "visits") patients.forEach((p) => rows.push({ ...p, rowKey: `p${p.user_id}` }));
+  const staff = data.staff || [];
+  const units = data.units || [];
+  if (chip === "all" || chip === "staff") {
+    staff.forEach((r) => rows.push({ ...r, rowKey: `t${r.id}` }));
+    units.forEach((r) => rows.push({ ...r, rowKey: `u${r.id}` }));
+  }
+  if (chip === "all" || chip === "patients") patients.forEach((p) => rows.push({ ...p, rowKey: `p${p.user_id}` }));
+  if (chip === "mrn") patients.filter((p) => p.matched_by === "mrn").forEach((p) => rows.push({ ...p, rowKey: `p${p.user_id}` }));
   if (chip === "all" || chip === "visits") visits.forEach((v) => rows.push({ ...v, rowKey: `v${v.id}` }));
-  if (!patients.length && !visits.length && chip !== "visits") (data.suggestions || []).forEach((p) => rows.push({ ...p, rowKey: `s${p.user_id}` }));
+  const nothing = !patients.length && !visits.length && !staff.length && !units.length;
+  if (nothing && chip === "all") {
+    (data.suggestions || []).forEach((p) => rows.push({ ...p, rowKey: `s${p.user_id}` }));
+    (data.staff_suggestions || []).forEach((r) => rows.push({ ...r, rowKey: `sf${r.id}` }));
+  }
   return rows;
 }
 

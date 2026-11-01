@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Alert, Box, Button, CircularProgress, Tabs, Tab, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import axios from "axios";
 import { StaffingHeaderSlotContext } from "../components/staffing/StaffingTabHeader";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import BackButton from "../components/BackButton";
 import { getAccessToken } from "../utils/tokenManager";
@@ -26,13 +26,22 @@ import StaffingAssistantDock from "../components/StaffingAssistantDock";
 import StaffingStaffView from "./StaffingStaffView";
 
 const ADMIN_ROLES = ["admin", "system_admin"];
+const STAFFING_TABS = ["calendar", "master", "roster", "assign", "units", "timeoff", "upload", "reports", "rules"];
+const ADMIN_TABS = ["assign", "upload"];
 const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar", "staff"];
 
 function StaffingPage() {
   // /staffing?tab=reports opens the Reports tab (the Reports home links straight to a report).
-  const [tab, setTab] = useState(() =>
-    new URLSearchParams(window.location.search).get("tab") === "reports" ? "reports" : "calendar"
-  );
+  // Any tab can be opened the same way (the header search links to them); an administrator-only tab falls back to the calendar for anyone else.
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [tab, setTab] = useState(() => (STAFFING_TABS.includes(tabParam) ? tabParam : "calendar"));
+  const lastTabParam = useRef(tabParam);
+  useEffect(() => {
+    if (lastTabParam.current === tabParam) return;
+    lastTabParam.current = tabParam;
+    if (STAFFING_TABS.includes(tabParam)) setTab(tabParam);
+  }, [tabParam]);
   const [assignSection, setAssignSection] = useState("schedules");
   const [headerSlot, setHeaderSlot] = useState(null);
   // Publish the frozen header's height so a tab can pin its own title row just beneath it.
@@ -134,6 +143,9 @@ function StaffingPage() {
   }, [role, orgReady, orgId]);
 
   const isAdmin = ADMIN_ROLES.includes(role);
+  useEffect(() => {
+    if (role && !isAdmin && ADMIN_TABS.includes(tab)) setTab("calendar");
+  }, [role, isAdmin, tab]);
   const isStaff = role === "staff";
 
   // Staff accounts get their own schedule, time off and assistant -- the web twin of the phone app.

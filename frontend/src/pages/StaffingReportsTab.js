@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useContext } from "react";
+import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
   Box,
@@ -327,6 +328,12 @@ function StaffingReportsTab() {
     const wanted = new URLSearchParams(window.location.search).get("report");
     return wanted && REPORT_BY_VALUE[wanted] ? wanted : "coverage_compliance";
   });
+  // Another report chosen in the header search while this tab is open.
+  const [reportQuery] = useSearchParams();
+  const reportParam = reportQuery.get("report");
+  useEffect(() => {
+    if (reportParam && REPORT_BY_VALUE[reportParam]) setReportType(reportParam);
+  }, [reportParam]);
   const [preset, setPreset] = useState("week");
   const [startDate, setStartDate] = useState(() => getPresetRange("week").start);
   const [endDate, setEndDate] = useState(() => getPresetRange("week").end);

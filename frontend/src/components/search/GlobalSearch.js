@@ -19,6 +19,8 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import ApartmentIcon from "@mui/icons-material/Apartment";
+import { moduleEnabled } from "../../utils/orgModules";
 import { findSettings } from "./settingsIndex";
 import { storedCareSetting } from "../patients/CareSettingSidebar";
 import {
@@ -179,8 +181,44 @@ function VisitRow({ row, query, active, onOpen, onHover, domId }) {
   );
 }
 
+function StaffRow({ row, query, active, onOpen, onHover, domId }) {
+  const unit = row.type === "unit";
+  const line = unit
+    ? [row.bed_capacity ? `${row.bed_capacity} beds` : "", row.is_active ? "" : "Inactive", "Staffing › Units & Census"].filter(Boolean).join(" · ")
+    : [row.profession, row.nursing_role ? row.nursing_role.toUpperCase() : "", "Staffing › Roster"].filter(Boolean).join(" · ");
+  return (
+    <Box
+      id={domId}
+      role="option"
+      aria-selected={active}
+      onMouseMove={onHover}
+      onClick={() => onOpen(row)}
+      data-testid={`search-row-${row.rowKey}`}
+      sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, py: 1, minHeight: 56, borderRadius: 2, cursor: "pointer", border: 1, borderColor: active ? "primary.light" : "transparent", bgcolor: active ? "action.selected" : "transparent" }}
+    >
+      <Avatar variant={unit ? "rounded" : "circular"} sx={{ width: 40, height: 40, bgcolor: unit ? "#dcfce7" : avatarColor(row.id), color: unit ? "#166534" : "#fff", fontSize: 15, fontWeight: 600 }}>
+        {unit ? <ApartmentIcon fontSize="small" /> : initials(row.full_name)}
+      </Avatar>
+      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+        <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+          <Mark text={unit ? row.name : row.full_name} query={query} />
+        </Typography>
+        <Typography variant="body2" color="text.secondary" noWrap>
+          <Mark text={line} query={query} />
+        </Typography>
+      </Box>
+      {!row.is_active && <Chip size="small" variant="outlined" label="Inactive" />}
+      {active && (
+        <Button size="small" variant="contained" sx={{ display: { xs: "none", sm: "inline-flex" } }} onClick={(e) => { e.stopPropagation(); onOpen(row); }}>
+          {unit ? "Open units" : "Open roster"}
+        </Button>
+      )}
+    </Box>
+  );
+}
+
 function SettingRow({ row, query, active, onOpen, onHover, domId }) {
-  const tool = row.group === "tool";
+  const palette = { tool: ["#e8efff", "#1d4ed8"], page: ["#e0f2fe", "#0369a1"], staffing: ["#dcfce7", "#166534"], setting: ["#eceafe", "#4338ca"] }[row.group] || ["#eceafe", "#4338ca"];
   return (
     <Box
       id={domId}
@@ -203,7 +241,7 @@ function SettingRow({ row, query, active, onOpen, onHover, domId }) {
         bgcolor: active ? "action.selected" : "transparent",
       }}
     >
-      <Avatar variant="rounded" sx={{ width: 40, height: 40, bgcolor: tool ? "#e8efff" : "#eceafe", color: tool ? "#1d4ed8" : "#4338ca" }}>
+      <Avatar variant="rounded" sx={{ width: 40, height: 40, bgcolor: palette[0], color: palette[1] }}>
         <SettingsOutlinedIcon fontSize="small" />
       </Avatar>
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -236,6 +274,9 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
   const [failed, setFailed] = useState(false);
   const [active, setActive] = useState(0);
   const care = storedCareSetting();
+  // The services this clinic has switched on decide what the search offers.
+  const clinical = moduleEnabled(["clinical_documentation", "scheduling"]);
+  const staffing = moduleEnabled("staffing");
   const careValue = careOnly && CARE_LABELS[care] ? care : "";
   const recent = useMemo(() => (open ? loadRecent(userId) : []), [open, userId]);
   const term = query.trim();
@@ -321,6 +362,11 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
         navigate(row.path);
         return;
       }
+      if (row.type === "staff" || row.type === "unit") {
+        close();
+        navigate(row.type === "unit" ? "/staffing?tab=units" : `/staffing?tab=roster&q=${encodeURIComponent(row.full_name)}`);
+        return;
+      }
       const target = targetFor(row, action);
       logOpened(target, term, action);
       rememberRecent(userId, row);
@@ -345,14 +391,14 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
 
   const patientsCount = (showing && showing.patients.length) || 0;
   const visitsCount = (showing && showing.visits.length) || 0;
+  const staffCount = ((showing && showing.staff) || []).length + ((showing && showing.units) || []).length;
   const chips = [
     ["all", "All", null],
-    ["patients", "Patients", patientsCount],
-    ["visits", "Visits", visitsCount],
-    ["mrn", "MRN", null],
-    ...(settingRows.length ? [["settings", "Settings", settingRows.length]] : []),
+    ...(clinical ? [["patients", "Patients", patientsCount], ["visits", "Visits", visitsCount], ["mrn", "MRN", null]] : []),
+    ...(staffCount ? [["staff", "Staff", staffCount]] : []),
+    ...(settingRows.length ? [["settings", "Pages & settings", settingRows.length]] : []),
   ];
-  const noMatch = !!term && showing && !loading && !patientsCount && !visitsCount && !settingRows.length;
+  const noMatch = !!term && showing && !loading && !patientsCount && !visitsCount && !staffCount && !settingRows.length;
   const kindLabel = showing && KIND_LABEL[showing.kind];
 
   const renderRow = (row, i) => {
@@ -365,14 +411,15 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
       domId: `search-opt-${i}`,
     };
     if (row.type === "setting") return <SettingRow key={row.rowKey} {...props} />;
+    if (row.type === "staff" || row.type === "unit") return <StaffRow key={row.rowKey} {...props} />;
     return row.type === "visit" ? <VisitRow key={row.rowKey} {...props} /> : <PatientRow key={row.rowKey} {...props} />;
   };
 
   // rows are already in the order they are drawn (patients, visits, close spellings), so the keyboard follows it
   const drawRow = (row) => renderRow(row, rows.indexOf(row));
-  const settingsOnly = rows.filter((r) => r.type === "setting" && r.group === "setting");
-  const toolRows = rows.filter((r) => r.type === "setting" && r.group === "tool");
-  const patientRows = rows.filter((r) => r.type !== "visit" && r.type !== "setting" && !String(r.rowKey).startsWith("s") && !String(r.rowKey).match(/^[rm]/));
+  const inGroup = (g) => rows.filter((r) => r.type === "setting" && r.group === g);
+  const staffRows = rows.filter((r) => (r.type === "staff" || r.type === "unit") && !String(r.rowKey).startsWith("s"));
+  const patientRows = rows.filter((r) => r.type === "patient" && !String(r.rowKey).startsWith("s") && !String(r.rowKey).match(/^[rm]/));
   const visitRows = rows.filter((r) => r.type === "visit");
   const similarRows = rows.filter((r) => String(r.rowKey).startsWith("s"));
   const recentRows = !term ? rows.filter((r) => String(r.rowKey).startsWith("r")) : [];
@@ -404,7 +451,7 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search a name, MRN, visit number, date of birth or phone"
+            placeholder={clinical && staffing ? "Search patients, staff, MRNs, visits, pages and settings" : staffing ? "Search staff, units, staffing pages and reports" : "Search a name, MRN, visit number, date of birth, phone, page or setting"}
             inputProps={{ "aria-label": "Search patients, MRNs and visits", role: "combobox", "aria-expanded": true, "aria-controls": "search-list", "aria-activedescendant": rows.length ? `search-opt-${active}` : undefined, autoComplete: "off", spellCheck: false }}
             sx={{ fontSize: 20, minHeight: 44 }}
             data-testid="global-search-input"
@@ -430,7 +477,7 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
               />
             ))}
             <Box sx={{ flexGrow: 1 }} />
-            {CARE_LABELS[care] && (
+            {clinical && CARE_LABELS[care] && (
               <FormControlLabel
                 sx={{ mr: 0 }}
                 control={<Checkbox size="small" checked={careOnly} onChange={(e) => setCareOnly(e.target.checked)} />}
@@ -463,7 +510,9 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
               )}
               {!recentRows.length && !mineRows.length && !loading && (
                 <Typography color="text.secondary" sx={{ p: 2 }}>
-                  Type a name, an MRN such as MRN-000142, a visit number such as VN-000231, a date of birth or a phone number.
+                  {clinical
+                    ? "Type a name, an MRN such as MRN-000142, a visit number such as VN-000231, a date of birth or a phone number."
+                    : "Type a staff name, a unit, or a staffing page or report such as Roster, Time Off or Labor hours."}
                 </Typography>
               )}
             </>
@@ -476,31 +525,33 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
                   Searching by {kindLabel.toLowerCase()}
                 </Typography>
               )}
-              {settingsOnly.length > 0 && (
+              {[...new Set(settingRows.map((r) => r.group))].map((g) => [g, { page: "GO TO", staffing: "STAFFING", setting: "SETTINGS", tool: "TOOLS" }[g]]).map(([g, title]) =>
+                inGroup(g).length ? (
+                  <Box key={g}>
+                    <Heading>{title}</Heading>
+                    {inGroup(g).map(drawRow)}
+                  </Box>
+                ) : null
+              )}
+              {staffRows.length > 0 && (
                 <Box>
-                  <Heading>SETTINGS</Heading>
-                  {settingsOnly.map(drawRow)}
+                  <Heading>STAFF AND UNITS</Heading>
+                  {staffRows.map(drawRow)}
                 </Box>
               )}
-              {toolRows.length > 0 && (
-                <Box>
-                  <Heading>TOOLS</Heading>
-                  {toolRows.map(drawRow)}
-                </Box>
-              )}
-              {chip !== "visits" && chip !== "settings" && patientRows.length > 0 && (
+              {chip !== "visits" && chip !== "settings" && chip !== "staff" && patientRows.length > 0 && (
                 <Box>
                   <Heading>PATIENTS</Heading>
                   {patientRows.map(drawRow)}
                 </Box>
               )}
-              {chip !== "patients" && chip !== "mrn" && chip !== "settings" && visitRows.length > 0 && (
+              {chip !== "patients" && chip !== "mrn" && chip !== "settings" && chip !== "staff" && visitRows.length > 0 && (
                 <Box>
                   <Heading>VISITS</Heading>
                   {visitRows.map(drawRow)}
                 </Box>
               )}
-              {!patientRows.length && !visitRows.length && !settingRows.length && !loading && (
+              {!patientRows.length && !visitRows.length && !settingRows.length && !staffRows.length && !loading && (
                 <Typography color="text.secondary" sx={{ p: 2 }}>
                   Nothing under this filter.
                 </Typography>
@@ -510,7 +561,7 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
 
           {noMatch && (
             <Box sx={{ p: 1.5 }}>
-              <Typography sx={{ fontWeight: 600 }}>No one matches “{term}”</Typography>
+              <Typography sx={{ fontWeight: 600 }}>Nothing matches “{term}”</Typography>
               {similarRows.length > 0 && (
                 <>
                   <Heading>DID YOU MEAN</Heading>
@@ -518,9 +569,9 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
                 </>
               )}
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                You can also search by date of birth (03/14/1972), a phone number or the last four digits of a phone.
+                {clinical ? "You can also search by date of birth (03/14/1972), a phone number or the last four digits of a phone." : "You can also search by a phone number or an email address."}
               </Typography>
-              {canRegister && (
+              {canRegister && clinical && (
                 <Button
                   size="small"
                   variant="outlined"
@@ -543,7 +594,7 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
           <Typography variant="caption" color="text.secondary"><b>Tab</b> quick actions</Typography>
           <Typography variant="caption" color="text.secondary"><b>Esc</b> close</Typography>
           <Box sx={{ flexGrow: 1 }} />
-          <Typography variant="caption" color="text.secondary">Only your clinic’s patients</Typography>
+          <Typography variant="caption" color="text.secondary">{clinical ? "Only your clinic’s patients and staff" : "Only your clinic’s staff"}</Typography>
         </Stack>
       </Dialog>
     </>
