@@ -17,10 +17,15 @@ from django.db.models import CharField, Q, Value
 from django.db.models.functions import Replace
 
 from poehr_scheduling_backend.tenancy import sees_all_orgs
+from staffing.models import Staff, Unit as StaffUnit
 from users.models import Patient, Registration
+from users.modules import has_module
 
 from .patient_header import CARE_SETTING_LABELS, _age_text, _visit_row
 
+SUGGEST_STAFF_LIMIT = 5
+STAFF_LIMIT = 8
+UNIT_LIMIT = 4
 STAFF_ROLES = ("doctor", "nurse", "registrar", "admin", "system_admin")
 PATIENT_LIMIT = 8
 VISIT_LIMIT = 6
@@ -160,34 +165,109 @@ def _find_patients(user, kind, value, text):
     return []
 
 
+def _score(words, names):
+    """How well every typed word matches one of the names (0 when any word matches none)."""
+    if not names:
+        return 0
+    total = 0.0
+    for w in words:
+        best = 0.0
+        for n in names:
+            ratio = SequenceMatcher(None, w, n).ratio()
+            if len(w) >= 3 and _soundex(w) and _soundex(w) == _soundex(n):
+                ratio = max(ratio, 0.8)
+            if n.startswith(w) and len(w) >= 3:
+                ratio = max(ratio, 0.85)
+            best = max(best, ratio)
+        if best < 0.75:
+            return 0
+        total += best
+    return total / len(words)
+
+
 def _suggestions(user, text):
     """Close spellings for a name that matched nothing."""
     words = [_plain(w) for w in _words(text) if _plain(w)]
     if not words:
         return []
     scored = []
-    pool = _patients(user).order_by("pk")[:FUZZY_POOL]
-    for p in pool:
-        names = [_plain(p.user.first_name), _plain(p.user.last_name), _plain(p.middle_name)]
-        names = [n for n in names if n]
-        total = 0.0
-        for w in words:
-            best = 0.0
-            for n in names:
-                ratio = SequenceMatcher(None, w, n).ratio()
-                if len(w) >= 3 and _soundex(w) and _soundex(w) == _soundex(n):
-                    ratio = max(ratio, 0.8)
-                if n.startswith(w) and len(w) >= 3:
-                    ratio = max(ratio, 0.85)
-                best = max(best, ratio)
-            if best < 0.75:
-                total = 0
-                break
-            total += best
-        if total:
-            scored.append((total / len(words), p))
+    for p in _patients(user).order_by("pk")[:FUZZY_POOL]:
+        names = [n for n in (_plain(p.user.first_name), _plain(p.user.last_name), _plain(p.middle_name)) if n]
+        score = _score(words, names)
+        if score:
+            scored.append((score, p))
     scored.sort(key=lambda s: (-s[0], s[1].user.last_name, s[1].user.first_name))
     return [p for _, p in scored[:SUGGEST_LIMIT]]
+
+
+# --- what this clinic has switched on ---------------------------------------------------
+
+def scope_for(user):
+    """{'patients': bool, 'staff': bool}: a staffing-only clinic searches staff, units and staffing pages, not charts."""
+    org = getattr(user, "organization", None)
+    if sees_all_orgs(user) or org is None:
+        return {"patients": True, "staff": True}
+    return {
+        "patients": has_module(org, "clinical_documentation") or has_module(org, "scheduling"),
+        "staff": has_module(org, "staffing"),
+    }
+
+
+def _staff(user):
+    qs = Staff.objects.all() if sees_all_orgs(user) or user.organization_id is None else Staff.objects.filter(organization_id=user.organization_id)
+    return qs
+
+
+def _find_staff(user, text):
+    words = _words(text)
+    if not words:
+        return []
+    q = Q()
+    for word in words:
+        q &= Q(first_name__icontains=word) | Q(last_name__icontains=word) | Q(profession__icontains=word) | Q(email__icontains=word)
+    qs = _staff(user).filter(q)
+    kind, digits = detect(text)
+    if kind == "phone":
+        qs = _staff(user).annotate(p=_strip("phone_number")).filter(p__contains=digits)
+    return list(qs.order_by("-is_active", "last_name", "first_name")[:STAFF_LIMIT])
+
+
+def _find_units(user, text):
+    words = _words(text)
+    if not words:
+        return []
+    qs = StaffUnit.objects.all() if sees_all_orgs(user) or user.organization_id is None else StaffUnit.objects.filter(organization_id=user.organization_id)
+    for word in words:
+        qs = qs.filter(name__icontains=word)
+    return list(qs.order_by("-is_active", "name")[:UNIT_LIMIT])
+
+
+def _staff_suggestions(user, text):
+    words = [_plain(w) for w in _words(text) if _plain(w)]
+    scored = []
+    for st in _staff(user).order_by("pk")[:FUZZY_POOL]:
+        names = [n for n in (_plain(st.first_name), _plain(st.last_name)) if n]
+        score = _score(words, names)
+        if score:
+            scored.append((score, st))
+    scored.sort(key=lambda r: (-r[0], r[1].last_name, r[1].first_name))
+    return [st for _, st in scored[:SUGGEST_STAFF_LIMIT]]
+
+
+def _staff_row(st, matched_by):
+    return {
+        "type": "staff",
+        "id": st.pk,
+        "full_name": st.full_name,
+        "profession": st.profession,
+        "nursing_role": st.nursing_role if st.nursing_role != "other" else "",
+        "is_active": st.is_active,
+        "matched_by": matched_by,
+    }
+
+
+def _unit_row(u):
+    return {"type": "unit", "id": u.pk, "name": u.name, "bed_capacity": u.bed_capacity, "is_active": u.is_active}
 
 
 # --- shaping rows ----------------------------------------------------------------------
@@ -252,14 +332,24 @@ def _visit_result(v, latest_id, matched_by):
 def search(user, text, care=None):
     """The search panel's rows for what was typed."""
     text = (text or "").strip()[:80]
+    scope = scope_for(user)
     if not text:
         return mine(user)
 
     kind, value = detect(text)
     patients, visits, suggestions = [], [], []
+    staff, units, staff_suggestions = [], [], []
     exact = False
 
-    if kind == "vn":
+    if scope["staff"] and kind in ("name", "phone"):
+        staff = _find_staff(user, text)
+        units = _find_units(user, text) if kind == "name" else []
+        if not staff and not units and kind == "name":
+            staff_suggestions = _staff_suggestions(user, text)
+
+    if not scope["patients"]:
+        pass
+    elif kind == "vn":
         number = f"VN-{value:06d}"
         hits = list(_visits(user).filter(visit_number__iexact=number)) or list(
             _visits(user).filter(visit_number__icontains=str(value)).order_by("-created_at")[:VISIT_LIMIT]
@@ -310,11 +400,18 @@ def search(user, text, care=None):
         "patients": prows[:PATIENT_LIMIT],
         "visits": vrows[:VISIT_LIMIT],
         "suggestions": srows,
+        "staff": [_staff_row(st, kind) for st in staff],
+        "units": [_unit_row(u) for u in units],
+        "staff_suggestions": [_staff_row(st, "similar") for st in staff_suggestions],
+        "scope": scope,
     }
 
 
 def mine(user):
     """Nothing typed yet: the patients in house under this person's name."""
+    scope = scope_for(user)
+    if not scope["patients"]:
+        return {"query": "", "kind": "mine", "exact": False, "patients": [], "visits": [], "suggestions": [], "staff": [], "units": [], "staff_suggestions": [], "scope": scope}
     open_visits = (
         _visits(user)
         .filter(discharge_datetime__isnull=True)
@@ -336,6 +433,10 @@ def mine(user):
         "patients": [_patient_row(p, latest, "mine") for p in patients],
         "visits": [],
         "suggestions": [],
+        "staff": [],
+        "units": [],
+        "staff_suggestions": [],
+        "scope": scope,
     }
 
 

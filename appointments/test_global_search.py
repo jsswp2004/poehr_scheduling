@@ -146,3 +146,63 @@ class AuditTests(Base):
         self.assertEqual(self.open(patient=self.stranger.user_id).status_code, 404)
         self.assertEqual(self.open().status_code, 400)
         self.assertFalse(SearchAudit.objects.exists())
+
+
+class StaffingOnlyClinicTests(TestCase):
+    """A clinic that only has the Staffing service searches staff, units and staffing pages, not charts."""
+
+    def setUp(self):
+        from staffing.models import Staff, Unit as StaffUnit
+
+        self.org = Organization.objects.create(name="St Marys", enabled_modules=["staffing"])
+        self.admin = make_user("smadmin", "admin", self.org)
+        self.nurse = Staff.objects.create(organization=self.org, first_name="Nia", last_name="Brooks", profession="Nurse", nursing_role="rn", phone_number="(301) 555-0188", email="nia@example.com")
+        Staff.objects.create(organization=self.org, first_name="Paul", last_name="Okafor", profession="CNA", is_active=False)
+        StaffUnit.objects.create(organization=self.org, name="2 West", bed_capacity=24)
+        other = Organization.objects.create(name="Elsewhere", enabled_modules=["staffing"])
+        Staff.objects.create(organization=other, first_name="Nia", last_name="Stranger", profession="Nurse")
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.admin).access_token}")
+
+    def get(self, q):
+        return self.client.get(URL, {"q": q}).data
+
+    def test_scope_says_staff_only(self):
+        self.assertEqual(self.get("nia")["scope"], {"patients": False, "staff": True})
+
+    def test_staff_by_name_profession_phone_and_email(self):
+        self.assertEqual([r["full_name"] for r in self.get("nia")["staff"]], ["Nia Brooks"])
+        self.assertEqual([r["full_name"] for r in self.get("brooks nurse")["staff"]], ["Nia Brooks"])
+        self.assertEqual([r["full_name"] for r in self.get("555-0188")["staff"]], ["Nia Brooks"])
+        self.assertEqual([r["full_name"] for r in self.get("nia@example")["staff"]], ["Nia Brooks"])
+        row = self.get("nia")["staff"][0]
+        self.assertEqual((row["profession"], row["nursing_role"], row["is_active"]), ("Nurse", "rn", True))
+        self.assertNotIn("phone_number", row)
+        self.assertNotIn("email", row)
+
+    def test_only_this_clinics_staff_and_inactive_are_flagged(self):
+        self.assertNotIn("Stranger", " ".join(r["full_name"] for r in self.get("nia")["staff"]))
+        self.assertFalse(self.get("okafor")["staff"][0]["is_active"])
+
+    def test_units_and_close_spellings(self):
+        self.assertEqual([u["name"] for u in self.get("west")["units"]], ["2 West"])
+        self.assertEqual([r["full_name"] for r in self.get("brookes")["staff_suggestions"]], ["Nia Brooks"])
+
+    def test_no_patient_results_or_my_patients(self):
+        data = self.get("MRN-000001")
+        self.assertEqual((data["patients"], data["visits"], data["staff"]), ([], [], []))
+        self.assertEqual(self.get("")["patients"], [])
+
+    def test_clinic_with_charts_still_gets_patients_and_staff_names(self):
+        self.org.enabled_modules = ["staffing", "clinical_documentation"]
+        self.org.save()
+        make_patient(self.org, "Nia", "Santos")
+        data = self.get("nia")
+        self.assertEqual(data["scope"], {"patients": True, "staff": True})
+        self.assertEqual([r["full_name"] for r in data["patients"]], ["Nia Santos"])
+        self.assertEqual([r["full_name"] for r in data["staff"]], ["Nia Brooks"])
+
+    def test_clinic_without_staffing_gets_no_staff(self):
+        self.org.enabled_modules = ["clinical_documentation"]
+        self.org.save()
+        self.assertEqual(self.get("nia")["staff"], [])
