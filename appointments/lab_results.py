@@ -443,6 +443,7 @@ def review_report(report, user, comment=""):
     report.review_comment = str(comment or "").strip()
     report.save()
     log_event(report, "reviewed", user, detail={"comment": bool(report.review_comment)})
+    inbox.close_lab_alerts(report)
     return report
 
 
@@ -459,6 +460,7 @@ def mark_entered_in_error(report, user, reason):
     report.error_reason = reason
     report.save()
     log_event(report, "entered_in_error", user, detail={"from_status": previous, "reason": reason})
+    inbox.close_lab_alerts(report)
     return report
 
 

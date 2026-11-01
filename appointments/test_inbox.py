@@ -296,6 +296,20 @@ class LabAlertTests(Base):
         self.assertEqual(self.keys(self.doc2, "all", care="acute"), [])
         self.assertIsNotNone(reg.pk)
 
+    def test_reviewing_the_report_closes_the_alerts(self):
+        order = self.make_order(self.doc)
+        report = self.report(self.nurse, [{"test_name": "Potassium", "value": "6.9", "abnormal_flag": "HH"}], order)
+        self.assertEqual(len(self.items(self.doc, "alerts")), 1)
+        lab_results.review_report(report, self.doc2)
+        self.assertEqual(self.items(self.doc, "alerts"), [])
+        self.assertEqual([i["kind"] for i in self.items(self.doc, "done") if i["kind"] == "alert"], ["alert"])
+
+    def test_entered_in_error_closes_the_alerts(self):
+        order = self.make_order(self.doc)
+        report = self.report(self.nurse, [{"test_name": "Potassium", "value": "6.9", "abnormal_flag": "HH"}], order)
+        lab_results.mark_entered_in_error(report, self.nurse, "Wrong patient")
+        self.assertEqual(self.items(self.doc, "alerts"), [])
+
     def test_nobody_to_tell_is_fine(self):
         self.report(self.nurse, [{"test_name": "Potassium", "value": "7.0", "abnormal_flag": "HH"}])
         self.assertEqual(InboxAlert.objects.count(), 0)
