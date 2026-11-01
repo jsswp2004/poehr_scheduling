@@ -43,7 +43,7 @@ from .serializers import (
     OrderSerializer,
     OrderInterfaceUpdateSerializer,
 )
-from . import order_tasks
+from . import note_cosign, order_tasks
 from . import orders_workflow as ow
 from .orders_csv import parse_orderable_csv, export_orderable_csv, sample_orderable_csv
 from datetime import timedelta
@@ -1960,7 +1960,62 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
         if patient_id:
             queryset = queryset.filter(patient_id=patient_id)
 
-        return queryset.select_related("patient", "author", "appointment")
+        return queryset.select_related("patient", "author", "appointment").prefetch_related(
+            "cosign_requests__cosigner", "cosign_requests__requested_by"
+        )
+
+    # --- co-signature (see note_cosign.py) ----------------------------------
+    @action(detail=False, methods=["get"], url_path="cosigners")
+    def cosigners(self, request):
+        """People who can be asked to co-sign: same clinic, hold the co-sign right, never the asker."""
+        people = note_cosign.eligible_cosigners(request.user.organization, exclude=request.user)
+        return Response(
+            [{"id": u.pk, "name": (f"{u.first_name} {u.last_name}".strip() or u.username), "role": u.role} for u in people]
+        )
+
+    def _cosign_call(self, fn, *args, **kwargs):
+        try:
+            fn(*args, **kwargs)
+        except note_cosign.CosignError as exc:
+            return Response({"detail": str(exc)}, status=exc.status)
+        return None
+
+    def _note_body(self, pk):
+        note = self.get_queryset().get(pk=pk)
+        return Response(ClinicalNoteSerializer(note, context={"request": self.request}).data)
+
+    @action(detail=True, methods=["post"], url_path="request-cosign")
+    def request_cosign(self, request, pk=None):
+        note = self.get_object()
+        due = request.data.get("due_at") or None
+        if due:
+            due = parse_datetime(str(due))
+            if due is None:
+                return Response({"detail": "Needed-by is not a valid date and time."}, status=400)
+            if timezone.is_naive(due):
+                due = timezone.make_aware(due)
+        reminder = request.data.get("reminder_minutes")
+        reminder = int(reminder) if str(reminder or "").isdigit() else None
+        err = self._cosign_call(
+            note_cosign.request_cosign, note, request.user, request.data.get("cosigner"),
+            message=request.data.get("message", ""), due_at=due, reminder_minutes=reminder,
+        )
+        return err or self._note_body(note.pk)
+
+    @action(detail=True, methods=["post"], url_path="cosign")
+    def cosign(self, request, pk=None):
+        note = self.get_object()
+        return self._cosign_call(note_cosign.cosign, note, request.user) or self._note_body(note.pk)
+
+    @action(detail=True, methods=["post"], url_path="return-cosign")
+    def return_cosign(self, request, pk=None):
+        note = self.get_object()
+        return self._cosign_call(note_cosign.return_note, note, request.user, request.data.get("comment", "")) or self._note_body(note.pk)
+
+    @action(detail=True, methods=["post"], url_path="cancel-cosign")
+    def cancel_cosign(self, request, pk=None):
+        note = self.get_object()
+        return self._cosign_call(note_cosign.cancel, note, request.user) or self._note_body(note.pk)
 
     @action(detail=False, methods=["get"], url_path="note-types")
     def note_types(self, request):

@@ -49,6 +49,9 @@ import { DictationProvider } from "./dictation/DictationContext";
 import DictationTextField from "./dictation/DictationTextField";
 import DictateNoteBar from "./dictation/DictateNoteBar";
 import PanelTitle from "./patients/PanelTitle";
+import SignDialog from "./notes/SignDialog";
+import CosignActions from "./notes/CosignActions";
+import { cosignChip } from "./notes/cosignHelpers";
 import { setUnsaved } from "../utils/unsavedWork";
 
 // The four SOAP boxes as dictation fields (see DictateNoteBar).
@@ -138,6 +141,8 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   const headerAppointmentId = fixedVisit ? chartVisit?.appointmentId || "" : "";
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [signOpen, setSignOpen] = useState(false);
   // Note types this user may write, from the Note types dictionary (Note Builder > Dictionaries).
   // null until loaded; the two legacy values are the fallback so the picker is never empty.
   const [noteTypes, setNoteTypes] = useState(null);
@@ -232,6 +237,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
         const decoded = jwtDecode(token.access_token || token);
         role = decoded.role || null;
         setUserRole(role);
+        setUserId(decoded.user_id ?? null);
         const defaultType = NOTE_TYPE_BY_ROLE[role];
         if (defaultType) {
           setForm((f) => ({ ...f, note_type: defaultType }));
@@ -747,8 +753,13 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     }
   };
 
-  const signNote = async () => {
+  // "Sign & Lock" first asks how to sign (just sign, or sign and ask for a co-signature).
+  const startSign = () => {
     if (!validateTemplateRequiredFields()) return;
+    setSignOpen(true);
+  };
+
+  const signNote = async (cosignRequest) => {
     setSaving(true);
     try {
       const headers = await authHeader();
@@ -766,7 +777,19 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
         id = createRes.data.id;
       }
       const signRes = await api.post(apiEndpoints.clinicalNoteSign(id), null, { headers });
-      toast.success("Note signed and locked.");
+      if (cosignRequest) {
+        try {
+          await api.post(apiEndpoints.clinicalNoteRequestCosign(id), cosignRequest, { headers });
+          toast.success("Note signed and sent for co-signature.");
+        } catch (err) {
+          toast.error(
+            `Note signed, but the co-signature request failed: ${err?.response?.data?.detail || "try again from Note History."}`
+          );
+        }
+      } else {
+        toast.success("Note signed and locked.");
+      }
+      setSignOpen(false);
       setSafetyAlert(signRes?.data?.safety_alert || null);
       resetForm();
       setActiveTab("history");
@@ -990,7 +1013,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
               <Button
                 variant="contained"
                 color="success"
-                onClick={signNote}
+                onClick={startSign}
                 disabled={saving}
               >
                 Sign &amp; Lock
@@ -1142,6 +1165,14 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                                 size="small"
                                 color={note.status === "signed" ? "success" : "default"}
                               />
+                              {note.status === "signed" && cosignChip(note.cosign) && (
+                                <Chip
+                                  label={cosignChip(note.cosign).label}
+                                  size="small"
+                                  color={cosignChip(note.cosign).color}
+                                  sx={{ ml: 0.5 }}
+                                />
+                              )}
                             </TableCell>
                             <TableCell>
                               {new Date(note.created_at).toLocaleDateString()}
@@ -1205,6 +1236,14 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                   <ReassessmentPanel patientId={patientId} canAdd={canAuthor} />
                 )}
                 {canAuthor && selectedHistoryNote && selectedHistoryNote.status === "signed" && (
+                  <CosignActions
+                    note={selectedHistoryNote}
+                    userId={userId}
+                    userRole={userRole}
+                    onChanged={loadData}
+                  />
+                )}
+                {canAuthor && selectedHistoryNote && selectedHistoryNote.status === "signed" && (
                   <Button
                     size="small"
                     sx={{ mt: 1 }}
@@ -1218,6 +1257,13 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
           )}
         </Box>
       )}
+
+      <SignDialog
+        open={signOpen}
+        onClose={() => setSignOpen(false)}
+        onConfirm={signNote}
+        saving={saving}
+      />
 
       <Dialog
         open={!!deletingHistoryItem}
