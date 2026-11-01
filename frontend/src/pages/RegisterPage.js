@@ -9,7 +9,7 @@ import { API_BASE_URL } from "../config/api";
 import FullRegistrationForm from "../components/registration/FullRegistrationForm";
 import PatientsRegisterTable from "../components/registration/PatientsRegisterTable";
 import QuickRegisterForm from "../components/registration/QuickRegisterForm";
-import RegistrationConfig from "../components/registration/RegistrationConfig";
+import RegistrationSetup from "../components/registration/RegistrationSetup";
 import PublicSignUp from "../components/registration/PublicSignUp";
 import useDuplicateCheck from "../components/registration/useDuplicateCheck";
 import {
@@ -374,7 +374,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
 
           {leftTab === "configuration" && ["admin", "system_admin"].includes(userRole) && (
             <Box sx={{ flex: 1, overflowY: "auto", pr: 1, minHeight: 0 }}>
-              <RegistrationConfig />
+              <RegistrationSetup />
             </Box>
           )}
 

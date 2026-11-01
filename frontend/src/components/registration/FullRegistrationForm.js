@@ -30,7 +30,9 @@ import { API_BASE_URL, apiEndpoints } from "../../config/api";
 import LocationPicker, { useLocationTree } from "../locations/LocationPicker";
 import VisitSearchDialog from "./VisitSearchDialog";
 import RegistrationSteps from "./RegistrationSteps";
+import DictionaryField from "./DictionaryField";
 import useRegistrationTabs from "./useRegistrationTabs";
+import useRegistrationSetup, { fieldFor, missingRequired, optionsFor } from "./useRegistrationSetup";
 import { ageText, showDob, stepFilled } from "./registerHelpers";
 
 // Only these roles may edit a visit that has already been closed (discharged).
@@ -178,6 +180,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const [visitFields, setVisitFields] = useState(EMPTY_VISIT_FIELDS);
   // The steps this clinic shows for this care setting, in its order (Configuration > Tab sequences).
   const subTabs = useRegistrationTabs(visitFields.care_setting || "");
+  const setup = useRegistrationSetup();
+  const show = (win, key, label = key) => !fieldFor(setup, win, key, label).hidden;
+  // Props for a text field: the clinic's label, a required mark, and view-only when set.
+  const fp = (win, key, label) => {
+    const f = fieldFor(setup, win, key, label);
+    return { label: f.label, required: f.required, ...(f.readOnly ? { InputProps: { readOnly: true } } : {}) };
+  };
+  const fpd = (win, key, label) => {
+    const f = fieldFor(setup, win, key, label);
+    return { label: f.label, required: f.required, readOnly: f.readOnly };
+  };
   // Steps opened since this patient was chosen; a step the clinic marks "require review" must be opened before the last save.
   const [opened, setOpened] = useState({ identity: true });
   const [completeness, setCompleteness] = useState(null);
@@ -489,15 +502,20 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   }, [patientKey]);
   const notOpened = subTabs.filter((t) => t.requireReview && !opened[t.value]);
   const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields));
+  const missing = missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields);
   const runCompleteness = () => {
-    setCompleteness({ notOpened, incomplete });
-    return notOpened.length === 0;
+    setCompleteness({ notOpened, incomplete, missing });
+    return notOpened.length === 0 && missing.length === 0;
   };
   const handleSaveAndContinue = async () => {
     const last = stepIndex >= subTabs.length - 1;
     // The last save also closes the registration, so every step marked "require review" has to have been opened.
     if (last && !runCompleteness()) {
-      toast.error(`Open ${notOpened.map((t) => t.label).join(", ")} before saving.`);
+      const parts = [];
+      if (notOpened.length) parts.push(`Open ${notOpened.map((t) => t.label).join(", ")}`);
+      if (missing.length) parts.push(`fill in ${missing.map((m) => m.label).join(", ")}`);
+      const text = parts.join(" and ");
+      toast.error(`${text.charAt(0).toUpperCase()}${text.slice(1)} before saving.`);
       return;
     }
     const ok = await handleSave();
@@ -886,34 +904,40 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                   disabled
                   helperText="Edit from the patient's account record (Quick Register / Patients tab)"
                 />
-                <TextField
-                  label="Date of Birth"
-                  type="date"
-                  size="small"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  value={patientFields.date_of_birth || ""}
-                  onChange={(e) => handlePatientFieldChange("date_of_birth", e.target.value)}
-                />
-                <TextField
-                  label="Address"
-                  size="small"
-                  fullWidth
-                  value={patientFields.address}
-                  onChange={(e) => handlePatientFieldChange("address", e.target.value)}
-                />
-                <TextField
-                  label="Phone Number"
-                  size="small"
-                  fullWidth
-                  value={patientFields.phone_number}
-                  onChange={(e) => handlePatientFieldChange("phone_number", e.target.value)}
-                />
-                <FormControl size="small" fullWidth>
-                  <InputLabel id="legal-sex-label">Legal Sex</InputLabel>
+                {show("identity", "date_of_birth") && (
+                  <TextField
+                    {...fp("identity", "date_of_birth", "Date of Birth")}
+                    type="date"
+                    size="small"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    value={patientFields.date_of_birth || ""}
+                    onChange={(e) => handlePatientFieldChange("date_of_birth", e.target.value)}
+                  />
+                )}
+                {show("identity", "address") && (
+                  <TextField
+                    {...fp("identity", "address", "Address")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.address}
+                    onChange={(e) => handlePatientFieldChange("address", e.target.value)}
+                  />
+                )}
+                {show("identity", "phone_number") && (
+                  <TextField
+                    {...fp("identity", "phone_number", "Phone Number")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.phone_number}
+                    onChange={(e) => handlePatientFieldChange("phone_number", e.target.value)}
+                  />
+                )}
+                <FormControl size="small" fullWidth required={fieldFor(setup, "identity", "legal_sex", "Legal Sex").required}>
+                  <InputLabel id="legal-sex-label">{fieldFor(setup, "identity", "legal_sex", "Legal Sex").label}</InputLabel>
                   <MUISelect
                     labelId="legal-sex-label"
-                    label="Legal Sex"
+                    label={fieldFor(setup, "identity", "legal_sex", "Legal Sex").label}
                     value={patientFields.legal_sex}
                     onChange={(e) => handlePatientFieldChange("legal_sex", e.target.value)}
                   >
@@ -923,30 +947,35 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     <MenuItem value="X">Unspecified/Other</MenuItem>
                   </MUISelect>
                 </FormControl>
-                <TextField
-                  label="Social Security Number (last 4 digits)"
-                  size="small"
-                  fullWidth
-                  inputProps={{ maxLength: 4 }}
-                  value={patientFields.ssn_last4}
-                  onChange={(e) =>
-                    handlePatientFieldChange("ssn_last4", e.target.value.replace(/\D/g, "").slice(0, 4))
-                  }
-                />
-                <TextField
-                  label="Preferred Language"
-                  size="small"
-                  fullWidth
-                  value={patientFields.preferred_language}
-                  onChange={(e) => handlePatientFieldChange("preferred_language", e.target.value)}
-                />
-                <TextField
-                  label="Email"
-                  size="small"
-                  fullWidth
-                  value={patientFields.email}
-                  onChange={(e) => handlePatientFieldChange("email", e.target.value)}
-                />
+                {show("identity", "ssn_last4") && (
+                  <TextField
+                    {...fp("identity", "ssn_last4", "Social Security Number (last 4 digits)")}
+                    size="small"
+                    fullWidth
+                    inputProps={{ maxLength: 4 }}
+                    value={patientFields.ssn_last4}
+                    onChange={(e) =>
+                      handlePatientFieldChange("ssn_last4", e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                  />
+                )}
+                {show("identity", "preferred_language") && (
+                  <DictionaryField
+                    {...fpd("identity", "preferred_language", "Preferred Language")}
+                    options={optionsFor(setup, "language")}
+                    value={patientFields.preferred_language}
+                    onChange={(v) => handlePatientFieldChange("preferred_language", v)}
+                  />
+                )}
+                {show("identity", "email") && (
+                  <TextField
+                    {...fp("identity", "email", "Email")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.email}
+                    onChange={(e) => handlePatientFieldChange("email", e.target.value)}
+                  />
+                )}
                 <Typography variant="subtitle2" sx={{ pt: 1 }}>Birth details</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Used to plot premature babies at corrected age on the growth charts. Leave blank for babies born at term.
@@ -987,146 +1016,171 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
             {activeSubTab === "emergency" && (
               <Stack spacing={2}>
-                <TextField
-                  label="Contact Name"
-                  size="small"
-                  fullWidth
-                  value={patientFields.emergency_contact_name}
-                  onChange={(e) => handlePatientFieldChange("emergency_contact_name", e.target.value)}
-                />
-                <TextField
-                  label="Relationship"
-                  size="small"
-                  fullWidth
-                  value={patientFields.emergency_contact_relationship}
-                  onChange={(e) =>
-                    handlePatientFieldChange("emergency_contact_relationship", e.target.value)
-                  }
-                />
-                <TextField
-                  label="Phone Number"
-                  size="small"
-                  fullWidth
-                  value={patientFields.emergency_contact_phone}
-                  onChange={(e) => handlePatientFieldChange("emergency_contact_phone", e.target.value)}
-                />
-                <TextField
-                  label="Address"
-                  size="small"
-                  fullWidth
-                  value={patientFields.emergency_contact_address}
-                  onChange={(e) =>
-                    handlePatientFieldChange("emergency_contact_address", e.target.value)
-                  }
-                />
+                {show("emergency", "emergency_contact_name") && (
+                  <TextField
+                    {...fp("emergency", "emergency_contact_name", "Contact Name")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.emergency_contact_name}
+                    onChange={(e) => handlePatientFieldChange("emergency_contact_name", e.target.value)}
+                  />
+                )}
+                {show("emergency", "emergency_contact_relationship") && (
+                  <DictionaryField
+                    {...fpd("emergency", "emergency_contact_relationship", "Relationship")}
+                    options={optionsFor(setup, "relationship")}
+                    value={patientFields.emergency_contact_relationship}
+                    onChange={(v) => handlePatientFieldChange("emergency_contact_relationship", v)}
+                  />
+                )}
+                {show("emergency", "emergency_contact_phone") && (
+                  <TextField
+                    {...fp("emergency", "emergency_contact_phone", "Phone Number")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.emergency_contact_phone}
+                    onChange={(e) => handlePatientFieldChange("emergency_contact_phone", e.target.value)}
+                  />
+                )}
+                {show("emergency", "emergency_contact_address") && (
+                  <TextField
+                    {...fp("emergency", "emergency_contact_address", "Address")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.emergency_contact_address}
+                    onChange={(e) =>
+                      handlePatientFieldChange("emergency_contact_address", e.target.value)
+                    }
+                  />
+                )}
               </Stack>
             )}
 
             {activeSubTab === "financial" && (
               <Stack spacing={2}>
-                <TextField
-                  label="Insurance Payer Name"
-                  size="small"
-                  fullWidth
-                  value={patientFields.insurance_payer_name}
-                  onChange={(e) => handlePatientFieldChange("insurance_payer_name", e.target.value)}
-                />
-                <TextField
-                  label="Member ID"
-                  size="small"
-                  fullWidth
-                  value={patientFields.insurance_member_id}
-                  onChange={(e) => handlePatientFieldChange("insurance_member_id", e.target.value)}
-                />
-                <TextField
-                  label="Group Number"
-                  size="small"
-                  fullWidth
-                  value={patientFields.insurance_group_number}
-                  onChange={(e) => handlePatientFieldChange("insurance_group_number", e.target.value)}
-                />
-                <TextField
-                  label="Policyholder Name"
-                  size="small"
-                  fullWidth
-                  value={patientFields.policyholder_name}
-                  onChange={(e) => handlePatientFieldChange("policyholder_name", e.target.value)}
-                />
-                <TextField
-                  label="Policyholder Date of Birth"
-                  type="date"
-                  size="small"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  value={patientFields.policyholder_dob || ""}
-                  onChange={(e) => handlePatientFieldChange("policyholder_dob", e.target.value)}
-                />
-                <TextField
-                  label="Copay / Deductible Status"
-                  size="small"
-                  fullWidth
-                  value={patientFields.copay_deductible_status}
-                  onChange={(e) =>
-                    handlePatientFieldChange("copay_deductible_status", e.target.value)
-                  }
-                />
-                <TextField
-                  label="Authorization Requirements"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={patientFields.authorization_requirements}
-                  onChange={(e) =>
-                    handlePatientFieldChange("authorization_requirements", e.target.value)
-                  }
-                />
-                <TextField
-                  label="Secondary Insurance"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={patientFields.secondary_insurance}
-                  onChange={(e) => handlePatientFieldChange("secondary_insurance", e.target.value)}
-                />
+                {show("financial", "insurance_payer_name") && (
+                  <DictionaryField
+                    {...fpd("financial", "insurance_payer_name", "Insurance Payer Name")}
+                    options={optionsFor(setup, "payer")}
+                    value={patientFields.insurance_payer_name}
+                    onChange={(v) => handlePatientFieldChange("insurance_payer_name", v)}
+                  />
+                )}
+                {show("financial", "insurance_member_id") && (
+                  <TextField
+                    {...fp("financial", "insurance_member_id", "Member ID")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.insurance_member_id}
+                    onChange={(e) => handlePatientFieldChange("insurance_member_id", e.target.value)}
+                  />
+                )}
+                {show("financial", "insurance_group_number") && (
+                  <TextField
+                    {...fp("financial", "insurance_group_number", "Group Number")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.insurance_group_number}
+                    onChange={(e) => handlePatientFieldChange("insurance_group_number", e.target.value)}
+                  />
+                )}
+                {show("financial", "policyholder_name") && (
+                  <TextField
+                    {...fp("financial", "policyholder_name", "Policyholder Name")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.policyholder_name}
+                    onChange={(e) => handlePatientFieldChange("policyholder_name", e.target.value)}
+                  />
+                )}
+                {show("financial", "policyholder_dob") && (
+                  <TextField
+                    {...fp("financial", "policyholder_dob", "Policyholder Date of Birth")}
+                    type="date"
+                    size="small"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    value={patientFields.policyholder_dob || ""}
+                    onChange={(e) => handlePatientFieldChange("policyholder_dob", e.target.value)}
+                  />
+                )}
+                {show("financial", "copay_deductible_status") && (
+                  <DictionaryField
+                    {...fpd("financial", "copay_deductible_status", "Copay / Deductible Status")}
+                    options={optionsFor(setup, "copay_status")}
+                    value={patientFields.copay_deductible_status}
+                    onChange={(v) => handlePatientFieldChange("copay_deductible_status", v)}
+                  />
+                )}
+                {show("financial", "authorization_requirements") && (
+                  <TextField
+                    {...fp("financial", "authorization_requirements", "Authorization Requirements")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={patientFields.authorization_requirements}
+                    onChange={(e) =>
+                      handlePatientFieldChange("authorization_requirements", e.target.value)
+                    }
+                  />
+                )}
+                {show("financial", "secondary_insurance") && (
+                  <TextField
+                    {...fp("financial", "secondary_insurance", "Secondary Insurance")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={patientFields.secondary_insurance}
+                    onChange={(e) => handlePatientFieldChange("secondary_insurance", e.target.value)}
+                  />
+                )}
               </Stack>
             )}
 
             {activeSubTab === "reason" && (
               <Stack spacing={2}>
-                <TextField
-                  label="Reason for Visit"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={visitFields.reason_for_visit}
-                  onChange={(e) => handleVisitFieldChange("reason_for_visit", e.target.value)}
-                />
-                <TextField
-                  label="Chief Complaint"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={visitFields.presenting_problem}
-                  onChange={(e) => handleVisitFieldChange("presenting_problem", e.target.value)}
-                />
-                <TextField
-                  label="Scheduled Procedure"
-                  size="small"
-                  fullWidth
-                  value={visitFields.scheduled_procedure}
-                  onChange={(e) => handleVisitFieldChange("scheduled_procedure", e.target.value)}
-                />
-                <TextField
-                  label="Referring Physician"
-                  size="small"
-                  fullWidth
-                  value={visitFields.referring_physician}
-                  onChange={(e) => handleVisitFieldChange("referring_physician", e.target.value)}
-                />
+                {show("reason", "reason_for_visit") && (
+                  <TextField
+                    {...fp("reason", "reason_for_visit", "Reason for Visit")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={visitFields.reason_for_visit}
+                    onChange={(e) => handleVisitFieldChange("reason_for_visit", e.target.value)}
+                  />
+                )}
+                {show("reason", "presenting_problem") && (
+                  <TextField
+                    {...fp("reason", "presenting_problem", "Chief Complaint")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={visitFields.presenting_problem}
+                    onChange={(e) => handleVisitFieldChange("presenting_problem", e.target.value)}
+                  />
+                )}
+                {show("reason", "scheduled_procedure") && (
+                  <TextField
+                    {...fp("reason", "scheduled_procedure", "Scheduled Procedure")}
+                    size="small"
+                    fullWidth
+                    value={visitFields.scheduled_procedure}
+                    onChange={(e) => handleVisitFieldChange("scheduled_procedure", e.target.value)}
+                  />
+                )}
+                {show("reason", "referring_physician") && (
+                  <TextField
+                    {...fp("reason", "referring_physician", "Referring Physician")}
+                    size="small"
+                    fullWidth
+                    value={visitFields.referring_physician}
+                    onChange={(e) => handleVisitFieldChange("referring_physician", e.target.value)}
+                  />
+                )}
                 <TextField
                   label="Medical History"
                   size="small"
@@ -1137,15 +1191,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                   disabled
                   helperText="Edit from the patient's record on the Patients tab"
                 />
-                <TextField
-                  label="Current Diagnoses"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={visitFields.current_diagnoses}
-                  onChange={(e) => handleVisitFieldChange("current_diagnoses", e.target.value)}
-                />
+                {show("reason", "current_diagnoses") && (
+                  <TextField
+                    {...fp("reason", "current_diagnoses", "Current Diagnoses")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={visitFields.current_diagnoses}
+                    onChange={(e) => handleVisitFieldChange("current_diagnoses", e.target.value)}
+                  />
+                )}
               </Stack>
             )}
 
@@ -1239,15 +1295,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     <MenuItem value="acute">Acute Care</MenuItem>
                   </MUISelect>
                 </FormControl>
-                <TextField
-                  label="Arrival Time"
-                  type="datetime-local"
-                  size="small"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  value={visitFields.arrival_time}
-                  onChange={(e) => handleVisitFieldChange("arrival_time", e.target.value)}
-                />
+                {show("logistics", "arrival_time") && (
+                  <TextField
+                    {...fp("logistics", "arrival_time", "Arrival Time")}
+                    type="datetime-local"
+                    size="small"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    value={visitFields.arrival_time}
+                    onChange={(e) => handleVisitFieldChange("arrival_time", e.target.value)}
+                  />
+                )}
                 {hasLocations ? (
                   <LocationPicker
                     tree={locationTree}
@@ -1314,12 +1372,12 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
           {completeness && (
             <Alert
-              severity={completeness.notOpened.length ? "warning" : "success"}
+              severity={completeness.notOpened.length || (completeness.missing || []).length ? "warning" : "success"}
               sx={{ mt: 2 }}
               onClose={() => setCompleteness(null)}
               data-testid="completeness-result"
             >
-              {completeness.notOpened.length === 0 && completeness.incomplete.length === 0 && "Every step is reviewed and its key details are filled in."}
+              {completeness.notOpened.length === 0 && completeness.incomplete.length === 0 && (completeness.missing || []).length === 0 && "Every step is reviewed and its key details are filled in."}
               {completeness.notOpened.length > 0 && (
                 <Box>
                   Open these steps before saving:{" "}
@@ -1328,8 +1386,16 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                   ))}
                 </Box>
               )}
+              {(completeness.missing || []).length > 0 && (
+                <Box sx={{ mt: completeness.notOpened.length ? 0.5 : 0 }} data-testid="missing-required">
+                  Required fields still empty:{" "}
+                  {completeness.missing.map((m) => (
+                    <Chip key={`${m.step}-${m.key}`} size="small" color="warning" label={m.label} onClick={() => setActiveSubTab(m.step)} sx={{ mr: 0.5 }} />
+                  ))}
+                </Box>
+              )}
               {completeness.incomplete.length > 0 && (
-                <Box sx={{ mt: completeness.notOpened.length ? 0.5 : 0 }}>
+                <Box sx={{ mt: completeness.notOpened.length || (completeness.missing || []).length ? 0.5 : 0 }}>
                   Key details still empty in:{" "}
                   {completeness.incomplete.map((t) => (
                     <Chip key={t.value} size="small" variant="outlined" label={t.label} onClick={() => setActiveSubTab(t.value)} sx={{ mr: 0.5 }} />
