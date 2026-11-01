@@ -10,6 +10,7 @@ export const WINDOW_SOURCE = {
   emergency: "patient",
   contacts: "patient",
   financial: "patient",
+  insurance: "visit",
   guarantor: "guarantor",
   employer: "employer",
   reason: "visit",

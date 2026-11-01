@@ -32,6 +32,7 @@ import VisitSearchDialog from "./VisitSearchDialog";
 import RegistrationSteps from "./RegistrationSteps";
 import ContactsEditor from "./ContactsEditor";
 import DictionaryField from "./DictionaryField";
+import PolicyEditor, { policyProblems } from "./PolicyEditor";
 import useRegistrationTabs from "./useRegistrationTabs";
 import useRegistrationSetup, { fieldFor, missingRequired, optionsFor } from "./useRegistrationSetup";
 import { ageText, showDob, stepFilled } from "./registerHelpers";
@@ -125,6 +126,9 @@ const EMPTY_VISIT_FIELDS = {
   scheduled_procedure: "",
   referring_physician: "",
   current_diagnoses: "",
+  visit_policy: "",
+  authorization_number: "",
+  copay_due: "",
   admission_type: "",
   care_setting: "",
   arrival_time: "",
@@ -232,6 +236,12 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const [extras, setExtras] = useState(EMPTY_EXTRAS);
   const [extrasLoaded, setExtrasLoaded] = useState(false);
   const [extrasDirty, setExtrasDirty] = useState(false);
+  // The patient's insurance policies (their own records, saved with one call) and the plans a clinic offers
+  const [policies, setPolicies] = useState([]);
+  const [policiesLoaded, setPoliciesLoaded] = useState(false);
+  const [policiesDirty, setPoliciesDirty] = useState(false);
+  const [policyWarnings, setPolicyWarnings] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [saving, setSaving] = useState(false);
   const locationTree = useLocationTree();
   const hasLocations = !!locationTree && locationTree.length > 0;
@@ -446,6 +456,15 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       const token = await getValidToken();
       const headers = { Authorization: `Bearer ${token}` };
 
+      // Insurance that cannot be saved is stopped here, before anything else is written
+      if (policiesDirty) {
+        const problems = policyProblems(policies, plans);
+        if (problems.length) {
+          toast.error(problems[0]);
+          return false;
+        }
+      }
+
       // 1. Patient-level fields (Identity/Emergency Contact/Financial/Legal
       // Documents) -- multipart so any attached legal-document scans ride
       // along in the same request.
@@ -493,12 +512,26 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         setExtrasDirty(false);
       }
 
+      // 1c. Insurance policies, only if they loaded and were changed
+      if (policiesLoaded && policiesDirty && apiEndpoints.patientPolicies) {
+        const res = await axios.put(
+          apiEndpoints.patientPolicies(activePatient.user_id),
+          { policies: policies.map((p) => ({ ...p, plan: Number(p.plan) || null })) },
+          { headers }
+        );
+        setPolicies(res.data.policies || []);
+        setPolicyWarnings(res.data.warnings || []);
+        setPoliciesDirty(false);
+      }
+
       // 2. Visit-level fields (Reason for Visit/Logistics)
       const visitPayload = {
         ...visitFields,
         patient: activePatient.id,
         arrival_time: visitFields.arrival_time || null,
         attending_provider: visitFields.attending_provider || null,
+        visit_policy: visitFields.visit_policy || null,
+        copay_due: visitFields.copay_due === "" ? null : visitFields.copay_due,
         facility: visitFields.facility || null,
         unit: visitFields.unit || null,
         room: visitFields.room || null,
@@ -572,6 +605,58 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       live = false;
     };
   }, [patientKey]);
+  useEffect(() => {
+    if (!apiEndpoints.insuranceSetup) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.insuranceSetup, { headers: { Authorization: `Bearer ${token}` } });
+        const d = (res && res.data) || {};
+        const typeById = Object.fromEntries((d.types || []).map((t) => [t.id, t]));
+        if (live) {
+          setPlans(
+            (d.plans || [])
+              .filter((pl) => pl.active)
+              .map((pl) => ({ ...pl, carrier_name: pl.carrier_name, type_name: pl.type_name, policy_format: (typeById[pl.insurance_type] || {}).policy_format || "", required_primary: !!(typeById[pl.insurance_type] || {}).required_primary }))
+          );
+        }
+      } catch (err) {
+        // no plans to pick from; the insurance step says so
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+  useEffect(() => {
+    setPolicies([]);
+    setPoliciesLoaded(false);
+    setPoliciesDirty(false);
+    setPolicyWarnings([]);
+    if (!patientKey || !apiEndpoints.patientPolicies) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.patientPolicies(patientKey), { headers: { Authorization: `Bearer ${token}` } });
+        if (!live) return;
+        setPolicies((res && res.data && res.data.policies) || []);
+        setPolicyWarnings((res && res.data && res.data.warnings) || []);
+        setPoliciesLoaded(true);
+      } catch (err) {
+        // policies are only saved if they loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [patientKey]);
+  const changePolicies = (next) => {
+    setPolicies(next);
+    setPoliciesDirty(true);
+    setDirty(true);
+  };
   const changeExtras = (part, value) => {
     setExtras((prev) => ({ ...prev, [part]: value }));
     setExtrasDirty(true);
@@ -582,8 +667,9 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setCompleteness(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientKey]);
+  const stepExtras = { ...extras, policies };
   const notOpened = subTabs.filter((t) => t.requireReview && !opened[t.value]);
-  const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields, extras));
+  const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields, stepExtras));
   const missing = missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields, extras);
   const runCompleteness = () => {
     setCompleteness({ notOpened, incomplete, missing });
@@ -985,7 +1071,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
           <RegistrationSteps
             steps={subTabs}
             current={activeSubTab}
-            filled={Object.fromEntries(subTabs.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields, extras)]))}
+            filled={Object.fromEntries(subTabs.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields, stepExtras)]))}
             needsReview={Object.fromEntries(notOpened.map((t) => [t.value, true]))}
             onSelect={setActiveSubTab}
           />
@@ -1301,6 +1387,48 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                       value={patientFields.directive_received_date || ""}
                       onChange={(e) => handlePatientFieldChange("directive_received_date", e.target.value)}
                     />
+                  )
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "insurance" && (
+              <Stack spacing={2} data-testid="step-insurance">
+                {plans.length === 0 && (
+                  <Alert severity="info">No insurance plans are set up yet. An administrator adds them under Configuration, Insurance setup.</Alert>
+                )}
+                <PolicyEditor policies={policies} onChange={changePolicies} plans={plans} warnings={policyWarnings} readOnly={plans.length === 0} />
+                <Typography variant="subtitle2" sx={{ pt: 1 }}>Insurance for this visit</Typography>
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="visit-policy-label">Primary insurance for this visit</InputLabel>
+                  <MUISelect
+                    labelId="visit-policy-label"
+                    label="Primary insurance for this visit"
+                    value={String(visitFields.visit_policy || "")}
+                    onChange={(e) => handleVisitFieldChange("visit_policy", e.target.value)}
+                    inputProps={{ "data-testid": "visit-policy" }}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {policies
+                      .filter((p) => p.id && p.active && !p.end_date)
+                      .map((p) => (
+                        <MenuItem key={p.id} value={String(p.id)}>
+                          {p.cob_order}. {p.plan_name}
+                        </MenuItem>
+                      ))}
+                  </MUISelect>
+                </FormControl>
+                {policies.some((p) => !p.id) && (
+                  <Typography variant="caption" color="text.secondary">
+                    Save to add the new insurance to this list.
+                  </Typography>
+                )}
+                {row(
+                  show("insurance", "authorization_number") && (
+                    <TextField key="auth" {...fp("insurance", "authorization_number", "Authorization Number")} size="small" fullWidth value={visitFields.authorization_number || ""} onChange={(e) => handleVisitFieldChange("authorization_number", e.target.value)} />
+                  ),
+                  show("insurance", "copay_due") && (
+                    <TextField key="copay" {...fp("insurance", "copay_due", "Copay Due Today")} size="small" fullWidth type="number" inputProps={{ min: 0, step: "0.01" }} value={visitFields.copay_due || ""} onChange={(e) => handleVisitFieldChange("copay_due", e.target.value)} />
                   )
                 )}
               </Stack>

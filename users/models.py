@@ -680,6 +680,13 @@ class Registration(models.Model):
     referring_physician = models.CharField(max_length=255, blank=True)
     current_diagnoses = models.TextField(blank=True)
 
+    # -- Insurance for this visit -----------------------------------------
+    visit_policy = models.ForeignKey(
+        "appointments.PatientPolicy", on_delete=models.SET_NULL, null=True, blank=True, related_name="visits"
+    )
+    authorization_number = models.CharField(max_length=60, blank=True)
+    copay_due = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+
     # -- Logistics -----------------------------------------------------
     admission_type = models.CharField(
         max_length=20, choices=ADMISSION_TYPE_CHOICES, blank=True

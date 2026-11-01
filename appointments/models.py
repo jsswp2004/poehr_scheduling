@@ -1594,6 +1594,64 @@ class RegistrationTabSequence(models.Model):
         ]
 
 
+class InsuranceType(models.Model):
+    """A kind of coverage (Medicare, Commercial HMO...). The policy number format uses A (letter),
+    N (digit), Z (letter or digit) and P (punctuation); any other character must match exactly."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="insurance_types")
+    name = models.CharField(max_length=120)
+    policy_format = models.CharField(max_length=40, blank=True)
+    required_primary = models.BooleanField(default=False)  # a policy of this type has to be the primary one
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="uniq_insurance_type_org_name")]
+
+
+class InsuranceCarrier(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="insurance_carriers")
+    name = models.CharField(max_length=120)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="uniq_insurance_carrier_org_name")]
+
+
+class InsurancePlan(models.Model):
+    """A carrier's plan. It needs a type and a carrier first."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="insurance_plans")
+    carrier = models.ForeignKey(InsuranceCarrier, on_delete=models.CASCADE, related_name="plans")
+    insurance_type = models.ForeignKey(InsuranceType, on_delete=models.PROTECT, related_name="plans")
+    name = models.CharField(max_length=120)
+    active = models.BooleanField(default=True)  # false = discontinued
+
+    class Meta:
+        ordering = ["carrier__name", "name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="uniq_insurance_plan_org_name")]
+
+
+class PatientPolicy(models.Model):
+    """One policy a patient holds. cob_order 1 is the primary. Ended or inactive policies stay as history."""
+
+    patient = models.ForeignKey("users.Patient", on_delete=models.CASCADE, related_name="policies")
+    plan = models.ForeignKey(InsurancePlan, on_delete=models.PROTECT, related_name="policies")
+    cob_order = models.PositiveSmallIntegerField(default=1)
+    insured_person = models.CharField(max_length=255, blank=True, default="Self")
+    relationship = models.CharField(max_length=100, blank=True)
+    policy_number = models.CharField(max_length=60)
+    group_number = models.CharField(max_length=60, blank=True)
+    effective_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-active", "cob_order", "id"]
+
+
 class PatientContact(models.Model):
     """Another person to reach for a patient (next of kin, guardian, health care proxy...). The first
     emergency contact stays on the patient record; these are the additional ones."""
