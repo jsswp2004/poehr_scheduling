@@ -24,6 +24,7 @@ import Divider from "@mui/material/Divider";
 import MenuIcon from "@mui/icons-material/Menu";
 import useForceUpdate from "../utils/useForceUpdate";
 import OrganizationSwitcher from "./OrganizationSwitcher";
+import GlobalSearch from "./search/GlobalSearch";
 import { clearActingOrg, useActingOrg } from "../utils/actingOrg";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ChatIcon from "@mui/icons-material/Chat";
@@ -201,6 +202,7 @@ function Navbar() {
   const location = useLocation();
   const [username, setUsername] = useState("");
   const [role, setRole] = useState("");
+  const [userId, setUserId] = useState(null);
   const [organizationName, setOrganizationName] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Make it stateful
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -260,6 +262,7 @@ function Navbar() {
       const firstName = decoded.first_name || decoded.username || "";
       setUsername(firstName);
       setRole(decoded.role || "");
+      setUserId(userId || null);
 
       const response = await axios.get(`${API_BASE_URL}/api/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -640,6 +643,11 @@ function Navbar() {
         <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           {isAuthenticated && (
             <>
+              {/* Search: patients, MRNs and visits (Ctrl+K). Always shown, also on small screens. */}
+              {STAFF_MODULE_ROLES.includes(role) && (
+                <GlobalSearch userId={userId} canRegister={["admin", "system_admin", "registrar"].includes(role)} />
+              )}
+
               {/* Solutions icon: one click back to the Solutions page */}
               {showSolutions && (
                 <Tooltip title="Solutions">

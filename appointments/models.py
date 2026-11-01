@@ -623,6 +623,23 @@ class InboxState(models.Model):
         constraints = [models.UniqueConstraint(fields=["user", "key"], name="uniq_inbox_state")]
 
 
+class SearchAudit(models.Model):
+    """A chart opened from the header search: who looked, at whom, when, and how it was found.
+    Only opens are logged. The words typed are kept only when they were a name, MRN or visit number."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="search_audits")
+    organization = models.ForeignKey("users.Organization", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    registration_id = models.PositiveIntegerField(null=True, blank=True)
+    kind = models.CharField(max_length=10, blank=True)
+    query = models.CharField(max_length=60, blank=True)
+    action = models.CharField(max_length=20, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 # Row layout for the Vital Signs flowsheet -- deliberately a plain Python
 # constant, not a DB-backed template, since this is the one fixed flowsheet
 # type for now. Shaped the same way the future flowsheet-builder's rows will
