@@ -645,7 +645,7 @@ function Navbar() {
             <>
               {/* Search: patients, MRNs and visits (Ctrl+K). Always shown, also on small screens. */}
               {STAFF_MODULE_ROLES.includes(role) && (
-                <GlobalSearch userId={userId} canRegister={["admin", "system_admin", "registrar"].includes(role)} />
+                <GlobalSearch userId={userId} role={role} canRegister={["admin", "system_admin", "registrar"].includes(role)} />
               )}
 
               {/* Solutions icon: one click back to the Solutions page */}

@@ -18,6 +18,8 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import { findSettings } from "./settingsIndex";
 import { storedCareSetting } from "../patients/CareSettingSidebar";
 import {
   CARE_LABELS,
@@ -177,7 +179,51 @@ function VisitRow({ row, query, active, onOpen, onHover, domId }) {
   );
 }
 
-export default function GlobalSearch({ userId, canRegister = false }) {
+function SettingRow({ row, query, active, onOpen, onHover, domId }) {
+  const tool = row.group === "tool";
+  return (
+    <Box
+      id={domId}
+      role="option"
+      aria-selected={active}
+      onMouseMove={onHover}
+      onClick={() => onOpen(row)}
+      data-testid={`search-row-${row.rowKey}`}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        px: 1.5,
+        py: 1,
+        minHeight: 56,
+        borderRadius: 2,
+        cursor: "pointer",
+        border: 1,
+        borderColor: active ? "primary.light" : "transparent",
+        bgcolor: active ? "action.selected" : "transparent",
+      }}
+    >
+      <Avatar variant="rounded" sx={{ width: 40, height: 40, bgcolor: tool ? "#e8efff" : "#eceafe", color: tool ? "#1d4ed8" : "#4338ca" }}>
+        <SettingsOutlinedIcon fontSize="small" />
+      </Avatar>
+      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+        <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+          <Mark text={row.label} query={query} />
+        </Typography>
+        <Typography variant="body2" color="text.secondary" noWrap>
+          {row.where} · <Mark text={row.description} query={query} />
+        </Typography>
+      </Box>
+      {active && (
+        <Button size="small" variant="contained" sx={{ display: { xs: "none", sm: "inline-flex" } }} onClick={(e) => { e.stopPropagation(); onOpen(row); }}>
+          Go
+        </Button>
+      )}
+    </Box>
+  );
+}
+
+export default function GlobalSearch({ userId, role = "", canRegister = false }) {
   const navigate = useNavigate();
   const fullScreen = useMediaQuery("(max-width:600px)");
   const [open, setOpen] = useState(false);
@@ -249,15 +295,20 @@ export default function GlobalSearch({ userId, canRegister = false }) {
   }, [open, term, careValue]);
 
   const showing = term ? data : null;
+  // Settings and Management Portal tools (administrators only), worked out here from the typed words.
+  const settingRows = useMemo(() => (term ? findSettings(term, role) : []), [term, role]);
   const rows = useMemo(() => {
-    if (term) return flattenRows(showing, chip);
+    if (term) {
+      if (chip === "settings") return settingRows;
+      return [...(chip === "all" ? settingRows : []), ...flattenRows(showing, chip)];
+    }
     const list = [];
     recent.forEach((r) => list.push({ ...r, rowKey: `r${r.user_id}` }));
     ((mine && mine.patients) || []).forEach((p) => {
       if (!list.some((r) => String(r.user_id) === String(p.user_id))) list.push({ ...p, rowKey: `m${p.user_id}` });
     });
     return list;
-  }, [term, showing, chip, recent, mine]);
+  }, [term, showing, chip, recent, mine, settingRows]);
 
   useEffect(() => {
     if (active >= rows.length) setActive(0);
@@ -265,6 +316,11 @@ export default function GlobalSearch({ userId, canRegister = false }) {
 
   const openRow = useCallback(
     (row, action) => {
+      if (row.type === "setting") {
+        close();
+        navigate(row.path);
+        return;
+      }
       const target = targetFor(row, action);
       logOpened(target, term, action);
       rememberRecent(userId, row);
@@ -294,8 +350,9 @@ export default function GlobalSearch({ userId, canRegister = false }) {
     ["patients", "Patients", patientsCount],
     ["visits", "Visits", visitsCount],
     ["mrn", "MRN", null],
+    ...(settingRows.length ? [["settings", "Settings", settingRows.length]] : []),
   ];
-  const noMatch = !!term && showing && !loading && !patientsCount && !visitsCount;
+  const noMatch = !!term && showing && !loading && !patientsCount && !visitsCount && !settingRows.length;
   const kindLabel = showing && KIND_LABEL[showing.kind];
 
   const renderRow = (row, i) => {
@@ -307,12 +364,15 @@ export default function GlobalSearch({ userId, canRegister = false }) {
       onHover: () => setActive(i),
       domId: `search-opt-${i}`,
     };
+    if (row.type === "setting") return <SettingRow key={row.rowKey} {...props} />;
     return row.type === "visit" ? <VisitRow key={row.rowKey} {...props} /> : <PatientRow key={row.rowKey} {...props} />;
   };
 
   // rows are already in the order they are drawn (patients, visits, close spellings), so the keyboard follows it
   const drawRow = (row) => renderRow(row, rows.indexOf(row));
-  const patientRows = rows.filter((r) => r.type !== "visit" && !String(r.rowKey).startsWith("s") && !String(r.rowKey).match(/^[rm]/));
+  const settingsOnly = rows.filter((r) => r.type === "setting" && r.group === "setting");
+  const toolRows = rows.filter((r) => r.type === "setting" && r.group === "tool");
+  const patientRows = rows.filter((r) => r.type !== "visit" && r.type !== "setting" && !String(r.rowKey).startsWith("s") && !String(r.rowKey).match(/^[rm]/));
   const visitRows = rows.filter((r) => r.type === "visit");
   const similarRows = rows.filter((r) => String(r.rowKey).startsWith("s"));
   const recentRows = !term ? rows.filter((r) => String(r.rowKey).startsWith("r")) : [];
@@ -416,19 +476,31 @@ export default function GlobalSearch({ userId, canRegister = false }) {
                   Searching by {kindLabel.toLowerCase()}
                 </Typography>
               )}
-              {chip !== "visits" && patientRows.length > 0 && (
+              {settingsOnly.length > 0 && (
+                <Box>
+                  <Heading>SETTINGS</Heading>
+                  {settingsOnly.map(drawRow)}
+                </Box>
+              )}
+              {toolRows.length > 0 && (
+                <Box>
+                  <Heading>TOOLS</Heading>
+                  {toolRows.map(drawRow)}
+                </Box>
+              )}
+              {chip !== "visits" && chip !== "settings" && patientRows.length > 0 && (
                 <Box>
                   <Heading>PATIENTS</Heading>
                   {patientRows.map(drawRow)}
                 </Box>
               )}
-              {chip !== "patients" && chip !== "mrn" && visitRows.length > 0 && (
+              {chip !== "patients" && chip !== "mrn" && chip !== "settings" && visitRows.length > 0 && (
                 <Box>
                   <Heading>VISITS</Heading>
                   {visitRows.map(drawRow)}
                 </Box>
               )}
-              {!patientRows.length && !visitRows.length && !loading && (
+              {!patientRows.length && !visitRows.length && !settingRows.length && !loading && (
                 <Typography color="text.secondary" sx={{ p: 2 }}>
                   Nothing under this filter.
                 </Typography>
@@ -467,7 +539,7 @@ export default function GlobalSearch({ userId, canRegister = false }) {
 
         <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap sx={{ px: 2, py: 1, borderTop: 1, borderColor: "divider", bgcolor: "action.hover" }}>
           <Typography variant="caption" color="text.secondary"><b>↑ ↓</b> move</Typography>
-          <Typography variant="caption" color="text.secondary"><b>Enter</b> open chart</Typography>
+          <Typography variant="caption" color="text.secondary"><b>Enter</b> open</Typography>
           <Typography variant="caption" color="text.secondary"><b>Tab</b> quick actions</Typography>
           <Typography variant="caption" color="text.secondary"><b>Esc</b> close</Typography>
           <Box sx={{ flexGrow: 1 }} />
