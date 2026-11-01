@@ -14,6 +14,7 @@ export const WINDOW_SOURCE = {
   guarantor: "guarantor",
   employer: "employer",
   reason: "visit",
+  visitdetails: "visit",
   logistics: "visit",
 };
 

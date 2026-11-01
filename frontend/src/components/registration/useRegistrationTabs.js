@@ -14,7 +14,9 @@ export const DEFAULT_STEPS = [
   { value: "guarantor", label: "Guarantor", requireReview: false },
   { value: "employer", label: "Employer", requireReview: false },
   { value: "reason", label: "Reason for Visit", requireReview: false },
+  { value: "visitdetails", label: "Visit Details", requireReview: false },
   { value: "legal", label: "Legal Documents", requireReview: false },
+  { value: "forms", label: "Forms", requireReview: false },
   { value: "logistics", label: "Logistics", requireReview: false },
 ];
 

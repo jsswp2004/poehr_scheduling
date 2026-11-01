@@ -1652,6 +1652,58 @@ class PatientPolicy(models.Model):
         ordering = ["-active", "cob_order", "id"]
 
 
+class CustomForm(models.Model):
+    """A clinic-defined form shown as a section of the Forms step. used_as says whether the answers belong
+    to the patient (kept across visits) or to the visit. roles empty means every staff role may fill it in."""
+
+    USED_AS_CHOICES = [("patient", "Patient"), ("visit", "Visit")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="custom_forms")
+    name = models.CharField(max_length=120)
+    used_as = models.CharField(max_length=10, choices=USED_AS_CHOICES, default="patient")
+    roles = models.JSONField(default=list)
+    active = models.BooleanField(default=True)
+    sequence = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sequence", "id"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="uniq_custom_form_org_name")]
+
+
+class CustomFormItem(models.Model):
+    """One question. show_when_item/show_when_value hide it until an earlier answer matches."""
+
+    TYPE_CHOICES = [("yes_no", "Yes / No"), ("dictionary", "Choice list"), ("text", "Text"), ("date", "Date"), ("number", "Number")]
+
+    form = models.ForeignKey(CustomForm, on_delete=models.CASCADE, related_name="items")
+    sequence = models.PositiveSmallIntegerField(default=0)
+    label = models.CharField(max_length=200)
+    item_type = models.CharField(max_length=12, choices=TYPE_CHOICES, default="text")
+    options = models.JSONField(default=list)
+    required = models.BooleanField(default=False)
+    show_when_item = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="dependents")
+    show_when_value = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        ordering = ["sequence", "id"]
+
+
+class CustomFormAnswer(models.Model):
+    """An answer. Patient forms have no registration; visit forms are tied to the visit."""
+
+    item = models.ForeignKey(CustomFormItem, on_delete=models.CASCADE, related_name="answers")
+    patient = models.ForeignKey("users.Patient", on_delete=models.CASCADE, related_name="custom_answers")
+    registration = models.ForeignKey("users.Registration", on_delete=models.CASCADE, null=True, blank=True, related_name="custom_answers")
+    value = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["item", "patient"], condition=models.Q(registration__isnull=True), name="uniq_answer_patient_level"),
+            models.UniqueConstraint(fields=["item", "patient", "registration"], condition=models.Q(registration__isnull=False), name="uniq_answer_visit_level"),
+        ]
+
+
 class PatientContact(models.Model):
     """Another person to reach for a patient (next of kin, guardian, health care proxy...). The first
     emergency contact stays on the patient record; these are the additional ones."""
