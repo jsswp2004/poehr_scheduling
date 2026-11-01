@@ -194,23 +194,6 @@ function PatientsPage() {
     },
     [selectPatient]
   );
-  const nav = React.useMemo(() => {
-    if (!navList || !selectedPatient) return null;
-    const index = navList.patients.findIndex((p) => String(p.user_id) === String(selectedPatient.id));
-    if (index < 0 || navList.patients.length < 2) return null;
-    const list = navList.patients;
-    return {
-      label: navList.label,
-      index,
-      total: list.length,
-      patients: list,
-      prev: list[index - 1] || null,
-      next: list[index + 1] || null,
-      onPrev: () => moveTo(list[index - 1]),
-      onNext: () => moveTo(list[index + 1]),
-      onJump: (i) => moveTo(list[i]),
-    };
-  }, [navList, selectedPatient, moveTo]);
 
   // Being on this page keeps the person shown as online to colleagues.
   useOnlineStatus();
@@ -220,6 +203,35 @@ function PatientsPage() {
 
   // Custom hooks for each section
   const patients = usePatients(navigate, userRole);
+
+  // The banner's arrows. They walk the list the chart was opened from; when the patient is not in
+  // it (the chart was opened another way, or the page was reloaded) they walk the Patient list, so
+  // the arrows stay on every tab.
+  const nav = React.useMemo(() => {
+    if (!selectedPatient) return null;
+    const fallback = {
+      label: patients.careSetting === "emergency" ? "ED Board" : "Patient list",
+      patients: (patients.patients || [])
+        .filter((p) => p && p.user_id)
+        .map((p) => ({ user_id: p.user_id, full_name: p.full_name || "" })),
+    };
+    const has = (l) => l && l.patients.length > 1 && l.patients.some((p) => String(p.user_id) === String(selectedPatient.id));
+    const source = has(navList) ? navList : has(fallback) ? fallback : null;
+    if (!source) return null;
+    const list = source.patients;
+    const index = list.findIndex((p) => String(p.user_id) === String(selectedPatient.id));
+    return {
+      label: source.label,
+      index,
+      total: list.length,
+      patients: list,
+      prev: list[index - 1] || null,
+      next: list[index + 1] || null,
+      onPrev: () => moveTo(list[index - 1]),
+      onNext: () => moveTo(list[index + 1]),
+      onJump: (i) => moveTo(list[i]),
+    };
+  }, [navList, selectedPatient, moveTo, patients.patients, patients.careSetting]);
   // Units for the Unit column filter on the Acute Care list (inpatient units; the open list adds the facility when there are several, the closed filter does not)
   const locationTree = useLocationTree();
   const unitOptions = React.useMemo(() => unitOptionsFrom(locationTree), [locationTree]);
