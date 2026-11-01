@@ -535,3 +535,9 @@ def notify_lab_report(report):
                   source_type="lab_report", source_id=report.pk, organization=report.organization):
             count += 1
     return count
+
+
+def close_lab_alerts(report):
+    """A reviewed (or withdrawn) report no longer needs its alerts: they move to Done for everyone."""
+    now = timezone.now()
+    return InboxAlert.objects.filter(source_type="lab_report", source_id=report.pk, done_at__isnull=True).update(done_at=now, read_at=now)
