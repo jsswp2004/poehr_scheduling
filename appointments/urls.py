@@ -51,6 +51,7 @@ from .registration_config import RegistrationDictionariesView, RegistrationField
 from .registration_tabs import RegistrationTabsView
 from .lab_views import LabReportViewSet
 from . import inbox_views
+from . import search_views
 from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .my_schedule import MyScheduleView
@@ -279,6 +280,8 @@ router.register(r"admin/order-sets", OrderSetAdminViewSet, basename="ordersetadm
 
 urlpatterns = router.urls + [
     # lab interface engines post results here (key-authenticated, no login)
+    path("search/", search_views.SearchView.as_view(), name="global-search"),
+    path("search/opened/", search_views.SearchOpenedView.as_view(), name="global-search-opened"),
     path("inbox/", inbox_views.InboxListView.as_view(), name="inbox"),
     path("inbox/counts/", inbox_views.InboxCountsView.as_view(), name="inbox-counts"),
     path("inbox/people/", inbox_views.InboxPeopleView.as_view(), name="inbox-people"),

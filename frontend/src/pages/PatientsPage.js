@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Box, Typography, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
 import { getAccessToken } from "../utils/tokenManager";
@@ -84,6 +84,7 @@ const VIEW_TITLES = {
 
 function PatientsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Main tab state -- honors ?tab=appointments (etc.) on initial load, e.g.
   // from the Scheduler solutions-page button, which sends users straight to
@@ -131,8 +132,11 @@ function PatientsPage() {
   // null means the patient's current visit. It only lasts while this patient stays selected.
   const [openVisit, setOpenVisit] = useState(null);
   const selectedPatientId = selectedPatient ? selectedPatient.id : null;
+  // A visit chosen in the header search is applied once the patient it belongs to has been selected.
+  const pendingVisit = useRef(null);
   useEffect(() => {
-    setOpenVisit(null);
+    setOpenVisit(pendingVisit.current);
+    pendingVisit.current = null;
   }, [selectedPatientId]);
   const openVisitContext = useCallback((v) => setOpenVisit(v && !v.is_current ? v : null), []);
   const showPatientContext = tab === "patients" || !!selectedPatient;
@@ -264,6 +268,24 @@ function PatientsPage() {
   const team = useTeam(navigate);
   const appointments = usePatientsAppointments();
   const analytics = useAnalytics();
+
+  // A chart opened from the header search arrives as location.state.searchOpen: select the patient,
+  // go to the module the visit belongs to, land on the tab asked for, and open a past visit as such.
+  const searchOpen = location.state && location.state.searchOpen;
+  const handledSearch = useRef(null);
+  useEffect(() => {
+    if (!searchOpen || handledSearch.current === searchOpen.nonce) return;
+    handledSearch.current = searchOpen.nonce;
+    if (["ambulatory", "emergency", "acute"].includes(searchOpen.care) && searchOpen.care !== patients.careSetting) {
+      openedOnChart.current = true; // the module change must not move the tab we are about to open
+      patients.setCareSetting(searchOpen.care);
+    }
+    const visit = searchOpen.visit && !searchOpen.visit.is_current ? searchOpen.visit : null;
+    if (String(selectedPatientId) === String(searchOpen.user_id)) setOpenVisit(visit);
+    else pendingVisit.current = visit;
+    openChart({ user_id: searchOpen.user_id, full_name: searchOpen.full_name }, searchOpen.tab);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [searchOpen, patients, selectedPatientId, openChart, navigate, location.pathname, location.search]);
   // Admit / transfer / discharge dialog: { mode: "admit" | "transfer" | "discharge", patient }
   const [admission, setAdmission] = useState(null);
   // Acute Care shows the patient list or the bed board; the board reloads when `boardKey` changes
