@@ -20,6 +20,7 @@ export const CHART_TABS = [
   { value: "clinical_summary", label: "Clinical Summary", clinical: true },
   { value: "vaccines", label: "Vaccines", clinical: true },
   { value: "messages", label: "Messages", clinical: false },
+  { value: "inbox", label: "Inbox", clinical: false },
 ];
 
 // Tabs that have no page behind them yet (none at the moment: every chart tab has its page).

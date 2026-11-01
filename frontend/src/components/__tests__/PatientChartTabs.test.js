@@ -10,13 +10,13 @@ jest.mock("../SimpleToast", () => ({ toast: { success: jest.fn(), error: jest.fn
 test("clinical roles see all twelve chart tabs in order", () => {
   expect(visibleChartTabs("doctor").map((t) => t.label)).toEqual([
     "Patient List", "Orders", "Prescriptions", "Results", "Patient Info", "Documents", "Flowsheets",
-    "My Schedule", "Referral List", "Task List", "Clinical Summary", "Messages",
+    "My Schedule", "Referral List", "Task List", "Clinical Summary", "Messages", "Inbox",
   ]);
 });
 
 test("registrars only see the tabs that are not clinical", () => {
   expect(visibleChartTabs("registrar").map((t) => t.label)).toEqual([
-    "Patient List", "Patient Info", "My Schedule", "Referral List", "Messages",
+    "Patient List", "Patient Info", "My Schedule", "Referral List", "Messages", "Inbox",
   ]);
 });
 
@@ -73,8 +73,8 @@ test("the Patient List is always kept, first, when a layout leaves it out", () =
 
 test("unknown keys are ignored and an empty layout means every tab", () => {
   expect(visibleChartTabs("doctor", ["orders", "bogus"]).map((t) => t.value)).toEqual(["patient_list", "orders"]);
-  expect(visibleChartTabs("doctor", []).length).toBe(14);
-  expect(visibleChartTabs("doctor", null).length).toBe(14);
+  expect(visibleChartTabs("doctor", []).length).toBe(15);
+  expect(visibleChartTabs("doctor", null).length).toBe(15);
 });
 
 test("the strip draws only the layout's tabs, in its order", () => {

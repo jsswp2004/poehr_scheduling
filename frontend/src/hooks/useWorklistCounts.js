@@ -16,6 +16,9 @@ const readQueueCounts = (data) => {
   return { count: Number(counts.needs_action) || 0, overdue: Number(counts.overdue) || 0 };
 };
 // The lab inbox's summary: results waiting for review, and how many of them are critical.
+const INBOX_ROLES = ["doctor", "nurse", "registrar", "admin", "system_admin"];
+// The Inbox tab's badge: everything unread (messages, alerts and co-sign requests).
+const readInbox = (data) => ({ count: Number(data && data.all) || 0, overdue: 0 });
 const readLabSummary = (data) => ({ count: Number(data && data.count) || 0, overdue: Number(data && data.critical) || 0 });
 
 function useQueueCount(url, allowed, eventName, read = readQueueCounts, params) {
@@ -53,5 +56,6 @@ export default function useWorklistCounts(role, enabled = true) {
   const tasks = useQueueCount("/api/order-tasks/queues/", enabled && TASK_ROLES.includes(role), "tasks-changed");
   // Results: unreviewed lab results (red when any is critical), the same count the Lab Inbox shows.
   const results = useQueueCount("/api/lab-reports/inbox/", enabled && LAB_ROLES.includes(role), "lab-inbox-changed", readLabSummary, { summary: 1 });
-  return { referrals, tasks, results };
+  const inbox = useQueueCount("/api/inbox/counts/", enabled && INBOX_ROLES.includes(role), "inbox-changed", readInbox);
+  return { referrals, tasks, results, inbox };
 }

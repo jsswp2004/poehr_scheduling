@@ -121,6 +121,7 @@ export const apiEndpoints = {
     clinicalNoteCosign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/cosign/`,
     clinicalNoteReturnCosign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/return-cosign/`,
     clinicalNoteCancelCosign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/cancel-cosign/`,
+    inbox: `${API_BASE_URL}/api/inbox/`,
     noteTemplates: `${API_BASE_URL}/api/note-templates/`,
 
     // Dictation (speech-to-text for notes)
