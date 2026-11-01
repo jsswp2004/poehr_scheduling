@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import MaintenancePage from "./MaintenancePage";
 import EnvironmentProfilePage from "./EnvironmentProfilePage";
 import UploadTab from "../components/UploadTab";
@@ -25,7 +26,11 @@ const TABS = [
 ];
 
 function SettingsPage() {
-  const [tab, setTab] = useState("maintenance");
+  // The open tab follows ?tab= so a link (or the header search) can open a setting directly.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const param = searchParams.get("tab");
+  const tab = TABS.some((t) => t.value === param) ? param : "maintenance";
+  const setTab = useCallback((value) => setSearchParams({ tab: value }, { replace: true }), [setSearchParams]);
   // The tab toolbar renders into this element, inside the pinned block (see SettingsToolbarSlot)
   const [toolbarSlot, setToolbarSlot] = useState(null);
   // Publish the pinned block's height so pinned tables and side panels can stack under it

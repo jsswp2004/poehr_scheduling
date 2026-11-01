@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { moduleEnabled } from '../../utils/orgModules';
+import { ADMIN_TOOLS } from './adminTools';
 
 /**
  * Custom hook for managing admin page functionality
@@ -13,22 +14,7 @@ export const useAdminPage = () => {
     const [loading, setLoading] = useState(true);
 
     // Admin navigation items configuration. `group` and `description` drive the portal layout.
-    const adminNavItems = [
-        { id: 'calendar', module: 'scheduling', label: 'Calendar Dashboard', description: "Today's schedule and patient charts", group: 'daily', icon: 'FaCalendarCheck', path: '/patients', requiredRoles: ['admin', 'system_admin', 'registrar'] },
-        { id: 'search', module: 'scheduling', label: 'Appointment Search', description: 'Find any appointment', group: 'daily', icon: 'FaSearch', path: '/admin-user-search', requiredRoles: ['admin', 'system_admin', 'registrar'] },
-        { id: 'messages', module: 'communicator', label: 'Messages', description: 'Staff and patient messages', group: 'daily', icon: 'FaEnvelope', path: '/messages', requiredRoles: ['admin', 'system_admin', 'registrar'] },
-        { id: 'check-in', module: 'scheduling', label: 'Check-in', description: 'Mark arriving patients as arrived', group: 'daily', icon: 'FaUserCheck', path: '/check-in', isNew: true, requiredRoles: ['admin', 'system_admin', 'registrar'] },
-        { id: 'note-builder', module: 'clinical_documentation', label: 'Note Builder', description: 'Clinical note templates', group: 'build', icon: 'FaClipboardList', path: '/note-builder', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'flowsheet-builder', module: 'clinical_documentation', label: 'Flowsheet Builder', description: 'Flowsheet rows and rules', group: 'build', icon: 'FaTable', path: '/flowsheet-builder', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'status-board-builder', module: 'clinical_documentation', label: 'Status Board Builder', description: 'Status boards for your units', group: 'build', icon: 'FaColumns', path: '/status-board-builder', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'order-builder', module: 'clinical_documentation', label: 'Order Builder', description: 'Orders and order sets', group: 'build', icon: 'FaClipboardCheck', path: '/order-builder', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'triage-settings', module: 'clinical_documentation', label: 'Triage Settings', description: 'Triage scales and prompts', group: 'build', icon: 'FaHeartbeat', path: '/triage-settings', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'location-manager', module: ['clinical_documentation', 'scheduling'], label: 'Location Manager', description: 'Facilities, units and rooms', group: 'facility', icon: 'FaHospital', path: '/location-manager', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'settings', module: ['scheduling', 'clinical_documentation', 'patient_portal', 'communicator', 'telehealth', 'dictation', 'lab_interface'], label: 'Settings', description: 'Clinic settings', group: 'facility', icon: 'FaTools', path: '/settings', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'organization-access', label: 'Organization Management', description: 'Plan, users, services and organization details', group: 'facility', icon: 'FaKey', path: '/organization-access', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'system-dictionaries', label: 'System Dictionaries', description: 'Dropdown lists used across the app', group: 'facility', icon: 'FaBook', path: '/system-dictionaries', requiredRoles: ['system_admin'] },
-        { id: 'profile', label: 'Profile', description: 'Your account', group: 'facility', icon: 'FaUserCog', path: '/profile', requiredRoles: ['admin', 'system_admin'] },
-    ];
+    const adminNavItems = ADMIN_TOOLS;
 
     // Role check and authentication
     useEffect(() => {
