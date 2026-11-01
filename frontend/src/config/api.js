@@ -223,6 +223,7 @@ export const apiEndpoints = {
     orderTaskSettings: `${API_BASE_URL}/api/order-task-settings/`,
     orderTaskColumns: `${API_BASE_URL}/api/order-task-columns/`,
     patientHeader: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/`,
+    patientVisits: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/visits/`,
     patientHeaderValues: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/values/`,
     patientAllergies: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergies/`,
     patientAllergy: (patientId, allergyId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergies/${allergyId}/`,

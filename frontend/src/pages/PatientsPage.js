@@ -47,7 +47,8 @@ import {
 } from "../components/patients/PatientChartTabs";
 import OrdersPanel from "../components/OrdersPanel";
 import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
-import { PatientRecord } from "./PatientDetailPage";
+import PatientInfoPanel from "../components/patients/PatientInfoPanel";
+import PastVisitStrip from "../components/patients/PastVisitStrip";
 import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 
 // Hooks
@@ -125,6 +126,14 @@ function PatientsPage() {
   const [chartTab, setChartTab] = useChartParam(tab);
   // What the patient header is showing: the visit that Orders, Documents and Flowsheets chart on.
   const [headerData, setHeaderData] = useState(null);
+  // A visit opened from Patient Info > Visit History becomes the context of the whole chart.
+  // null means the patient's current visit. It only lasts while this patient stays selected.
+  const [openVisit, setOpenVisit] = useState(null);
+  const selectedPatientId = selectedPatient ? selectedPatient.id : null;
+  useEffect(() => {
+    setOpenVisit(null);
+  }, [selectedPatientId]);
+  const openVisitContext = useCallback((v) => setOpenVisit(v && !v.is_current ? v : null), []);
   const showPatientContext = tab === "patients" || !!selectedPatient;
   const selectionKey = currentUser ? `powerSelectedPatient:${currentUser.id}` : null;
   useEffect(() => {
@@ -556,7 +565,7 @@ function PatientsPage() {
         {/* Patient header: only on the Patient List view, where it follows the selected patient
             (and reads "No patient selected" until one is chosen). */}
         {tab === "patients" && (
-          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} onLoaded={setHeaderData} nav={nav} />
+          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} visitId={openVisit ? openVisit.id : null} onLoaded={setHeaderData} nav={nav} />
         )}
 
         {/* Chart tabs for the selected patient */}
@@ -570,6 +579,7 @@ function PatientsPage() {
             badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count }}
             badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue, results: worklists.results.overdue }}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
+            visitMarker={selectedPatient && openVisit ? `Visit ${openVisit.visit_number || `#${openVisit.id}`}` : null}
           />
         ) : tab === "team" ? null : (
           // Same title row as the Team tab: same top gap, same compact Back button.
@@ -580,6 +590,10 @@ function PatientsPage() {
             {/* With a patient selected the sidebar's Back button is the only one. */}
             {!selectedPatient && <BackButton sx={{ mb: 0, py: 0.75 }} />}
           </Box>
+        )}
+
+        {tab === "patients" && selectedPatient && openVisit && (
+          <PastVisitStrip visit={openVisit} onBack={() => setOpenVisit(null)} />
         )}
 
         {/* Tab Content */}
@@ -719,10 +733,11 @@ function PatientsPage() {
             if (current === "patient_info") {
               return (
                 <Box sx={TIGHT_PANEL}>
-                  <PatientRecord
+                  <PatientInfoPanel
                     key={selectedPatient.id}
-                    id={selectedPatient.id}
-                    embedded
+                    patient={selectedPatient}
+                    openVisitId={openVisit ? openVisit.id : null}
+                    onOpenVisit={openVisitContext}
                     onOpenNotes={() => setChartTab("documents")}
                   />
                 </Box>
