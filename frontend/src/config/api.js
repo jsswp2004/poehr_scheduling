@@ -233,6 +233,7 @@ export const apiEndpoints = {
     allergyReactions: `${API_BASE_URL}/api/allergy-reactions/`,
     allergyCheck: `${API_BASE_URL}/api/allergy-check/`,
     patientHeaderConfig: `${API_BASE_URL}/api/patient-header-config/`,
+    registrationTabs: `${API_BASE_URL}/api/registration-tabs/`,
     mySchedule: `${API_BASE_URL}/api/my-schedule/`,
     chartTabs: `${API_BASE_URL}/api/chart-tabs/`,
     chartTabsMine: `${API_BASE_URL}/api/chart-tabs/mine/`,

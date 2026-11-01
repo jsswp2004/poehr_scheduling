@@ -3,7 +3,7 @@ import { Box, ButtonBase, Typography } from "@mui/material";
 
 // The numbered step bar at the top of Full Registration. A step shows a check once its key details are
 // filled in. It is a tab list, so the keyboard and screen readers treat it like the tabs it replaced.
-function RegistrationSteps({ steps, current, filled, onSelect }) {
+function RegistrationSteps({ steps, current, filled, onSelect, needsReview = {} }) {
   return (
     <Box role="tablist" aria-label="Registration steps" sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 2 }}>
       {steps.map((s, i) => {
@@ -51,6 +51,11 @@ function RegistrationSteps({ steps, current, filled, onSelect }) {
             <Typography variant="body2" sx={{ fontWeight: active ? 600 : 500, color: active ? "#1e40af" : "text.primary", whiteSpace: "nowrap" }}>
               {s.label}
             </Typography>
+            {needsReview[s.value] && !active && (
+              <Typography component="span" variant="caption" sx={{ color: "warning.main" }} data-testid={`needs-review-${s.value}`}>
+                review
+              </Typography>
+            )}
           </ButtonBase>
         );
       })}
