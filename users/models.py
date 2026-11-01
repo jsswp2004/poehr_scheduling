@@ -680,6 +680,17 @@ class Registration(models.Model):
     referring_physician = models.CharField(max_length=255, blank=True)
     current_diagnoses = models.TextField(blank=True)
 
+    # -- Visit details (Registration > Visit Details) -----------------------
+    # Choice-list answers are stored as the chosen text, like the patient demographics.
+    admit_source = models.CharField(max_length=100, blank=True)
+    admit_via = models.CharField(max_length=100, blank=True)
+    mode_of_arrival = models.CharField(max_length=100, blank=True)
+    id_source = models.CharField(max_length=100, blank=True)
+    accident_type = models.CharField(max_length=100, blank=True)
+    special_program = models.CharField(max_length=100, blank=True)
+    service = models.CharField(max_length=100, blank=True)
+    expected_los_days = models.PositiveSmallIntegerField(null=True, blank=True)
+
     # -- Insurance for this visit -----------------------------------------
     visit_policy = models.ForeignKey(
         "appointments.PatientPolicy", on_delete=models.SET_NULL, null=True, blank=True, related_name="visits"

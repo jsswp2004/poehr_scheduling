@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import Select from "react-select";
 import {
@@ -36,6 +36,8 @@ import PolicyEditor, { policyProblems } from "./PolicyEditor";
 import useRegistrationTabs from "./useRegistrationTabs";
 import useRegistrationSetup, { fieldFor, missingRequired, optionsFor } from "./useRegistrationSetup";
 import { ageText, showDob, stepFilled } from "./registerHelpers";
+import CustomFormsStep from "./CustomFormsStep";
+import { answersToSend, formsComplete, missingCustom } from "./customFormHelpers";
 
 // Only these roles may edit a visit that has already been closed (discharged).
 const CLOSED_VISIT_EDIT_ROLES = ["admin", "registrar", "system_admin"];
@@ -138,6 +140,14 @@ const EMPTY_VISIT_FIELDS = {
   room: "",
   bed: "",
   attending_provider: "",
+  admit_source: "",
+  admit_via: "",
+  mode_of_arrival: "",
+  id_source: "",
+  accident_type: "",
+  special_program: "",
+  service: "",
+  expected_los_days: "",
 };
 
 // "2026-10-06T14:30:00Z" -> "2026-10-06T10:30" (what <input type="datetime-local"> wants, in local time)
@@ -199,7 +209,14 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const [patientFields, setPatientFields] = useState(EMPTY_PATIENT_FIELDS);
   const [visitFields, setVisitFields] = useState(EMPTY_VISIT_FIELDS);
   // The steps this clinic shows for this care setting, in its order (Configuration > Tab sequences).
-  const subTabs = useRegistrationTabs(visitFields.care_setting || "");
+  const allSteps = useRegistrationTabs(visitFields.care_setting || "");
+  // The clinic's custom forms this user may fill, and the answers for the patient and visit on screen
+  const [customForms, setCustomForms] = useState([]);
+  const [formAnswers, setFormAnswers] = useState({});
+  const [answersLoaded, setAnswersLoaded] = useState(false);
+  const [answersDirty, setAnswersDirty] = useState(false);
+  // The Forms step only appears when there is a form to fill
+  const subTabs = useMemo(() => allSteps.filter((t) => t.value !== "forms" || customForms.length > 0), [allSteps, customForms]);
   const setup = useRegistrationSetup();
   const show = (win, key, label = key) => !fieldFor(setup, win, key, label).hidden;
   // Props for a text field: the clinic's label, a required mark, and view-only when set.
@@ -223,6 +240,10 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const extraDict = (part, win, key, label, code) =>
     show(win, key) && (
       <DictionaryField key={key} {...fpd(win, key, label)} options={optionsFor(setup, code)} value={extras[part][key] || ""} onChange={(v) => changeExtras(part, { ...extras[part], [key]: v })} />
+    );
+  const visitDict = (key, label) =>
+    show("visitdetails", key) && (
+      <DictionaryField key={key} {...fpd("visitdetails", key, label)} options={optionsFor(setup, key)} value={visitFields[key] || ""} onChange={(v) => handleVisitFieldChange(key, v)} />
     );
   const row = (...kids) => <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{kids}</Stack>;
   const fpd = (win, key, label) => {
@@ -532,6 +553,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         attending_provider: visitFields.attending_provider || null,
         visit_policy: visitFields.visit_policy || null,
         copay_due: visitFields.copay_due === "" ? null : visitFields.copay_due,
+        expected_los_days: visitFields.expected_los_days === "" ? null : visitFields.expected_los_days,
         facility: visitFields.facility || null,
         unit: visitFields.unit || null,
         room: visitFields.room || null,
@@ -550,6 +572,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         setEditingOpenVisit(true);
       }
       setVisitNumber(regRes.data.visit_number || visitNumber);
+
+      // 3. Custom form answers, only if they loaded and were changed (visit forms need the saved visit)
+      if (answersLoaded && answersDirty && customForms.length && apiEndpoints.customFormAnswers) {
+        const res = await axios.put(
+          apiEndpoints.customFormAnswers(activePatient.user_id || activePatient.id),
+          { visit: regRes.data.id, answers: answersToSend(customForms, formAnswers) },
+          { headers }
+        );
+        setFormAnswers(res.data.answers || {});
+        setAnswersDirty(false);
+      }
 
       toast.success("Registration saved.");
       setDirty(false);
@@ -652,6 +685,53 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       live = false;
     };
   }, [patientKey]);
+  // The clinic's custom forms for this role
+  useEffect(() => {
+    if (!apiEndpoints.customForms) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.customForms, { headers: { Authorization: `Bearer ${token}` } });
+        if (live) setCustomForms(((res && res.data && res.data.forms) || []).filter((f) => f.active));
+      } catch (err) {
+        // no forms step if they cannot be loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+  // Answers for the patient (and visit, once saved). They are only saved if they loaded.
+  useEffect(() => {
+    setFormAnswers({});
+    setAnswersLoaded(false);
+    setAnswersDirty(false);
+    if (!patientKey || !apiEndpoints.customFormAnswers) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.customFormAnswers(patientKey), {
+          headers: { Authorization: `Bearer ${token}` },
+          params: registrationId ? { visit: registrationId } : {},
+        });
+        if (!live) return;
+        setFormAnswers((res && res.data && res.data.answers) || {});
+        setAnswersLoaded(true);
+      } catch (err) {
+        // answers are only saved if they loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [patientKey, registrationId]);
+  const changeAnswer = (itemId, value) => {
+    setFormAnswers((prev) => ({ ...prev, [itemId]: value }));
+    setAnswersDirty(true);
+    setDirty(true);
+  };
   const changePolicies = (next) => {
     setPolicies(next);
     setPoliciesDirty(true);
@@ -667,10 +747,10 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setCompleteness(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientKey]);
-  const stepExtras = { ...extras, policies };
+  const stepExtras = { ...extras, policies, formsComplete: formsComplete(customForms, formAnswers) };
   const notOpened = subTabs.filter((t) => t.requireReview && !opened[t.value]);
   const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields, stepExtras));
-  const missing = missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields, extras);
+  const missing = [...missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields, extras), ...(subTabs.some((t) => t.value === "forms") ? missingCustom(customForms, formAnswers) : [])];
   const runCompleteness = () => {
     setCompleteness({ notOpened, incomplete, missing });
     return notOpened.length === 0 && missing.length === 0;
@@ -1470,6 +1550,31 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                 )}
               </Stack>
             )}
+
+            {activeSubTab === "visitdetails" && (
+              <Stack spacing={2} data-testid="step-visitdetails">
+                {row(visitDict("admit_source", "Admit Source"), visitDict("admit_via", "Admit Via"))}
+                {row(visitDict("mode_of_arrival", "Mode of Arrival"), visitDict("id_source", "ID Source"))}
+                {row(visitDict("accident_type", "Accident Type"), visitDict("special_program", "Special Program"))}
+                {row(
+                  visitDict("service", "Service"),
+                  show("visitdetails", "expected_los_days") && (
+                    <TextField
+                      key="expected_los_days"
+                      {...fp("visitdetails", "expected_los_days", "Expected Length of Stay (days)")}
+                      size="small"
+                      fullWidth
+                      type="number"
+                      inputProps={{ min: 0, max: 999 }}
+                      value={visitFields.expected_los_days}
+                      onChange={(e) => handleVisitFieldChange("expected_los_days", e.target.value)}
+                    />
+                  )
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "forms" && <CustomFormsStep forms={customForms} answers={formAnswers} onChange={changeAnswer} visitSaved={!!registrationId} />}
 
             {activeSubTab === "reason" && (
               <Stack spacing={2}>

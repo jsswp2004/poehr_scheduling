@@ -193,6 +193,7 @@ export const STEP_REQUIREMENTS = {
   emergency: { patient: ["emergency_contact_name", "emergency_contact_phone"] },
   financial: { patient: ["insurance_payer_name", "insurance_member_id"] },
   reason: { visit: ["reason_for_visit"] },
+  visitdetails: { visit: ["admit_source"] },
   legal: { patient: ["consent_to_treat"] },
   logistics: { visit: ["care_setting", "attending_provider"] },
 };
@@ -204,6 +205,7 @@ export function stepFilled(step, patientFields = {}, visitFields = {}, extras = 
   if (step === "contacts") return !!extras && ((extras.contacts || []).length > 0 || has(patientFields.directive_type));
   if (step === "guarantor") return !!extras && !!extras.guarantor && (!!extras.guarantor.is_self || has(extras.guarantor.name));
   if (step === "employer") return !!extras && !!extras.employer && (has(extras.employer.employer_name) || has(extras.employer.employment_status));
+  if (step === "forms") return !!extras && extras.formsComplete === true;
   const need = STEP_REQUIREMENTS[step];
   if (!need) return false;
   return (need.patient || []).every((k) => has(patientFields[k])) && (need.visit || []).every((k) => has(visitFields[k]));

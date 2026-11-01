@@ -83,6 +83,13 @@ DICTIONARIES = {
         "Employer: Employment Status",
         ["Full time", "Part time", "Retired", "Student", "Unemployed", "Self-employed"],
     ),
+    "admit_source": ("Admit source", "Visit Details: Admit Source", ["Physician referral", "Clinic referral", "Emergency room", "Transfer", "Self"]),
+    "admit_via": ("Admit via", "Visit Details: Admit Via", ["Walk-in", "Appointment", "Ambulance", "Referral"]),
+    "mode_of_arrival": ("Mode of arrival", "Visit Details: Mode of Arrival", ["Ambulatory", "Wheelchair", "Stretcher", "Ambulance", "Police"]),
+    "id_source": ("Source of ID", "Visit Details: Source of ID", ["Driver license", "Insurance card", "Passport", "Relative"]),
+    "accident_type": ("Accident type", "Visit Details: Accident Type", ["Auto accident", "Work related", "Fall", "Sports", "Other"]),
+    "special_program": ("Special program indicator", "Visit Details: Special Program Indicator", ["Physically handicapped", "Research study", "Charity care", "Clinical trial"]),
+    "service": ("Service", "Visit Details: Service", ["Family medicine", "Internal medicine", "Cardiology", "Pediatrics", "Emergency medicine", "Obstetrics"]),
     "copay_status": (
         "Copay / deductible status",
         "Financial Information: Copay / Deductible Status",
@@ -158,6 +165,19 @@ WINDOWS = {
         [
             ("authorization_number", "Authorization Number", False),
             ("copay_due", "Copay Due Today", False),
+        ],
+    ),
+    "visitdetails": (
+        "Visit Details",
+        [
+            ("admit_source", "Admit Source", False),
+            ("admit_via", "Admit Via", False),
+            ("mode_of_arrival", "Mode of Arrival", False),
+            ("id_source", "Source of ID", False),
+            ("accident_type", "Accident Type", False),
+            ("special_program", "Special Program Indicator", False),
+            ("service", "Service", False),
+            ("expected_los_days", "Expected Length of Stay (days)", False),
         ],
     ),
     "guarantor": (

@@ -36,6 +36,7 @@ from .views import (
 )  # ⬅️ import the new SMS view and check-in views
 from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
+from .custom_forms import CustomFormAnswersView, CustomFormsView
 from .registration_insurance import InsuranceSetupView, PatientPoliciesView
 from .registration_extras import RegistrationExtrasView
 from .registration_config import RegistrationDictionariesView, RegistrationFieldsView
@@ -284,6 +285,8 @@ urlpatterns = router.urls + [
     path("registration-extras/<int:user_id>/", RegistrationExtrasView.as_view(), name="registration-extras"),
     path("insurance-setup/", InsuranceSetupView.as_view(), name="insurance-setup"),
     path("patient-policies/<int:user_id>/", PatientPoliciesView.as_view(), name="patient-policies"),
+    path("custom-forms/", CustomFormsView.as_view(), name="custom-forms"),
+    path("custom-form-answers/<int:user_id>/", CustomFormAnswersView.as_view(), name="custom-form-answers"),
     path("my-schedule/", MyScheduleView.as_view(), name="my-schedule"),
     # in-app Scheduler assistant (read tools + confirm-before-act cards)
     path("scheduler-assistant/message/", SchedulerAssistantMessageView.as_view(), name="scheduler-assistant-message"),
