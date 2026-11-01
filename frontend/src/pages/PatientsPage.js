@@ -28,6 +28,7 @@ import PrescriptionsPanel from "../components/prescriptions/PrescriptionsPanel";
 import ClinicalSummary from "../components/clinicalSummary/ClinicalSummary";
 import VaccineManager from "../components/vaccines/VaccineManager";
 import PatientMessages from "../components/secureMessages/PatientMessages";
+import InboxPanel from "../components/inbox/InboxPanel";
 import TasksPanel from "../components/tasks/TasksPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog, AttendingDialog } from "../components/patients/AdmissionDialogs";
@@ -588,7 +589,7 @@ function PatientsPage() {
             role={userRole}
             keys={chartLayout.tabs}
             careSetting={careKey}
-            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count }}
+            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count, inbox: worklists.inbox.count }}
             badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue, results: worklists.results.overdue }}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
             visitMarker={selectedPatient && openVisit ? `Visit ${openVisit.visit_number || `#${openVisit.id}`}` : null}
@@ -714,6 +715,9 @@ function PatientsPage() {
             if (current === "prescriptions") {
               if (!selectedPatient) return <SelectPatientPrompt />;
               return <PrescriptionsPanel key={selectedPatient.id} patient={selectedPatient} />;
+            }
+            if (current === "inbox") {
+              return <InboxPanel careSetting={careKey} selectedPatient={selectedPatient} onOpenChart={openChart} />;
             }
             if (current === "messages") {
               if (!selectedPatient) return <SelectPatientPrompt />;
