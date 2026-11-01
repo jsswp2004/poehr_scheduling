@@ -533,6 +533,96 @@ class NoteCosign(models.Model):
         return f"Co-sign of note {self.note_id} by {self.cosigner_id} ({self.status})"
 
 
+class MessageThread(models.Model):
+    """An internal message (like email, not chat) and its replies, sent between staff."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name="message_threads")
+    subject = models.CharField(max_length=200)
+    patient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="message_threads_about",
+        help_text="The patient this message is about, if any",
+    )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="message_threads_started")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_message_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-last_message_at", "-id"]
+
+    def __str__(self):
+        return self.subject
+
+
+class ThreadParticipant(models.Model):
+    """One person on a thread, with their own read and done state."""
+
+    thread = models.ForeignKey(MessageThread, on_delete=models.CASCADE, related_name="participants")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="thread_participations")
+    last_read_at = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["thread", "user"], name="uniq_thread_participant")]
+
+
+class ThreadMessage(models.Model):
+    thread = models.ForeignKey(MessageThread, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="thread_messages_sent")
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+
+class InboxAlert(models.Model):
+    """Something the system tells one person: a critical or abnormal result, or a notice that
+    a note they sent was co-signed or returned. Acknowledging it moves it to Done."""
+
+    KIND_CHOICES = [
+        ("critical", "Critical result"),
+        ("abnormal", "Abnormal result"),
+        ("result", "New result"),
+        ("notice", "Notice"),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name="inbox_alerts")
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="inbox_alerts")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="inbox_alerts_about")
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default="notice")
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    source_type = models.CharField(max_length=30, blank=True)
+    source_id = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    read_at = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["recipient", "done_at"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient", "source_type", "source_id", "kind"],
+                condition=models.Q(source_id__isnull=False),
+                name="uniq_inbox_alert_source",
+            )
+        ]
+
+
+class InboxState(models.Model):
+    """Whether a person has opened an item that is worked out from other records (a note or order
+    to sign, a co-sign request). `key` names the item, e.g. "sign:note:12". Those items are done
+    when the underlying record is, so only the read time is kept here."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="inbox_states")
+    key = models.CharField(max_length=60)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "key"], name="uniq_inbox_state")]
+
+
 # Row layout for the Vital Signs flowsheet -- deliberately a plain Python
 # constant, not a DB-backed template, since this is the one fixed flowsheet
 # type for now. Shaped the same way the future flowsheet-builder's rows will
