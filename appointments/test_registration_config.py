@@ -200,6 +200,8 @@ class FieldSettingTests(Base):
 
     def test_every_catalog_field_is_a_real_form_field(self):
         # keys must match what the form and the patient record use
-        keys = {k for _, (_t, fields) in rc.WINDOWS.items() for k, _l, _x in fields}
-        self.assertIn("preferred_language", keys)
-        self.assertEqual(len(keys), sum(len(f) for _t, f in rc.WINDOWS.values()))
+        self.assertIn("preferred_language", {k for k, _l, _x in rc.WINDOWS["identity"][1]})
+        # settings are stored per step, so a key only has to be unique inside its own step
+        for window, (_title, fields) in rc.WINDOWS.items():
+            keys = [k for k, _l, _x in fields]
+            self.assertEqual(len(keys), len(set(keys)), window)

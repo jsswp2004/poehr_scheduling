@@ -189,6 +189,7 @@ export function ageText(iso, today = new Date()) {
 // Patient-level fields live on the patient, visit-level fields on the visit.
 export const STEP_REQUIREMENTS = {
   identity: { patient: ["legal_sex", "date_of_birth", "phone_number"] },
+  demographics: { patient: ["city", "state", "zip_code"] },
   emergency: { patient: ["emergency_contact_name", "emergency_contact_phone"] },
   financial: { patient: ["insurance_payer_name", "insurance_member_id"] },
   reason: { visit: ["reason_for_visit"] },
@@ -196,9 +197,13 @@ export const STEP_REQUIREMENTS = {
   logistics: { visit: ["care_setting", "attending_provider"] },
 };
 
-export function stepFilled(step, patientFields = {}, visitFields = {}) {
+export function stepFilled(step, patientFields = {}, visitFields = {}, extras = null) {
+  const has = (v) => v === true || (v !== false && v !== null && v !== undefined && String(v).trim() !== "");
+  // These steps keep their details outside the patient and visit fields (contacts, guarantor, employer).
+  if (step === "contacts") return !!extras && ((extras.contacts || []).length > 0 || has(patientFields.directive_type));
+  if (step === "guarantor") return !!extras && !!extras.guarantor && (!!extras.guarantor.is_self || has(extras.guarantor.name));
+  if (step === "employer") return !!extras && !!extras.employer && (has(extras.employer.employer_name) || has(extras.employer.employment_status));
   const need = STEP_REQUIREMENTS[step];
   if (!need) return false;
-  const has = (v) => v === true || (v !== false && v !== null && v !== undefined && String(v).trim() !== "");
   return (need.patient || []).every((k) => has(patientFields[k])) && (need.visit || []).every((k) => has(visitFields[k]));
 }

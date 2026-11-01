@@ -299,6 +299,27 @@ class Patient(models.Model):
     # store (avoids holding a full SSN at rest).
     ssn_last4 = models.CharField(max_length=4, blank=True)
     preferred_language = models.CharField(max_length=100, blank=True)
+
+    # -- Patient Demographics (Registration > Demographics) -----------------
+    # The choice-list fields hold the chosen text (the clinic's dictionary entry), so an older
+    # record keeps showing its value even after the entry is made inactive.
+    title = models.CharField(max_length=20, blank=True)
+    middle_name = models.CharField(max_length=100, blank=True)
+    suffix = models.CharField(max_length=20, blank=True)
+    marital_status = models.CharField(max_length=50, blank=True)
+    race = models.CharField(max_length=100, blank=True)
+    ethnicity = models.CharField(max_length=100, blank=True)
+    religion = models.CharField(max_length=100, blank=True)
+    veteran_status = models.CharField(max_length=30, blank=True)
+    secondary_phone = models.CharField(max_length=20, blank=True)
+    address2 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=50, blank=True)
+    zip_code = models.CharField(max_length=20, blank=True)
+    address_type = models.CharField(max_length=30, blank=True)
+    # -- Advance directive (Registration > Contacts) --------------------------
+    directive_type = models.CharField(max_length=100, blank=True)
+    directive_received_date = models.DateField(null=True, blank=True)
     # System-generated Medical Record Number, assigned once, before the patient is
     # first saved (see save() below and MRNCounter). Format: MRN-000001. Required and
     # unique in the database: a patient can never exist without one.

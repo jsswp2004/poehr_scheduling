@@ -22,8 +22,12 @@ from .patient_header import ADMIN_ROLES, STAFF_ROLES, _target_org
 # The steps that exist today. Each one holds fields the form already captures.
 CATALOG = [
     ("identity", "Patient Identity"),
+    ("demographics", "Demographics"),
     ("emergency", "Emergency Contact"),
+    ("contacts", "Contacts"),
     ("financial", "Financial Information"),
+    ("guarantor", "Guarantor"),
+    ("employer", "Employer"),
     ("reason", "Reason for Visit"),
     ("legal", "Legal Documents"),
     ("logistics", "Logistics"),

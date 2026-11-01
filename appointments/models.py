@@ -1594,6 +1594,43 @@ class RegistrationTabSequence(models.Model):
         ]
 
 
+class PatientContact(models.Model):
+    """Another person to reach for a patient (next of kin, guardian, health care proxy...). The first
+    emergency contact stays on the patient record; these are the additional ones."""
+
+    patient = models.ForeignKey("users.Patient", on_delete=models.CASCADE, related_name="extra_contacts")
+    sequence = models.PositiveSmallIntegerField(default=0)
+    contact_type = models.CharField(max_length=60, blank=True)
+    name = models.CharField(max_length=255)
+    relationship = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    receives_communication = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["sequence", "id"]
+
+
+class PatientGuarantor(models.Model):
+    """Who is responsible for the bill. is_self means the patient; otherwise the person named."""
+
+    patient = models.OneToOneField("users.Patient", on_delete=models.CASCADE, related_name="guarantor")
+    is_self = models.BooleanField(default=True)
+    name = models.CharField(max_length=255, blank=True)
+    relationship = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+
+
+class PatientEmployer(models.Model):
+    patient = models.OneToOneField("users.Patient", on_delete=models.CASCADE, related_name="employer_record")
+    employer_name = models.CharField(max_length=255, blank=True)
+    employment_status = models.CharField(max_length=60, blank=True)
+    occupation = models.CharField(max_length=120, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    from_date = models.DateField(null=True, blank=True)
+
+
 class RegistrationDictionary(models.Model):
     """
     A clinic's choice list for a registration field (language, relationship, payer...).
