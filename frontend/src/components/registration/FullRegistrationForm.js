@@ -30,6 +30,7 @@ import { API_BASE_URL, apiEndpoints } from "../../config/api";
 import LocationPicker, { useLocationTree } from "../locations/LocationPicker";
 import VisitSearchDialog from "./VisitSearchDialog";
 import RegistrationSteps from "./RegistrationSteps";
+import ContactsEditor from "./ContactsEditor";
 import DictionaryField from "./DictionaryField";
 import useRegistrationTabs from "./useRegistrationTabs";
 import useRegistrationSetup, { fieldFor, missingRequired, optionsFor } from "./useRegistrationSetup";
@@ -55,6 +56,20 @@ const LEGAL_DOCS = [
 ];
 
 const BIRTH_FIELDS = ["gestational_age_weeks", "gestational_age_days", "birth_weight_g"];
+
+// Demographics and advance directive live on the patient. Blank is a real answer here (a cleared field),
+// so these are sent even when empty.
+const DEMOGRAPHIC_KEYS = [
+  "title", "middle_name", "suffix", "marital_status", "race", "ethnicity", "religion", "veteran_status",
+  "secondary_phone", "address2", "city", "state", "zip_code", "address_type", "directive_type", "directive_received_date",
+];
+
+// Contacts, guarantor and employer are separate records, saved with one call.
+const EMPTY_EXTRAS = {
+  contacts: [],
+  guarantor: { is_self: true, name: "", relationship: "", phone: "", address: "" },
+  employer: { employer_name: "", employment_status: "", occupation: "", phone: "", from_date: "" },
+};
 
 // "Born 4 weeks early" for the Birth details hint; "" when term or not entered.
 export function birthHint(weeks, days, dob) {
@@ -84,6 +99,7 @@ const EMPTY_PATIENT_FIELDS = {
   date_of_birth: "",
   address: "",
   phone_number: "",
+  ...Object.fromEntries(DEMOGRAPHIC_KEYS.map((k) => [k, ""])),
   emergency_contact_name: "",
   emergency_contact_relationship: "",
   emergency_contact_phone: "",
@@ -187,6 +203,24 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     const f = fieldFor(setup, win, key, label);
     return { label: f.label, required: f.required, ...(f.readOnly ? { InputProps: { readOnly: true } } : {}) };
   };
+  // A text field or dictionary field bound to a patient field, so the new steps stay short.
+  const patientText = (win, key, label, extra = {}) =>
+    show(win, key) && (
+      <TextField key={key} {...fp(win, key, label)} size="small" fullWidth value={patientFields[key] || ""} onChange={(e) => handlePatientFieldChange(key, e.target.value)} {...extra} />
+    );
+  const patientDict = (win, key, label, code) =>
+    show(win, key) && (
+      <DictionaryField key={key} {...fpd(win, key, label)} options={optionsFor(setup, code)} value={patientFields[key] || ""} onChange={(v) => handlePatientFieldChange(key, v)} />
+    );
+  const extraText = (part, win, key, label, extra = {}) =>
+    show(win, key) && (
+      <TextField key={key} {...fp(win, key, label)} size="small" fullWidth value={extras[part][key] || ""} onChange={(e) => changeExtras(part, { ...extras[part], [key]: e.target.value })} {...extra} />
+    );
+  const extraDict = (part, win, key, label, code) =>
+    show(win, key) && (
+      <DictionaryField key={key} {...fpd(win, key, label)} options={optionsFor(setup, code)} value={extras[part][key] || ""} onChange={(v) => changeExtras(part, { ...extras[part], [key]: v })} />
+    );
+  const row = (...kids) => <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{kids}</Stack>;
   const fpd = (win, key, label) => {
     const f = fieldFor(setup, win, key, label);
     return { label: f.label, required: f.required, readOnly: f.readOnly };
@@ -195,6 +229,9 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const [opened, setOpened] = useState({ identity: true });
   const [completeness, setCompleteness] = useState(null);
   const [legalFiles, setLegalFiles] = useState({});
+  const [extras, setExtras] = useState(EMPTY_EXTRAS);
+  const [extrasLoaded, setExtrasLoaded] = useState(false);
+  const [extrasDirty, setExtrasDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const locationTree = useLocationTree();
   const hasLocations = !!locationTree && locationTree.length > 0;
@@ -222,6 +259,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       date_of_birth: patient.date_of_birth || "",
       address: patient.address || "",
       phone_number: patient.phone_number || "",
+      ...Object.fromEntries(DEMOGRAPHIC_KEYS.map((k) => [k, patient[k] || ""])),
       emergency_contact_name: patient.emergency_contact_name || "",
       emergency_contact_relationship: patient.emergency_contact_relationship || "",
       emergency_contact_phone: patient.emergency_contact_phone || "",
@@ -419,7 +457,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         // blank field just leaves the patient's existing value alone.
         // Birth details are the exception: blank is a real answer (term baby, or
         // an entry that was cleared), so it is sent and stored as empty.
-        if (BIRTH_FIELDS.includes(key)) {
+        if (BIRTH_FIELDS.includes(key) || DEMOGRAPHIC_KEYS.includes(key)) {
           patientForm.append(key, value === null || value === undefined ? "" : value);
           return;
         }
@@ -443,6 +481,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         { headers: { ...headers, "Content-Type": "multipart/form-data" } }
       );
       setMrn(patientRes.data.mrn || mrn);
+
+      // 1b. Contacts, guarantor and employer, only if they loaded and were changed
+      if (extrasLoaded && extrasDirty && apiEndpoints.registrationExtras) {
+        const blank = (c) => !Object.entries(c).some(([k, v]) => k !== "receives_communication" && String(v || "").trim());
+        await axios.put(
+          apiEndpoints.registrationExtras(activePatient.user_id),
+          { contacts: extras.contacts.filter((c) => !blank(c)), guarantor: extras.guarantor, employer: extras.employer },
+          { headers }
+        );
+        setExtrasDirty(false);
+      }
 
       // 2. Visit-level fields (Reason for Visit/Logistics)
       const visitPayload = {
@@ -495,14 +544,47 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setOpened((prev) => (prev[activeSubTab] ? prev : { ...prev, [activeSubTab]: true }));
   }, [activeSubTab]);
   const patientKey = activePatient ? activePatient.user_id || activePatient.id : null;
+  // Contacts, guarantor and employer for the patient on screen. Saving them waits until they have loaded,
+  // so a failed load can never wipe what is on file.
+  useEffect(() => {
+    setExtras(EMPTY_EXTRAS);
+    setExtrasLoaded(false);
+    setExtrasDirty(false);
+    if (!patientKey || !apiEndpoints.registrationExtras) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.registrationExtras(patientKey), { headers: { Authorization: `Bearer ${token}` } });
+        if (!live) return;
+        const d = (res && res.data) || {};
+        setExtras({
+          contacts: d.contacts || [],
+          guarantor: d.guarantor || EMPTY_EXTRAS.guarantor,
+          employer: d.employer ? { ...EMPTY_EXTRAS.employer, ...d.employer } : EMPTY_EXTRAS.employer,
+        });
+        setExtrasLoaded(true);
+      } catch (err) {
+        // leave the empty form; extras are not saved unless they loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [patientKey]);
+  const changeExtras = (part, value) => {
+    setExtras((prev) => ({ ...prev, [part]: value }));
+    setExtrasDirty(true);
+    setDirty(true);
+  };
   useEffect(() => {
     setOpened({ [activeSubTab]: true });
     setCompleteness(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientKey]);
   const notOpened = subTabs.filter((t) => t.requireReview && !opened[t.value]);
-  const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields));
-  const missing = missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields);
+  const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields, extras));
+  const missing = missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields, extras);
   const runCompleteness = () => {
     setCompleteness({ notOpened, incomplete, missing });
     return notOpened.length === 0 && missing.length === 0;
@@ -584,12 +666,29 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             <tr><td class="label">Email</td><td>${esc(patientFields.email)}</td></tr>
           </table>
 
+          <h2>Demographics</h2>
+          <table>
+            <tr><td class="label">Name</td><td>${esc([patientFields.title, activePatient.first_name, patientFields.middle_name, activePatient.last_name, patientFields.suffix].filter(Boolean).join(" "))}</td></tr>
+            <tr><td class="label">Marital Status</td><td>${esc(patientFields.marital_status)}</td></tr>
+            <tr><td class="label">Race / Ethnicity</td><td>${esc([patientFields.race, patientFields.ethnicity].filter(Boolean).join(" / "))}</td></tr>
+            <tr><td class="label">Religion</td><td>${esc(patientFields.religion)}</td></tr>
+            <tr><td class="label">Veteran</td><td>${esc(patientFields.veteran_status)}</td></tr>
+            <tr><td class="label">City / State / ZIP</td><td>${esc([patientFields.city, patientFields.state, patientFields.zip_code].filter(Boolean).join(", "))}</td></tr>
+            <tr><td class="label">Secondary Phone</td><td>${esc(patientFields.secondary_phone)}</td></tr>
+          </table>
+
           <h2>Emergency Contact</h2>
           <table>
             <tr><td class="label">Contact Name</td><td>${esc(patientFields.emergency_contact_name)}</td></tr>
             <tr><td class="label">Relationship</td><td>${esc(patientFields.emergency_contact_relationship)}</td></tr>
             <tr><td class="label">Phone Number</td><td>${esc(patientFields.emergency_contact_phone)}</td></tr>
             <tr><td class="label">Address</td><td>${esc(patientFields.emergency_contact_address)}</td></tr>
+          </table>
+
+          <h2>Other Contacts</h2>
+          <table>
+            ${extras.contacts.map((c) => `<tr><td class="label">${esc(c.contact_type || "Contact")}</td><td>${esc(c.name)}${c.relationship ? ` (${esc(c.relationship)})` : ""} ${esc(c.phone)}</td></tr>`).join("") || '<tr><td class="label">None</td><td></td></tr>'}
+            <tr><td class="label">Advance Directive</td><td>${esc(patientFields.directive_type)} ${esc(patientFields.directive_received_date)}</td></tr>
           </table>
 
           <h2>Financial Information</h2>
@@ -602,6 +701,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             <tr><td class="label">Copay / Deductible Status</td><td>${esc(patientFields.copay_deductible_status)}</td></tr>
             <tr><td class="label">Authorization Requirements</td><td>${esc(patientFields.authorization_requirements)}</td></tr>
             <tr><td class="label">Secondary Insurance</td><td>${esc(patientFields.secondary_insurance)}</td></tr>
+          </table>
+
+          <h2>Guarantor</h2>
+          <table>
+            <tr><td class="label">Guarantor</td><td>${extras.guarantor.is_self ? "Patient" : `${esc(extras.guarantor.name)} (${esc(extras.guarantor.relationship)}) ${esc(extras.guarantor.phone)}`}</td></tr>
+          </table>
+
+          <h2>Employer</h2>
+          <table>
+            <tr><td class="label">Employer</td><td>${esc(extras.employer.employer_name)}</td></tr>
+            <tr><td class="label">Status / Occupation</td><td>${esc([extras.employer.employment_status, extras.employer.occupation].filter(Boolean).join(" / "))}</td></tr>
           </table>
 
           <h2>Reason for Visit</h2>
@@ -875,7 +985,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
           <RegistrationSteps
             steps={subTabs}
             current={activeSubTab}
-            filled={Object.fromEntries(subTabs.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields)]))}
+            filled={Object.fromEntries(subTabs.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields, extras)]))}
             needsReview={Object.fromEntries(notOpened.map((t) => [t.value, true]))}
             onSelect={setActiveSubTab}
           />
@@ -1135,6 +1245,100 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     value={patientFields.secondary_insurance}
                     onChange={(e) => handlePatientFieldChange("secondary_insurance", e.target.value)}
                   />
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "demographics" && (
+              <Stack spacing={2} data-testid="step-demographics">
+                {row(
+                  patientDict("demographics", "title", "Title", "title"),
+                  patientText("demographics", "middle_name", "Middle Name"),
+                  patientDict("demographics", "suffix", "Suffix", "suffix")
+                )}
+                {row(
+                  patientDict("demographics", "marital_status", "Marital Status", "marital_status"),
+                  patientDict("demographics", "veteran_status", "Veteran Status", "veteran_status")
+                )}
+                {row(
+                  patientDict("demographics", "race", "Race", "race"),
+                  patientDict("demographics", "ethnicity", "Ethnicity", "ethnicity"),
+                  patientDict("demographics", "religion", "Religion", "religion")
+                )}
+                <Typography variant="subtitle2" sx={{ pt: 1 }}>Address and phone</Typography>
+                {patientText("demographics", "address2", "Address 2")}
+                {row(
+                  patientText("demographics", "city", "City"),
+                  patientText("demographics", "state", "State", { inputProps: { maxLength: 50 } }),
+                  patientText("demographics", "zip_code", "ZIP Code", { inputProps: { maxLength: 20 } })
+                )}
+                {row(
+                  patientDict("demographics", "address_type", "Address Type", "address_type"),
+                  patientText("demographics", "secondary_phone", "Secondary Phone", { inputProps: { maxLength: 20 } })
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "contacts" && (
+              <Stack spacing={2} data-testid="step-contacts">
+                <ContactsEditor
+                  contacts={extras.contacts}
+                  onChange={(c) => changeExtras("contacts", c)}
+                  typeOptions={optionsFor(setup, "contact_type")}
+                  relationshipOptions={optionsFor(setup, "relationship")}
+                />
+                <Typography variant="subtitle2" sx={{ pt: 1 }}>Advance directive</Typography>
+                {row(
+                  patientDict("contacts", "directive_type", "Advance Directive on File", "directive_type"),
+                  show("contacts", "directive_received_date") && (
+                    <TextField
+                      key="directive_received_date"
+                      {...fp("contacts", "directive_received_date", "Directive Date Received")}
+                      type="date"
+                      size="small"
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      value={patientFields.directive_received_date || ""}
+                      onChange={(e) => handlePatientFieldChange("directive_received_date", e.target.value)}
+                    />
+                  )
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "guarantor" && (
+              <Stack spacing={2} data-testid="step-guarantor">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!extras.guarantor.is_self}
+                      onChange={(e) => changeExtras("guarantor", { ...extras.guarantor, is_self: e.target.checked })}
+                      inputProps={{ "data-testid": "guarantor-self" }}
+                    />
+                  }
+                  label="Patient is the guarantor"
+                />
+                {!extras.guarantor.is_self && (
+                  <>
+                    {extraText("guarantor", "guarantor", "name", "Name")}
+                    {extraDict("guarantor", "guarantor", "relationship", "Relationship", "relationship")}
+                    {extraText("guarantor", "guarantor", "phone", "Phone", { inputProps: { maxLength: 20 } })}
+                    {extraText("guarantor", "guarantor", "address", "Address")}
+                  </>
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "employer" && (
+              <Stack spacing={2} data-testid="step-employer">
+                {extraText("employer", "employer", "employer_name", "Employer")}
+                {row(
+                  extraDict("employer", "employer", "employment_status", "Employment Status", "employment_status"),
+                  extraText("employer", "employer", "occupation", "Occupation")
+                )}
+                {row(
+                  extraText("employer", "employer", "phone", "Phone", { inputProps: { maxLength: 20 } }),
+                  extraText("employer", "employer", "from_date", "From Date", { type: "date", InputLabelProps: { shrink: true } })
                 )}
               </Stack>
             )}

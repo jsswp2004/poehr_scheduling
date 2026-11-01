@@ -6,8 +6,12 @@ import { apiEndpoints } from "../../config/api";
 /** Where each step's values live while the form is open. */
 export const WINDOW_SOURCE = {
   identity: "patient",
+  demographics: "patient",
   emergency: "patient",
+  contacts: "patient",
   financial: "patient",
+  guarantor: "guarantor",
+  employer: "employer",
   reason: "visit",
   logistics: "visit",
 };
@@ -54,14 +58,19 @@ const isFilled = (v) => v === true || (v !== false && v !== null && v !== undefi
  * Required fields still empty, for the steps in the sequence.
  * Returns [{ step, key, label }].
  */
-export const missingRequired = (setup, stepKeys, patientFields = {}, visitFields = {}, defaultLabels = {}) => {
+export const missingRequired = (setup, stepKeys, patientFields = {}, visitFields = {}, extras = null) => {
   const out = [];
   (stepKeys || []).forEach((step) => {
     const fields = (setup && setup.fields && setup.fields[step]) || {};
+    const where = WINDOW_SOURCE[step];
+    // When the patient is their own guarantor there is nothing else to fill in
+    if (step === "guarantor" && extras && extras.guarantor && extras.guarantor.is_self) return;
+    let source = patientFields;
+    if (where === "visit") source = visitFields;
+    else if (where === "guarantor" || where === "employer") source = (extras && extras[where]) || {};
     Object.keys(fields).forEach((key) => {
       if (fields[key].mode !== "req") return;
-      const source = WINDOW_SOURCE[step] === "visit" ? visitFields : patientFields;
-      if (!isFilled(source[key])) out.push({ step, key, label: fields[key].label || defaultLabels[key] || key });
+      if (!isFilled(source[key])) out.push({ step, key, label: fields[key].label || key });
     });
   });
   return out;

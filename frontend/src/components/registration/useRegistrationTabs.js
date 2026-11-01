@@ -6,8 +6,12 @@ import { apiEndpoints } from "../../config/api";
 /** The steps that exist; used until the clinic's own sequence arrives, and if it cannot be loaded. */
 export const DEFAULT_STEPS = [
   { value: "identity", label: "Patient Identity", requireReview: false },
+  { value: "demographics", label: "Demographics", requireReview: false },
   { value: "emergency", label: "Emergency Contact", requireReview: false },
+  { value: "contacts", label: "Contacts", requireReview: false },
   { value: "financial", label: "Financial Information", requireReview: false },
+  { value: "guarantor", label: "Guarantor", requireReview: false },
+  { value: "employer", label: "Employer", requireReview: false },
   { value: "reason", label: "Reason for Visit", requireReview: false },
   { value: "legal", label: "Legal Documents", requireReview: false },
   { value: "logistics", label: "Logistics", requireReview: false },

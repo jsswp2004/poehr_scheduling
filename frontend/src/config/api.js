@@ -236,6 +236,7 @@ export const apiEndpoints = {
     registrationTabs: `${API_BASE_URL}/api/registration-tabs/`,
   registrationDictionaries: `${API_BASE_URL}/api/registration-dictionaries/`,
   registrationFields: `${API_BASE_URL}/api/registration-fields/`,
+  registrationExtras: (userId) => `${API_BASE_URL}/api/registration-extras/${userId}/`,
     mySchedule: `${API_BASE_URL}/api/my-schedule/`,
     chartTabs: `${API_BASE_URL}/api/chart-tabs/`,
     chartTabsMine: `${API_BASE_URL}/api/chart-tabs/mine/`,
