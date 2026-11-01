@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from users.rights import user_has_right
 
+from . import inbox
 from .models import NoteCosign
 
 User = get_user_model()
@@ -123,6 +124,7 @@ def cosign(note, user):
         raise CosignError("You can't co-sign your own note.", 403)
     req.status, req.resolved_at = "cosigned", timezone.now()
     req.save(update_fields=["status", "resolved_at"])
+    inbox.notify_cosign_outcome(req)
     return req
 
 
@@ -136,6 +138,7 @@ def return_note(note, user, comment):
         raise CosignError("This co-signature was requested from someone else.", 403)
     req.status, req.comment, req.resolved_at = "returned", comment, timezone.now()
     req.save(update_fields=["status", "comment", "resolved_at"])
+    inbox.notify_cosign_outcome(req)
     return req
 
 

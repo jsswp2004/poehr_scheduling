@@ -50,6 +50,7 @@ from .registration_extras import RegistrationExtrasView
 from .registration_config import RegistrationDictionariesView, RegistrationFieldsView
 from .registration_tabs import RegistrationTabsView
 from .lab_views import LabReportViewSet
+from . import inbox_views
 from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .my_schedule import MyScheduleView
@@ -278,6 +279,15 @@ router.register(r"admin/order-sets", OrderSetAdminViewSet, basename="ordersetadm
 
 urlpatterns = router.urls + [
     # lab interface engines post results here (key-authenticated, no login)
+    path("inbox/", inbox_views.InboxListView.as_view(), name="inbox"),
+    path("inbox/counts/", inbox_views.InboxCountsView.as_view(), name="inbox-counts"),
+    path("inbox/people/", inbox_views.InboxPeopleView.as_view(), name="inbox-people"),
+    path("inbox/item/", inbox_views.InboxItemView.as_view(), name="inbox-item"),
+    path("inbox/read/", inbox_views.InboxReadView.as_view(), name="inbox-read"),
+    path("inbox/done/", inbox_views.InboxDoneView.as_view(), name="inbox-done"),
+    path("inbox/messages/", inbox_views.InboxMessagesView.as_view(), name="inbox-messages"),
+    path("inbox/messages/<int:pk>/reply/", inbox_views.InboxReplyView.as_view(), name="inbox-reply"),
+    path("inbox/messages/<int:pk>/forward/", inbox_views.InboxForwardView.as_view(), name="inbox-forward"),
     path("lab-interface/hl7/", hl7_intake, name="lab-interface-hl7"),
     path("lab-interface/fhir/", fhir_intake, name="lab-interface-fhir"),
     path("lab-usage/", LabUsageView.as_view(), name="lab-usage"),

@@ -22,6 +22,7 @@ result has to say so.
 
 from poehr_scheduling_backend.tenancy import sees_all_orgs
 import hashlib
+import logging
 import os
 import re
 from decimal import Decimal, InvalidOperation
@@ -32,6 +33,7 @@ from django.utils import timezone
 
 from users.models import Registration
 
+from . import inbox
 from .models import LabReport, LabReportEvent, LabReportFileData, LabResultItem, Order
 
 MAX_ITEMS = 100
@@ -346,6 +348,12 @@ def create_report(user, data, *, source="manual"):
         source="user" if source != "interface" else "interface",
         detail={"source": source, "items": len(items), "order": order.pk if order else None},
     )
+    # Tell the patient's provider (Inbox alert); never let that stop the result being saved.
+    try:
+        with transaction.atomic():
+            inbox.notify_lab_report(report)
+    except Exception:  # pragma: no cover - alerts are best effort
+        logging.getLogger(__name__).exception("Inbox alert for lab report %s failed", report.pk)
     return report
 
 

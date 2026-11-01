@@ -24,13 +24,14 @@ when in doubt the result is kept for a person instead of filed):
 
 import hashlib
 import json
+import logging
 from dataclasses import dataclass, field
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from . import lab_fhir, lab_hl7, lab_results
+from . import inbox, lab_fhir, lab_hl7, lab_results
 from . import orders_workflow as ow
 from .models import LabInboundMessage, LabReport, LabReportEvent, LabResultItem, Order
 
@@ -239,6 +240,11 @@ def _file_report(connection, message, patient, order, parsed):
             detail={"connection": connection.name, "items": len(items), "control_id": message.control_id},
         )
     _complete_order(order, status, filler)
+    try:
+        with transaction.atomic():
+            inbox.notify_lab_report(report)
+    except Exception:  # pragma: no cover - alerts are best effort
+        logging.getLogger(__name__).exception("Inbox alert for lab report %s failed", report.pk)
     return report
 
 
