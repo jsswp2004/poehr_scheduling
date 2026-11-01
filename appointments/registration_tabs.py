@@ -26,6 +26,7 @@ CATALOG = [
     ("emergency", "Emergency Contact"),
     ("contacts", "Contacts"),
     ("financial", "Financial Information"),
+    ("insurance", "Insurance"),
     ("guarantor", "Guarantor"),
     ("employer", "Employer"),
     ("reason", "Reason for Visit"),

@@ -237,6 +237,8 @@ export const apiEndpoints = {
   registrationDictionaries: `${API_BASE_URL}/api/registration-dictionaries/`,
   registrationFields: `${API_BASE_URL}/api/registration-fields/`,
   registrationExtras: (userId) => `${API_BASE_URL}/api/registration-extras/${userId}/`,
+  insuranceSetup: `${API_BASE_URL}/api/insurance-setup/`,
+  patientPolicies: (userId) => `${API_BASE_URL}/api/patient-policies/${userId}/`,
     mySchedule: `${API_BASE_URL}/api/my-schedule/`,
     chartTabs: `${API_BASE_URL}/api/chart-tabs/`,
     chartTabsMine: `${API_BASE_URL}/api/chart-tabs/mine/`,

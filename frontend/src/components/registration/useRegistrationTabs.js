@@ -10,6 +10,7 @@ export const DEFAULT_STEPS = [
   { value: "emergency", label: "Emergency Contact", requireReview: false },
   { value: "contacts", label: "Contacts", requireReview: false },
   { value: "financial", label: "Financial Information", requireReview: false },
+  { value: "insurance", label: "Insurance", requireReview: false },
   { value: "guarantor", label: "Guarantor", requireReview: false },
   { value: "employer", label: "Employer", requireReview: false },
   { value: "reason", label: "Reason for Visit", requireReview: false },

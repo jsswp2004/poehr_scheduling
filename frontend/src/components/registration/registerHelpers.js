@@ -198,6 +198,7 @@ export const STEP_REQUIREMENTS = {
 };
 
 export function stepFilled(step, patientFields = {}, visitFields = {}, extras = null) {
+  if (step === "insurance") return !!extras && (extras.policies || []).some((p) => p.active && !p.end_date);
   const has = (v) => v === true || (v !== false && v !== null && v !== undefined && String(v).trim() !== "");
   // These steps keep their details outside the patient and visit fields (contacts, guarantor, employer).
   if (step === "contacts") return !!extras && ((extras.contacts || []).length > 0 || has(patientFields.directive_type));

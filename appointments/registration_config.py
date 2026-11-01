@@ -153,6 +153,13 @@ WINDOWS = {
             ("directive_received_date", "Directive Date Received", False),
         ],
     ),
+    "insurance": (
+        "Insurance",
+        [
+            ("authorization_number", "Authorization Number", False),
+            ("copay_due", "Copay Due Today", False),
+        ],
+    ),
     "guarantor": (
         "Guarantor",
         [

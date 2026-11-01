@@ -3,11 +3,13 @@ import { Box, Tab, Tabs } from "@mui/material";
 import RegistrationConfig from "./RegistrationConfig";
 import RegistrationFieldSettings from "./RegistrationFieldSettings";
 import RegistrationDictionaries from "./RegistrationDictionaries";
+import InsuranceSetup from "./InsuranceSetup";
 
 const PARTS = [
   { value: "steps", label: "Step sequence" },
   { value: "fields", label: "Field settings" },
   { value: "dictionaries", label: "Dictionaries" },
+  { value: "insurance", label: "Insurance setup" },
 ];
 
 /** The Configuration tab of the Register page. Administrators only. */
@@ -23,6 +25,7 @@ export default function RegistrationSetup() {
       {part === "steps" && <RegistrationConfig />}
       {part === "fields" && <RegistrationFieldSettings />}
       {part === "dictionaries" && <RegistrationDictionaries />}
+      {part === "insurance" && <InsuranceSetup />}
     </Box>
   );
 }

@@ -433,6 +433,9 @@ class RegistrationSerializer(serializers.ModelSerializer):
             "scheduled_procedure",
             "referring_physician",
             "current_diagnoses",
+            "visit_policy",
+            "authorization_number",
+            "copay_due",
             "admission_type",
             "care_setting",
             "arrival_time",
@@ -473,6 +476,12 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
         inst = self.instance
         pick = lambda name: attrs[name] if name in attrs else (getattr(inst, name) if inst else None)
+        # the insurance picked for a visit has to be one of that patient's own policies
+        policy = attrs.get("visit_policy")
+        if policy is not None:
+            owner = pick("patient")
+            if owner is not None and policy.patient_id != owner.pk:
+                raise serializers.ValidationError({"visit_policy": "That policy belongs to another patient."})
         facility, unit, room, bed = pick("facility"), pick("unit"), pick("room"), pick("bed")
         # Only look at the place when it is being set or changed, so editing an old visit never trips on it.
         changed = any(k in attrs for k in ("facility", "unit", "room", "bed"))
