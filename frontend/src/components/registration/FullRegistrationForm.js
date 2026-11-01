@@ -30,6 +30,7 @@ import { API_BASE_URL, apiEndpoints } from "../../config/api";
 import LocationPicker, { useLocationTree } from "../locations/LocationPicker";
 import VisitSearchDialog from "./VisitSearchDialog";
 import RegistrationSteps from "./RegistrationSteps";
+import useRegistrationTabs from "./useRegistrationTabs";
 import { ageText, showDob, stepFilled } from "./registerHelpers";
 
 // Only these roles may edit a visit that has already been closed (discharged).
@@ -39,14 +40,6 @@ const CLOSED_VISIT_EDIT_ROLES = ["admin", "registrar", "system_admin"];
 // the user asked for. Patient Identity/Emergency Contact/Financial/Legal
 // Documents live on the Patient record itself (persist visit to visit);
 // Reason for Visit/Logistics live on a new per-visit Registration record.
-const SUB_TABS = [
-  { value: "identity", label: "Patient Identity" },
-  { value: "emergency", label: "Emergency Contact" },
-  { value: "financial", label: "Financial Information" },
-  { value: "reason", label: "Reason for Visit" },
-  { value: "legal", label: "Legal Documents" },
-  { value: "logistics", label: "Logistics" },
-];
 
 const LEGAL_DOCS = [
   { key: "consent_to_treat", label: "Consent to Treat" },
@@ -183,6 +176,11 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
   const [patientFields, setPatientFields] = useState(EMPTY_PATIENT_FIELDS);
   const [visitFields, setVisitFields] = useState(EMPTY_VISIT_FIELDS);
+  // The steps this clinic shows for this care setting, in its order (Configuration > Tab sequences).
+  const subTabs = useRegistrationTabs(visitFields.care_setting || "");
+  // Steps opened since this patient was chosen; a step the clinic marks "require review" must be opened before the last save.
+  const [opened, setOpened] = useState({ identity: true });
+  const [completeness, setCompleteness] = useState(null);
   const [legalFiles, setLegalFiles] = useState({});
   const [saving, setSaving] = useState(false);
   const locationTree = useLocationTree();
@@ -475,10 +473,35 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   };
 
   // Saves, then moves to the next step (the last step just saves).
-  const stepIndex = SUB_TABS.findIndex((t) => t.value === activeSubTab);
+  const stepIndex = subTabs.findIndex((t) => t.value === activeSubTab);
+  // A step that is no longer in the sequence (a different care setting was picked) falls back to the first one.
+  useEffect(() => {
+    if (stepIndex < 0 && subTabs.length) setActiveSubTab(subTabs[0].value);
+  }, [stepIndex, subTabs]);
+  useEffect(() => {
+    setOpened((prev) => (prev[activeSubTab] ? prev : { ...prev, [activeSubTab]: true }));
+  }, [activeSubTab]);
+  const patientKey = activePatient ? activePatient.user_id || activePatient.id : null;
+  useEffect(() => {
+    setOpened({ [activeSubTab]: true });
+    setCompleteness(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientKey]);
+  const notOpened = subTabs.filter((t) => t.requireReview && !opened[t.value]);
+  const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields));
+  const runCompleteness = () => {
+    setCompleteness({ notOpened, incomplete });
+    return notOpened.length === 0;
+  };
   const handleSaveAndContinue = async () => {
+    const last = stepIndex >= subTabs.length - 1;
+    // The last save also closes the registration, so every step marked "require review" has to have been opened.
+    if (last && !runCompleteness()) {
+      toast.error(`Open ${notOpened.map((t) => t.label).join(", ")} before saving.`);
+      return;
+    }
     const ok = await handleSave();
-    if (ok && stepIndex < SUB_TABS.length - 1) setActiveSubTab(SUB_TABS[stepIndex + 1].value);
+    if (ok && !last) setActiveSubTab(subTabs[stepIndex + 1].value);
   };
 
   // Opens a print-friendly summary of everything captured for this patient's
@@ -832,9 +855,10 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
           />
 
           <RegistrationSteps
-            steps={SUB_TABS}
+            steps={subTabs}
             current={activeSubTab}
-            filled={Object.fromEntries(SUB_TABS.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields)]))}
+            filled={Object.fromEntries(subTabs.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields)]))}
+            needsReview={Object.fromEntries(notOpened.map((t) => [t.value, true]))}
             onSelect={setActiveSubTab}
           />
 
@@ -1288,6 +1312,33 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             )}
           </Box>
 
+          {completeness && (
+            <Alert
+              severity={completeness.notOpened.length ? "warning" : "success"}
+              sx={{ mt: 2 }}
+              onClose={() => setCompleteness(null)}
+              data-testid="completeness-result"
+            >
+              {completeness.notOpened.length === 0 && completeness.incomplete.length === 0 && "Every step is reviewed and its key details are filled in."}
+              {completeness.notOpened.length > 0 && (
+                <Box>
+                  Open these steps before saving:{" "}
+                  {completeness.notOpened.map((t) => (
+                    <Chip key={t.value} size="small" label={t.label} onClick={() => setActiveSubTab(t.value)} sx={{ mr: 0.5 }} />
+                  ))}
+                </Box>
+              )}
+              {completeness.incomplete.length > 0 && (
+                <Box sx={{ mt: completeness.notOpened.length ? 0.5 : 0 }}>
+                  Key details still empty in:{" "}
+                  {completeness.incomplete.map((t) => (
+                    <Chip key={t.value} size="small" variant="outlined" label={t.label} onClick={() => setActiveSubTab(t.value)} sx={{ mr: 0.5 }} />
+                  ))}
+                </Box>
+              )}
+            </Alert>
+          )}
+
           <Box
             sx={{ mt: 2, pt: 1.5, display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", borderTop: "1px solid", borderColor: "divider" }}
           >
@@ -1295,14 +1346,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               {saving ? "Saving..." : dirty ? "Unsaved changes" : "All changes saved"}
             </Typography>
             <Box sx={{ flex: 1 }} />
+            <Button variant="outlined" onClick={runCompleteness} data-testid="completeness-check">
+              Completeness check
+            </Button>
             <Button variant="outlined" startIcon={<PrintIcon />} onClick={handlePrint}>
               Print
             </Button>
-            <Button variant="outlined" disabled={stepIndex <= 0} onClick={() => setActiveSubTab(SUB_TABS[stepIndex - 1].value)}>
+            <Button variant="outlined" disabled={stepIndex <= 0} onClick={() => setActiveSubTab(subTabs[stepIndex - 1].value)}>
               Back
             </Button>
             <Button variant="contained" onClick={handleSaveAndContinue} disabled={saving || readOnlyVisit}>
-              {saving ? "Saving..." : stepIndex < SUB_TABS.length - 1 ? "Save and continue" : "Save Registration"}
+              {saving ? "Saving..." : stepIndex < subTabs.length - 1 ? "Save and continue" : "Save Registration"}
             </Button>
           </Box>
         </>

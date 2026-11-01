@@ -1574,6 +1574,26 @@ class PatientHeaderConfig(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class RegistrationTabSequence(models.Model):
+    """
+    The steps Full Registration shows, in order, and which ones must be opened before saving.
+    `tabs` is [{"key": "identity", "require_review": true}, ...]. One row per clinic and care
+    setting; a blank care_setting applies to every setting that has no row of its own. A clinic
+    with no row uses the built-in sequence.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="registration_tab_sequences")
+    care_setting = models.CharField(max_length=12, blank=True, default="")
+    tabs = models.JSONField(default=list)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "care_setting"], name="uniq_registration_tabs_org_setting"),
+        ]
+
+
 class HeaderFieldDefinition(models.Model):
     """An extra header item a clinic defines itself, e.g. 'Code status' or 'Isolation'."""
 
