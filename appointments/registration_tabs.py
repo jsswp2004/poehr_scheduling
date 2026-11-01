@@ -27,12 +27,14 @@ CATALOG = [
     ("contacts", "Contacts"),
     ("financial", "Financial Information"),
     ("insurance", "Insurance"),
+    ("payments", "Payments"),
     ("guarantor", "Guarantor"),
     ("employer", "Employer"),
     ("reason", "Reason for Visit"),
     ("visitdetails", "Visit Details"),
     ("legal", "Legal Documents"),
     ("forms", "Forms"),
+    ("transportation", "Transportation"),
     ("logistics", "Logistics"),
 ]
 LABELS = dict(CATALOG)

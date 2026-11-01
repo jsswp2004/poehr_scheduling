@@ -11,12 +11,14 @@ export const DEFAULT_STEPS = [
   { value: "contacts", label: "Contacts", requireReview: false },
   { value: "financial", label: "Financial Information", requireReview: false },
   { value: "insurance", label: "Insurance", requireReview: false },
+  { value: "payments", label: "Payments", requireReview: false },
   { value: "guarantor", label: "Guarantor", requireReview: false },
   { value: "employer", label: "Employer", requireReview: false },
   { value: "reason", label: "Reason for Visit", requireReview: false },
   { value: "visitdetails", label: "Visit Details", requireReview: false },
   { value: "legal", label: "Legal Documents", requireReview: false },
   { value: "forms", label: "Forms", requireReview: false },
+  { value: "transportation", label: "Transportation", requireReview: false },
   { value: "logistics", label: "Logistics", requireReview: false },
 ];
 

@@ -37,6 +37,14 @@ from .views import (
 from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
 from .custom_forms import CustomFormAnswersView, CustomFormsView
+from .registration_more import (
+    NewbornView,
+    PaymentsView,
+    PaymentVoidView,
+    RegistrationSettingsView,
+    VisitTransportView,
+    ZipCodesView,
+)
 from .registration_insurance import InsuranceSetupView, PatientPoliciesView
 from .registration_extras import RegistrationExtrasView
 from .registration_config import RegistrationDictionariesView, RegistrationFieldsView
@@ -287,6 +295,12 @@ urlpatterns = router.urls + [
     path("patient-policies/<int:user_id>/", PatientPoliciesView.as_view(), name="patient-policies"),
     path("custom-forms/", CustomFormsView.as_view(), name="custom-forms"),
     path("custom-form-answers/<int:user_id>/", CustomFormAnswersView.as_view(), name="custom-form-answers"),
+    path("newborn-registration/", NewbornView.as_view(), name="newborn-registration"),
+    path("visit-transport/<int:visit_id>/", VisitTransportView.as_view(), name="visit-transport"),
+    path("payments/<int:user_id>/", PaymentsView.as_view(), name="payments"),
+    path("payment-void/<int:receipt_id>/", PaymentVoidView.as_view(), name="payment-void"),
+    path("zip-codes/", ZipCodesView.as_view(), name="zip-codes"),
+    path("registration-settings/", RegistrationSettingsView.as_view(), name="registration-settings"),
     path("my-schedule/", MyScheduleView.as_view(), name="my-schedule"),
     # in-app Scheduler assistant (read tools + confirm-before-act cards)
     path("scheduler-assistant/message/", SchedulerAssistantMessageView.as_view(), name="scheduler-assistant-message"),

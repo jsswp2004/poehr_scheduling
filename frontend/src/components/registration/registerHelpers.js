@@ -206,6 +206,8 @@ export function stepFilled(step, patientFields = {}, visitFields = {}, extras = 
   if (step === "guarantor") return !!extras && !!extras.guarantor && (!!extras.guarantor.is_self || has(extras.guarantor.name));
   if (step === "employer") return !!extras && !!extras.employer && (has(extras.employer.employer_name) || has(extras.employer.employment_status));
   if (step === "forms") return !!extras && extras.formsComplete === true;
+  if (step === "payments") return !!extras && Number(extras.paymentCount) > 0;
+  if (step === "transportation") return !!extras && !!extras.transport && (extras.transport.needed === "no" || (extras.transport.needed === "yes" && has(extras.transport.reason)));
   const need = STEP_REQUIREMENTS[step];
   if (!need) return false;
   return (need.patient || []).every((k) => has(patientFields[k])) && (need.visit || []).every((k) => has(visitFields[k]));

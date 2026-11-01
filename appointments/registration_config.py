@@ -95,6 +95,36 @@ DICTIONARIES = {
         "Financial Information: Copay / Deductible Status",
         ["Copay due", "Copay collected", "Deductible not met", "Deductible met", "Waived"],
     ),
+    "transport_reason": (
+        "Transportation reason",
+        "Transportation: Reason",
+        ["Medical appointment", "Discharge", "Transfer to another facility", "Dialysis", "Therapy", "Other"],
+    ),
+    "transport_provider": (
+        "Transportation provider",
+        "Transportation: Provider",
+        ["Family or friend", "Ambulance (basic)", "Ambulance (advanced)", "Wheelchair van", "Taxi or rideshare", "Public transit"],
+    ),
+    "location_type": (
+        "Pickup / destination type",
+        "Transportation: Location Type",
+        ["Home", "Hospital", "Skilled nursing facility", "Clinic", "Rehabilitation", "Other"],
+    ),
+    "trip_indicator": (
+        "Trip indicator",
+        "Transportation: Trip",
+        ["One way", "Round trip", "Standing order"],
+    ),
+    "payment_type": (
+        "Payment type",
+        "Payments: Type",
+        ["Copay", "Deposit", "Self-pay", "Prior balance", "Other"],
+    ),
+    "payment_method": (
+        "Payment method",
+        "Payments: Method",
+        ["Cash", "Check", "Credit card", "Debit card", "Money order"],
+    ),
 }
 
 # window -> (title, [(field key, built-in label, locked)]). Locked fields can be relabelled and
@@ -178,6 +208,20 @@ WINDOWS = {
             ("special_program", "Special Program Indicator", False),
             ("service", "Service", False),
             ("expected_los_days", "Expected Length of Stay (days)", False),
+        ],
+    ),
+    "transportation": (
+        "Transportation",
+        [
+            ("needed", "Transportation Needed", False),
+            ("reason", "Reason", False),
+            ("provider", "Provider", False),
+            ("location_type", "Location Type", False),
+            ("trip_indicator", "Trip Indicator", False),
+            ("pickup_location", "Pickup Location", False),
+            ("destination", "Destination", False),
+            ("pickup_time", "Pickup Time", False),
+            ("notes", "Notes", False),
         ],
     ),
     "guarantor": (
