@@ -84,6 +84,18 @@ class ZipTests(Base):
         self.assertEqual(c.get("/api/zip-codes/", {"zip": "k1a0b1"}).json()["match"]["state"], "ON")
         self.assertIsNone(c.get("/api/zip-codes/", {"zip": "99999"}).json()["match"])
 
+    def test_geonames_file_imports_as_is(self):
+        text = "US\t11201\tBrooklyn\tNew York\tNY\tKings\t047\t\t\t40.69\t-73.99\t4\nUS\t00501\tHoltsville\tNew York\tNY\tSuffolk\t103\t\t\t40.81\t-73.04\t4\n"
+        r = self.imp(text).json()
+        self.assertEqual((r["valid"], r["error_count"], r["saved"]), (2, 0, True))
+        got = self.as_user(self.registrar).get("/api/zip-codes/", {"zip": "11201"}).json()["match"]
+        self.assertEqual((got["city"], got["state"]), ("Brooklyn", "NY"))
+
+    def test_geonames_canada_file(self):
+        self.imp("CA\tK1A\tOttawa\tOntario\tON\tOttawa\t\t\t\t45.4\t-75.7\t6\n")
+        got = self.as_user(self.registrar).get("/api/zip-codes/", {"zip": "K1A 0B1"}).json()["match"]
+        self.assertEqual((got["city"], got["state"]), ("Ottawa", "ON"))
+
     def test_canadian_fsa_fallback(self):
         self.imp("K1A,Ottawa,ON\n")
         got = self.as_user(self.registrar).get("/api/zip-codes/", {"zip": "K1A 9Z9"}).json()["match"]

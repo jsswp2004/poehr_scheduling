@@ -22,6 +22,7 @@ export default function RegionalSettings() {
   const [zip, setZip] = useState({ total: 0, results: [] });
   const [q, setQ] = useState("");
   const [csv, setCsv] = useState("");
+  const [fileName, setFileName] = useState("");
   const [replace, setReplace] = useState(false);
   const [report, setReport] = useState(null);
   const [zipMsg, setZipMsg] = useState(null);
@@ -66,6 +67,7 @@ export default function RegionalSettings() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
+      setFileName(file.name);
       setCsv(String(reader.result || ""));
       setReport(null);
     };
@@ -80,6 +82,7 @@ export default function RegionalSettings() {
       setReport({ ...res.data, preview });
       if (!preview) {
         setCsv("");
+        setFileName("");
         setZipMsg({ severity: "success", text: `Imported ${res.data.valid} codes. The table now holds ${res.data.total}.` });
         loadZip(q);
       }
@@ -142,18 +145,25 @@ export default function RegionalSettings() {
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
         Typing a code in Demographics fills the city and state from this table. Import a list with one code per line: <code>code, city, state</code>. A header line is fine, and ZIP+4 is shortened to 5 digits.
+        A GeoNames postal-code file (<code>US.txt</code> or <code>CA.txt</code>, unzipped) can be chosen as it is. GeoNames data is licensed CC BY 4.0: credit GeoNames (geonames.org) where you publish it.
       </Typography>
-      <TextField
-        size="small"
-        fullWidth
-        multiline
-        minRows={4}
-        label="Paste codes, or choose a file"
-        value={csv}
-        onChange={(e) => { setCsv(e.target.value); setReport(null); }}
-        inputProps={{ "data-testid": "zip-csv" }}
-        placeholder={"11201, Brooklyn, NY\nK1A 0B1, Ottawa, ON"}
-      />
+      {fileName ? (
+        <Alert severity="info" action={<Button size="small" onClick={() => { setCsv(""); setFileName(""); setReport(null); }}>Clear</Button>} data-testid="zip-file">
+          {fileName} loaded ({csv.split("\n").filter((l) => l.trim()).length.toLocaleString()} lines). Preview it, then import.
+        </Alert>
+      ) : (
+        <TextField
+          size="small"
+          fullWidth
+          multiline
+          minRows={4}
+          label="Paste codes, or choose a file"
+          value={csv}
+          onChange={(e) => { setCsv(e.target.value); setReport(null); }}
+          inputProps={{ "data-testid": "zip-csv" }}
+          placeholder={"11201, Brooklyn, NY\nK1A 0B1, Ottawa, ON"}
+        />
+      )}
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1, flexWrap: "wrap" }}>
         <Button component="label" size="small" variant="outlined">
           Choose file

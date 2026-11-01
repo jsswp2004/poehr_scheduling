@@ -140,10 +140,21 @@ class RegistrationSettingsView(APIView):
 # --------------------------------------------------------------------------------------------------
 # ZIP codes
 # --------------------------------------------------------------------------------------------------
+def _geonames_row(row):
+    """A GeoNames postal-code line (country, code, place, state name, state code, ...) as [code, city, state], else None."""
+    if len(row) >= 5 and re.fullmatch(r"[A-Z]{2}", row[0].strip()) and row[1].strip():
+        return [row[1], row[2], row[4]]
+    return None
+
+
 def parse_zip_csv(text):
-    """CSV text to ({code: (city, state)}, errors, header_skipped). Columns: code, city, state."""
+    """
+    Text to ({code: (city, state)}, errors, header_skipped). Either lines of `code, city, state`
+    or a GeoNames postal-code file (tab separated: country, code, place, state name, state code, ...).
+    """
     rows, errors = {}, []
-    reader = csv.reader(io.StringIO(text))
+    delimiter = "\t" if "\t" in text.split("\n", 1)[0] else ","
+    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
     skipped = False
     for number, row in enumerate(reader, start=1):
         if not any(c.strip() for c in row):
@@ -151,6 +162,8 @@ def parse_zip_csv(text):
         if number == 1 and row[0].strip().lower() in ("zip", "zip code", "zipcode", "postal", "postal code", "code"):
             skipped = True
             continue
+        if delimiter == "\t":
+            row = _geonames_row(row) or row
         if len(row) < 3:
             errors.append(f"Line {number}: needs a code, a city and a state.")
             continue
@@ -205,7 +218,10 @@ class ZipCodesView(APIView):
         rows, errors, skipped = parse_zip_csv(text)
         if len(rows) > MAX_ZIP_ROWS:
             return Response({"detail": f"At most {MAX_ZIP_ROWS} codes per import."}, status=400)
-        existing = set(ZipCode.objects.filter(organization=org, code__in=list(rows)).values_list("code", flat=True))
+        codes = list(rows)
+        existing = set()
+        for i in range(0, len(codes), 500):
+            existing.update(ZipCode.objects.filter(organization=org, code__in=codes[i : i + 500]).values_list("code", flat=True))
         replace = bool(request.data.get("replace"))
         report = {
             "valid": len(rows),
