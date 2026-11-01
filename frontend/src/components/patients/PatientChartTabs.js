@@ -43,7 +43,7 @@ export function visibleChartTabs(role, keys = null, careSetting = null) {
   return ordered;
 }
 
-export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null, careSetting = null, badges = {}, badgeOverdue = {} }) {
+export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null, careSetting = null, badges = {}, badgeOverdue = {}, visitMarker = null }) {
   const tabs = visibleChartTabs(role, keys, careSetting);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
@@ -84,6 +84,15 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
           />
         ))}
       </Tabs>
+      {visitMarker && (
+        <Box
+          component="span"
+          data-testid="visit-marker"
+          sx={{ flexShrink: 0, mr: 1, px: 1, py: 0.25, borderRadius: 1, bgcolor: "#fff4e5", color: "#7a4100", border: 1, borderColor: "warning.main", fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap" }}
+        >
+          ● {visitMarker}
+        </Box>
+      )}
       {right}
     </Box>
   );

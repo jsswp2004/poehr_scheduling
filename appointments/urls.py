@@ -103,6 +103,7 @@ from .patient_header import (
     PatientAllergyStatusView,
     PatientHeaderValuesView,
     PatientHeaderView,
+    PatientVisitsView,
 )
 from .lab_interface_views import LabInboundMessageViewSet, LabUsageView, fhir_intake, hl7_intake, orders_ack, orders_pull
 
@@ -341,6 +342,7 @@ urlpatterns = router.urls + [
     path("chart-tabs/mine/", MyChartTabsView.as_view(), name="chart-tabs-mine"),
     path("chart-tabs/defaults/", OrgChartTabsView.as_view(), name="chart-tabs-defaults"),
     path("patient-header/<int:patient_id>/", PatientHeaderView.as_view(), name="patient-header"),
+    path("patient-header/<int:patient_id>/visits/", PatientVisitsView.as_view(), name="patient-visits"),
     path("patient-header/<int:patient_id>/values/", PatientHeaderValuesView.as_view(), name="patient-header-values"),
     path("growth-charts/patient/<int:patient_id>/", growth_views.GrowthChartView.as_view(), name="growth-chart-patient"),
     path("triage/patient/<int:patient_id>/context/", triage_views.TriageContextView.as_view(), name="triage-context"),
