@@ -1594,6 +1594,44 @@ class RegistrationTabSequence(models.Model):
         ]
 
 
+class RegistrationDictionary(models.Model):
+    """
+    A clinic's choice list for a registration field (language, relationship, payer...).
+    `entries` is [{"value": "Spanish", "abbr": "SPA", "active": true}, ...] in display order.
+    A clinic with no row uses the built-in list.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="registration_dictionaries")
+    code = models.CharField(max_length=40)
+    entries = models.JSONField(default=list)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "code"], name="uniq_registration_dictionary_org_code"),
+        ]
+
+
+class RegistrationFieldSetting(models.Model):
+    """
+    How a clinic shows the fields of one registration step: relabelled, optional, required,
+    view-only or hidden. `settings_map` is {"address": {"label": "Home address", "mode": "req"}}.
+    Fields not listed keep their built-in label and are optional.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="registration_field_settings")
+    window = models.CharField(max_length=20)
+    settings_map = models.JSONField(default=dict)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "window"], name="uniq_registration_fields_org_window"),
+        ]
+
+
 class HeaderFieldDefinition(models.Model):
     """An extra header item a clinic defines itself, e.g. 'Code status' or 'Isolation'."""
 
