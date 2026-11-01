@@ -172,7 +172,7 @@ class CatalogTests(Base):
 
     def test_every_step_has_field_settings_or_is_a_known_exception(self):
         no_fields = set(rt.LABELS) - set(rc.WINDOWS)
-        self.assertEqual(no_fields, {"legal", "forms"})
+        self.assertEqual(no_fields, {"legal", "forms", "payments"})
 
     def test_new_dictionaries_present_and_valid(self):
         for code in ("title", "suffix", "marital_status", "race", "ethnicity", "religion", "veteran_status", "address_type", "contact_type", "directive_type", "employment_status"):

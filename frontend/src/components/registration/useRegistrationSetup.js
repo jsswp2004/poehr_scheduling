@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { getValidToken } from "../../utils/auth";
 import { apiEndpoints } from "../../config/api";
@@ -13,13 +13,14 @@ export const WINDOW_SOURCE = {
   insurance: "visit",
   guarantor: "guarantor",
   employer: "employer",
+  transportation: "transport",
   reason: "visit",
   visitdetails: "visit",
   logistics: "visit",
 };
 
 /** What the form uses until the clinic's own settings arrive, and if they cannot be loaded. */
-export const NO_SETUP = { fields: {}, dictionaries: {} };
+export const NO_SETUP = { fields: {}, dictionaries: {}, settings: null };
 
 /** Server payloads to { fields: {window: {key: {label, mode, locked}}}, dictionaries: {code: entries[]} }. */
 export const setupFromServer = (fieldsPayload, dictPayload) => {
@@ -27,22 +28,24 @@ export const setupFromServer = (fieldsPayload, dictPayload) => {
   ((fieldsPayload && fieldsPayload.windows) || []).forEach((w) => {
     fields[w.key] = {};
     (w.fields || []).forEach((f) => {
-      fields[w.key][f.key] = { label: f.label, mode: f.mode || "opt", locked: !!f.locked };
+      fields[w.key][f.key] = { label: f.label, custom: !!f.default_label && f.label !== f.default_label, mode: f.mode || "opt", locked: !!f.locked };
     });
   });
   const dictionaries = {};
   ((dictPayload && dictPayload.dictionaries) || []).forEach((d) => {
     dictionaries[d.code] = d.entries || [];
   });
-  return { fields, dictionaries };
+  return { fields, dictionaries, settings: null };
 };
 
 /** How one field should look: its label, and whether it is hidden, required or view-only. */
 export const fieldFor = (setup, win, key, defaultLabel) => {
   const f = (setup && setup.fields && setup.fields[win] && setup.fields[win][key]) || {};
   const mode = f.mode || "opt";
+  // The clinic's own wording wins; otherwise the country's (Postal Code, Province...), then the built-in one.
+  const regional = setup && setup.settings && setup.settings.labels && setup.settings.labels[key];
   return {
-    label: f.label || defaultLabel,
+    label: (f.custom && f.label) || regional || f.label || defaultLabel,
     mode,
     hidden: mode === "hid",
     required: mode === "req",
@@ -69,7 +72,7 @@ export const missingRequired = (setup, stepKeys, patientFields = {}, visitFields
     if (step === "guarantor" && extras && extras.guarantor && extras.guarantor.is_self) return;
     let source = patientFields;
     if (where === "visit") source = visitFields;
-    else if (where === "guarantor" || where === "employer") source = (extras && extras[where]) || {};
+    else if (where === "guarantor" || where === "employer" || where === "transport") source = (extras && extras[where]) || {};
     Object.keys(fields).forEach((key) => {
       if (fields[key].mode !== "req") return;
       if (!isFilled(source[key])) out.push({ step, key, label: fields[key].label || key });
@@ -84,6 +87,23 @@ export const missingRequired = (setup, stepKeys, patientFields = {}, visitFields
  */
 export default function useRegistrationSetup() {
   const [setup, setSetup] = useState(NO_SETUP);
+  const [settings, setSettings] = useState(null);
+  useEffect(() => {
+    if (!apiEndpoints.registrationSettings) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.registrationSettings, { headers: { Authorization: `Bearer ${token}` } });
+        if (live && res && res.data) setSettings({ country: res.data.country, validate_zip: !!res.data.validate_zip, labels: res.data.labels || {} });
+      } catch (err) {
+        // built-in labels apply
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
   useEffect(() => {
     if (!apiEndpoints.registrationFields || !apiEndpoints.registrationDictionaries) return undefined;
     let live = true;
@@ -104,5 +124,5 @@ export default function useRegistrationSetup() {
       live = false;
     };
   }, []);
-  return setup;
+  return useMemo(() => ({ ...setup, settings }), [setup, settings]);
 }

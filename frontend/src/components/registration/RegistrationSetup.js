@@ -5,6 +5,7 @@ import RegistrationFieldSettings from "./RegistrationFieldSettings";
 import RegistrationDictionaries from "./RegistrationDictionaries";
 import InsuranceSetup from "./InsuranceSetup";
 import CustomFormsBuilder from "./CustomFormsBuilder";
+import RegionalSettings from "./RegionalSettings";
 
 const PARTS = [
   { value: "steps", label: "Step sequence" },
@@ -12,6 +13,7 @@ const PARTS = [
   { value: "dictionaries", label: "Dictionaries" },
   { value: "insurance", label: "Insurance setup" },
   { value: "forms", label: "Forms" },
+  { value: "regional", label: "Regional and ZIP" },
 ];
 
 /** The Configuration tab of the Register page. Administrators only. */
@@ -29,6 +31,7 @@ export default function RegistrationSetup() {
       {part === "dictionaries" && <RegistrationDictionaries />}
       {part === "insurance" && <InsuranceSetup />}
       {part === "forms" && <CustomFormsBuilder />}
+      {part === "regional" && <RegionalSettings />}
     </Box>
   );
 }

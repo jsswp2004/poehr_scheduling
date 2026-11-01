@@ -3045,3 +3045,74 @@ class TriageReassessment(models.Model):
 
     def __str__(self):
         return f"Reassessment of appointment {self.appointment_id} at {self.recorded_at:%Y-%m-%d %H:%M}"
+
+
+class VisitTransport(models.Model):
+    """Transportation arranged for one visit (registration > Transportation)."""
+
+    registration = models.OneToOneField("users.Registration", on_delete=models.CASCADE, related_name="transport")
+    needed = models.CharField(max_length=3, blank=True)  # "yes", "no" or blank (not asked)
+    reason = models.CharField(max_length=100, blank=True)
+    provider = models.CharField(max_length=100, blank=True)
+    location_type = models.CharField(max_length=100, blank=True)
+    trip_indicator = models.CharField(max_length=100, blank=True)
+    pickup_location = models.CharField(max_length=255, blank=True)
+    destination = models.CharField(max_length=255, blank=True)
+    pickup_time = models.DateTimeField(null=True, blank=True)
+    notes = models.CharField(max_length=500, blank=True)
+
+
+class ReceiptSequence(models.Model):
+    """The last receipt number a clinic has issued; numbers are never reused."""
+
+    organization = models.OneToOneField("users.Organization", on_delete=models.CASCADE, related_name="receipt_sequence")
+    last_number = models.PositiveIntegerField(default=0)
+
+
+class PaymentReceipt(models.Model):
+    """
+    Money taken at registration. A receipt is never edited or deleted; a mistake is voided with a reason
+    and a new receipt is written.
+    """
+
+    organization = models.ForeignKey("users.Organization", on_delete=models.CASCADE, related_name="payment_receipts")
+    patient = models.ForeignKey("users.Patient", on_delete=models.CASCADE, related_name="payment_receipts")
+    registration = models.ForeignKey("users.Registration", null=True, blank=True, on_delete=models.SET_NULL, related_name="payment_receipts")
+    receipt_number = models.PositiveIntegerField()
+    payment_type = models.CharField(max_length=100)
+    method = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=9, decimal_places=2)
+    reference = models.CharField(max_length=100, blank=True)  # check number, card last four, ...
+    note = models.CharField(max_length=255, blank=True)
+    received_by = models.ForeignKey("users.CustomUser", null=True, on_delete=models.SET_NULL, related_name="+")
+    received_at = models.DateTimeField(auto_now_add=True)
+    voided = models.BooleanField(default=False)
+    void_reason = models.CharField(max_length=255, blank=True)
+    voided_by = models.ForeignKey("users.CustomUser", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    voided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organization", "receipt_number"], name="uniq_receipt_per_clinic")]
+        ordering = ["-receipt_number"]
+
+
+class ZipCode(models.Model):
+    """A clinic's ZIP / postal code table: typing a code fills in the city and state."""
+
+    organization = models.ForeignKey("users.Organization", on_delete=models.CASCADE, related_name="zip_codes")
+    code = models.CharField(max_length=10)  # normalized: 5 digits (US) or 3-6 letters/digits (Canada)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=50)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organization", "code"], name="uniq_zip_per_clinic")]
+        ordering = ["code"]
+
+
+class RegistrationSettings(models.Model):
+    """Clinic-wide registration options: which country's labels to use, and whether ZIP codes must be known."""
+
+    COUNTRY_CHOICES = [("US", "United States"), ("CA", "Canada")]
+    organization = models.OneToOneField("users.Organization", on_delete=models.CASCADE, related_name="registration_settings")
+    country = models.CharField(max_length=2, choices=COUNTRY_CHOICES, default="US")
+    validate_zip = models.BooleanField(default=False)

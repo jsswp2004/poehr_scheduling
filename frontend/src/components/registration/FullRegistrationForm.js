@@ -37,6 +37,8 @@ import useRegistrationTabs from "./useRegistrationTabs";
 import useRegistrationSetup, { fieldFor, missingRequired, optionsFor } from "./useRegistrationSetup";
 import { ageText, showDob, stepFilled } from "./registerHelpers";
 import CustomFormsStep from "./CustomFormsStep";
+import NewbornDialog from "./NewbornDialog";
+import PaymentsStep from "./PaymentsStep";
 import { answersToSend, formsComplete, missingCustom } from "./customFormHelpers";
 
 // Only these roles may edit a visit that has already been closed (discharged).
@@ -120,6 +122,18 @@ const EMPTY_PATIENT_FIELDS = {
   financial_responsibility_agreement: false,
   assignment_of_benefits: false,
   release_of_information: false,
+};
+
+const EMPTY_TRANSPORT = {
+  needed: "",
+  reason: "",
+  provider: "",
+  location_type: "",
+  trip_indicator: "",
+  pickup_location: "",
+  destination: "",
+  pickup_time: "",
+  notes: "",
 };
 
 const EMPTY_VISIT_FIELDS = {
@@ -215,6 +229,15 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const [formAnswers, setFormAnswers] = useState({});
   const [answersLoaded, setAnswersLoaded] = useState(false);
   const [answersDirty, setAnswersDirty] = useState(false);
+  // Transportation for the visit on screen (saved with the visit), payments taken so far, ZIP hint, newborn dialog
+  const [transport, setTransport] = useState(EMPTY_TRANSPORT);
+  const [transportLoaded, setTransportLoaded] = useState(true);
+  const [transportDirty, setTransportDirty] = useState(false);
+  const [paymentCount, setPaymentCount] = useState(0);
+  const ownSaveTransport = useRef(null);
+  const ownSaveAnswers = useRef(null);
+  const [zipNote, setZipNote] = useState("");
+  const [newbornOpen, setNewbornOpen] = useState(false);
   // The Forms step only appears when there is a form to fill
   const subTabs = useMemo(() => allSteps.filter((t) => t.value !== "forms" || customForms.length > 0), [allSteps, customForms]);
   const setup = useRegistrationSetup();
@@ -244,6 +267,14 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const visitDict = (key, label) =>
     show("visitdetails", key) && (
       <DictionaryField key={key} {...fpd("visitdetails", key, label)} options={optionsFor(setup, key)} value={visitFields[key] || ""} onChange={(v) => handleVisitFieldChange(key, v)} />
+    );
+  const transportText = (key, label, extra = {}) =>
+    show("transportation", key) && (
+      <TextField key={key} {...fp("transportation", key, label)} size="small" fullWidth value={transport[key] || ""} onChange={(e) => changeTransport(key, e.target.value)} {...extra} />
+    );
+  const transportDict = (key, label, code) =>
+    show("transportation", key) && (
+      <DictionaryField key={key} {...fpd("transportation", key, label)} options={optionsFor(setup, code)} value={transport[key] || ""} onChange={(v) => changeTransport(key, v)} />
     );
   const row = (...kids) => <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{kids}</Stack>;
   const fpd = (win, key, label) => {
@@ -486,6 +517,15 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         }
       }
 
+      // A ZIP / postal code the clinic does not know is stopped here, when the clinic asks for that
+      if (setup.settings && setup.settings.validate_zip && patientFields.zip_code) {
+        const found = await lookupZip(patientFields.zip_code);
+        if (found && found.total > 0 && !found.match) {
+          toast.error(`${fieldFor(setup, "demographics", "zip_code", "ZIP Code").label} ${patientFields.zip_code} is not in this clinic's table.`);
+          return false;
+        }
+      }
+
       // 1. Patient-level fields (Identity/Emergency Contact/Financial/Legal
       // Documents) -- multipart so any attached legal-document scans ride
       // along in the same request.
@@ -568,6 +608,9 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         );
       } else {
         regRes = await axios.post(apiEndpoints.registrations, visitPayload, { headers });
+        // What is on screen for this new visit is already current; its effects need not reload it
+        ownSaveTransport.current = regRes.data.id;
+        ownSaveAnswers.current = regRes.data.id;
         setRegistrationId(regRes.data.id);
         setEditingOpenVisit(true);
       }
@@ -582,6 +625,13 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         );
         setFormAnswers(res.data.answers || {});
         setAnswersDirty(false);
+      }
+
+      // 4. Transportation for this visit, only if it loaded and was changed
+      if (transportLoaded && transportDirty && apiEndpoints.visitTransport) {
+        const res = await axios.put(apiEndpoints.visitTransport(regRes.data.id), transport, { headers });
+        setTransport({ ...EMPTY_TRANSPORT, ...res.data });
+        setTransportDirty(false);
       }
 
       toast.success("Registration saved.");
@@ -704,6 +754,10 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   }, []);
   // Answers for the patient (and visit, once saved). They are only saved if they loaded.
   useEffect(() => {
+    if (registrationId && ownSaveAnswers.current === registrationId) {
+      ownSaveAnswers.current = null;
+      return undefined;
+    }
     setFormAnswers({});
     setAnswersLoaded(false);
     setAnswersDirty(false);
@@ -727,6 +781,81 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       live = false;
     };
   }, [patientKey, registrationId]);
+  // Transportation belongs to the saved visit; a visit not yet saved starts blank and is saved with it
+  useEffect(() => {
+    if (registrationId && ownSaveTransport.current === registrationId) {
+      ownSaveTransport.current = null;
+      return undefined;
+    }
+    setTransport(EMPTY_TRANSPORT);
+    setTransportDirty(false);
+    if (!registrationId || !apiEndpoints.visitTransport) {
+      setTransportLoaded(true);
+      return undefined;
+    }
+    setTransportLoaded(false);
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.visitTransport(registrationId), { headers: { Authorization: `Bearer ${token}` } });
+        if (!live) return;
+        setTransport({ ...EMPTY_TRANSPORT, ...((res && res.data) || {}) });
+        setTransportLoaded(true);
+      } catch (err) {
+        // transportation is only saved if it loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [registrationId]);
+  const changeTransport = (key, value) => {
+    setTransport((prev) => ({ ...prev, [key]: value }));
+    setTransportDirty(true);
+    setDirty(true);
+  };
+  const lookupZip = async (code) => {
+    if (!code || !apiEndpoints.zipCodes) return null;
+    try {
+      const token = await getValidToken();
+      const res = await axios.get(apiEndpoints.zipCodes, { headers: { Authorization: `Bearer ${token}` }, params: { zip: code } });
+      return (res && res.data) || null;
+    } catch (err) {
+      return null;
+    }
+  };
+  // Typing a ZIP / postal code fills the city and state the clinic has on file for it
+  const fillFromZip = async () => {
+    const found = await lookupZip(patientFields.zip_code);
+    if (found && found.match) {
+      setPatientFields((prev) => ({ ...prev, city: found.match.city, state: found.match.state }));
+      setDirty(true);
+      setZipNote("");
+    } else if (found && found.total > 0 && patientFields.zip_code && setup.settings && setup.settings.validate_zip) {
+      setZipNote("Not in this clinic's table.");
+    } else {
+      setZipNote("");
+    }
+  };
+  const handleNewbornCreated = async (created) => {
+    setNewbornOpen(false);
+    try {
+      const token = await getValidToken();
+      const res = await axios.get(apiEndpoints.patients, { headers: { Authorization: `Bearer ${token}` }, params: { search: created.patient.username } });
+      const results = res.data.results || res.data || [];
+      if (results.length > 0) {
+        setMode("existing");
+        setActiveSubTab("identity");
+        resetForActivePatient(results[0]);
+        toast.success(`${created.patient.first_name} was registered under the mother. Continue with the tabs below.`);
+        return;
+      }
+    } catch (err) {
+      // fall through
+    }
+    toast.error("The baby was registered, but could not be opened. Search for them under Existing Patient.");
+  };
   const changeAnswer = (itemId, value) => {
     setFormAnswers((prev) => ({ ...prev, [itemId]: value }));
     setAnswersDirty(true);
@@ -747,10 +876,10 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setCompleteness(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientKey]);
-  const stepExtras = { ...extras, policies, formsComplete: formsComplete(customForms, formAnswers) };
+  const stepExtras = { ...extras, policies, formsComplete: formsComplete(customForms, formAnswers), transport, paymentCount };
   const notOpened = subTabs.filter((t) => t.requireReview && !opened[t.value]);
   const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields, stepExtras));
-  const missing = [...missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields, extras), ...(subTabs.some((t) => t.value === "forms") ? missingCustom(customForms, formAnswers) : [])];
+  const missing = [...missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields, { ...extras, transport }), ...(subTabs.some((t) => t.value === "forms") ? missingCustom(customForms, formAnswers) : [])];
   const runCompleteness = () => {
     setCompleteness({ notOpened, incomplete, missing });
     return notOpened.length === 0 && missing.length === 0;
@@ -919,16 +1048,16 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <ToggleButtonGroup
-        value={mode}
-        exclusive
-        size="small"
-        onChange={(e, val) => val && setMode(val)}
-        sx={{ mb: 2 }}
-      >
-        <ToggleButton value="new">New Patient</ToggleButton>
-        <ToggleButton value="existing">Existing Patient</ToggleButton>
-      </ToggleButtonGroup>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", mb: 2 }}>
+        <ToggleButtonGroup value={mode} exclusive size="small" onChange={(e, val) => val && setMode(val)}>
+          <ToggleButton value="new">New Patient</ToggleButton>
+          <ToggleButton value="existing">Existing Patient</ToggleButton>
+        </ToggleButtonGroup>
+        <Button size="small" variant="outlined" onClick={() => setNewbornOpen(true)} data-testid="newborn-open">
+          Newborn
+        </Button>
+      </Box>
+      <NewbornDialog open={newbornOpen} onClose={() => setNewbornOpen(false)} onCreated={handleNewbornCreated} />
 
       {mode === "new" && !activePatient && (
         <Stack spacing={1.5} sx={{ mb: 2 }}>
@@ -1436,7 +1565,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                 {row(
                   patientText("demographics", "city", "City"),
                   patientText("demographics", "state", "State", { inputProps: { maxLength: 50 } }),
-                  patientText("demographics", "zip_code", "ZIP Code", { inputProps: { maxLength: 20 } })
+                  patientText("demographics", "zip_code", "ZIP Code", { inputProps: { maxLength: 20 }, onBlur: fillFromZip, helperText: zipNote || undefined, error: !!zipNote })
                 )}
                 {row(
                   patientDict("demographics", "address_type", "Address Type", "address_type"),
@@ -1547,6 +1676,53 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                 {row(
                   extraText("employer", "employer", "phone", "Phone", { inputProps: { maxLength: 20 } }),
                   extraText("employer", "employer", "from_date", "From Date", { type: "date", InputLabelProps: { shrink: true } })
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "payments" && activePatient && (
+              <PaymentsStep
+                userId={activePatient.user_id || activePatient.id}
+                visitId={registrationId}
+                setup={setup}
+                role={userRole}
+                onCount={setPaymentCount}
+              />
+            )}
+
+            {activeSubTab === "transportation" && (
+              <Stack spacing={2} data-testid="step-transportation">
+                {show("transportation", "needed") && (
+                  <TextField
+                    {...fp("transportation", "needed", "Transportation Needed")}
+                    select
+                    size="small"
+                    fullWidth
+                    value={transport.needed}
+                    onChange={(e) => changeTransport("needed", e.target.value)}
+                    inputProps={{ "data-testid": "transport-needed" }}
+                    SelectProps={{ displayEmpty: true }}
+                  >
+                    <MenuItem value="">
+                      <em>Not asked</em>
+                    </MenuItem>
+                    <MenuItem value="yes">Yes</MenuItem>
+                    <MenuItem value="no">No</MenuItem>
+                  </TextField>
+                )}
+                {transport.needed !== "no" && (
+                  <>
+                    {row(transportDict("reason", "Reason", "transport_reason"), transportDict("provider", "Provider", "transport_provider"))}
+                    {row(transportDict("location_type", "Location Type", "location_type"), transportDict("trip_indicator", "Trip Indicator", "trip_indicator"))}
+                    {row(transportText("pickup_location", "Pickup Location"), transportText("destination", "Destination"))}
+                    {transportText("pickup_time", "Pickup Time", { type: "datetime-local", InputLabelProps: { shrink: true } })}
+                    {transportText("notes", "Notes", { multiline: true, rows: 2, inputProps: { maxLength: 500 } })}
+                  </>
+                )}
+                {!registrationId && (
+                  <Typography variant="caption" color="text.secondary">
+                    Saved together with the visit.
+                  </Typography>
                 )}
               </Stack>
             )}

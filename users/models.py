@@ -320,6 +320,10 @@ class Patient(models.Model):
     # -- Advance directive (Registration > Contacts) --------------------------
     directive_type = models.CharField(max_length=100, blank=True)
     directive_received_date = models.DateField(null=True, blank=True)
+    # A newborn registered under the mother's visit keeps a link to her chart.
+    mother = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="newborns"
+    )
     # System-generated Medical Record Number, assigned once, before the patient is
     # first saved (see save() below and MRNCounter). Format: MRN-000001. Required and
     # unique in the database: a patient can never exist without one.
