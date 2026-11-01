@@ -497,6 +497,42 @@ class ClinicalNote(models.Model):
         return f"{self.get_note_type_display()} for {self.patient} ({self.status})"
 
 
+class NoteCosign(models.Model):
+    """
+    A request that another provider co-sign a signed note. The note is signed and in the chart
+    straight away; this row says who has been asked, by when, and how it ended. A returned
+    request is answered by an addendum on the note and a fresh request (a new row).
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Awaiting co-signature"),
+        ("cosigned", "Co-signed"),
+        ("returned", "Returned with comments"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name="note_cosigns")
+    note = models.ForeignKey(ClinicalNote, on_delete=models.CASCADE, related_name="cosign_requests")
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cosigns_requested")
+    cosigner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cosigns_assigned")
+    message = models.TextField(blank=True)
+    due_at = models.DateTimeField(null=True, blank=True)
+    reminder_minutes = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Remind the co-signer this many minutes before it is due; 0 = at the due time"
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    comment = models.TextField(blank=True, help_text="The co-signer's comment when returning the note")
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["cosigner", "status"])]
+
+    def __str__(self):
+        return f"Co-sign of note {self.note_id} by {self.cosigner_id} ({self.status})"
+
+
 # Row layout for the Vital Signs flowsheet -- deliberately a plain Python
 # constant, not a DB-backed template, since this is the one fixed flowsheet
 # type for now. Shaped the same way the future flowsheet-builder's rows will
