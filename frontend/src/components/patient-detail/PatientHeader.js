@@ -1,24 +1,9 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
 import { API_BASE_URL } from '../../config/api';
-import BackButton from '../BackButton';
 
 function PatientHeader({ patient }) {
     return (
         <>
-            {/* Header with BackButton inline */}
-            <Box
-                sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    mb: 2,
-                }}
-            >
-                <Typography variant="h5">Patient Details</Typography>
-                <BackButton to="/patients" />
-            </Box>
-
             {/* Show profile picture if available */}
             {patient?.profile_picture && (
                 <div className="mb-3 text-center">

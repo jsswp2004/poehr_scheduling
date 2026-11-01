@@ -1,11 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 import OrdersPanel from "../components/OrdersPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import ChartPageShell from "../components/patients/ChartPageShell";
 import DocumentationAssistantDock from "../components/DocumentationAssistantDock";
-import BackButton from "../components/BackButton";
 import { getValidToken, clearAuthData } from "../utils/auth";
 import { usePatientData } from "../hooks/usePatientData";
 import { useRoleValidation } from "../hooks/useRoleValidation";
@@ -64,20 +63,6 @@ function OrdersPage() {
                 p: 3,
             }}
         >
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 2,
-                }}
-            >
-                <Typography variant="h5">
-                    Orders: {patient.first_name} {patient.last_name}
-                </Typography>
-                <BackButton to="/patients" />
-            </Box>
-
             <PatientChartHeader patientId={patient.user_id || patient.id} />
 
             <OrdersPanel patientId={patient.user_id || patient.id} />
