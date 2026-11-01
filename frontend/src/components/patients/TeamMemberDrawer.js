@@ -41,7 +41,7 @@ function TeamMemberDrawer({ member, onClose, onMessage, onSendText, onOpenEmailM
     const consentDate = m.sms_consent_date ? new Date(m.sms_consent_date).toLocaleDateString('en-US') : '';
 
     return (
-        <Drawer anchor="right" open={open} onClose={onClose} slotProps={{ paper: { sx: { width: { xs: '100%', sm: 420 }, p: 3 }, role: 'dialog', 'aria-label': 'Team member details' } }}>
+        <Drawer anchor="right" open={open} onClose={onClose} slotProps={{ paper: { sx: { width: { xs: '100%', sm: 420 }, p: 3, top: 64, height: 'calc(100% - 64px)', overflowY: 'auto', boxSizing: 'border-box' }, role: 'dialog', 'aria-label': 'Team member details' } }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
                     Team member
