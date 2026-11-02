@@ -1,10 +1,10 @@
 import { ADMIN_TOOLS } from "../../hooks/admin/adminTools";
 import { moduleEnabled } from "../../utils/orgModules";
-import { MODULE_LINKS } from "../../utils/moduleLinks";
+import { MODULE_LINKS, linkTarget } from "../../utils/moduleLinks";
 
 // Every tab of the Settings page. `words` are what people call it, so they can find it by those too.
 // The Settings page is part of the clinical and scheduling services; a Staffing-only clinic has no Settings page.
-const SETTINGS_MODULES = ["scheduling", "clinical_documentation", "patient_portal", "communicator", "telehealth", "dictation", "lab_interface"];
+const SETTINGS_MODULES = ["scheduling", "clinical_documentation", "patient_portal", "registration", "communicator", "telehealth", "dictation", "lab_interface"];
 const STAFF_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar"];
 const ADMIN_ROLES = ["admin", "system_admin"];
 
@@ -65,7 +65,7 @@ const EXTRA_PAGES = [
 
 export function pageEntries(role) {
   const fromNav = MODULE_LINKS.filter((m) => (!m.roles || m.roles.includes(role)) && !(m.notFor && m.notFor.includes(role)) && moduleEnabled(m.module)).map((m) => ({
-    id: `page-${m.key}`, label: m.label, words: PAGE_WORDS[m.key] || "", path: m.to,
+    id: `page-${m.key}`, label: m.label, words: PAGE_WORDS[m.key] || "", path: linkTarget(m, moduleEnabled("clinical_documentation")),
   }));
   const extra = EXTRA_PAGES.filter((p) => p.roles.includes(role) && moduleEnabled(p.module));
   return [...fromNav, ...extra].map((p) => ({ ...p, description: "Open this page", group: "page", where: "Go to" }));

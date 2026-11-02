@@ -16,7 +16,17 @@ export const getEnabledModules = () => {
 };
 
 // `code` may be one service, or a list meaning "any of these".
+// Registration is also part of Clinical Notes and the Patient Portal, so those keep it (same rule as the server).
+const REGISTRATION_INCLUDED_WITH = ['clinical_documentation', 'patient_portal'];
+
+/** The list with "registration" added when Notes or the Portal already includes it. */
+export const withIncluded = (enabled) =>
+  Array.isArray(enabled) && !enabled.includes('registration') && enabled.some((c) => REGISTRATION_INCLUDED_WITH.includes(c))
+    ? [...enabled, 'registration']
+    : enabled;
+
 export const moduleEnabled = (code, enabled = getEnabledModules()) => {
   if (!code || (Array.isArray(code) && code.length === 0) || enabled === null) return true;
-  return Array.isArray(code) ? code.some((c) => enabled.includes(c)) : enabled.includes(code);
+  const have = withIncluded(enabled);
+  return Array.isArray(code) ? code.some((c) => have.includes(c)) : have.includes(code);
 };

@@ -86,12 +86,13 @@ export const MODULE_LINKS = [
   },
   {
     key: "register",
-    module: "patient_portal",
+    module: "registration",
     label: "Register",
     to: "/patients?tab=register",
+    standaloneTo: "/registration", // organizations with Registration but not Clinical Notes
     Icon: PersonAddIcon,
     roles: ["admin", "system_admin", "registrar"],
-    isActive: (path, tab) => path === "/patients" && tab === "register",
+    isActive: (path, tab) => (path === "/patients" && tab === "register") || path.startsWith("/registration"),
   },
   {
     key: "portal",
@@ -159,3 +160,6 @@ export const MODULE_LINKS = [
   },
 ];
 
+
+/** Where a header link goes for this organization: the standalone page when Clinical Notes is off. */
+export const linkTarget = (m, hasNotes) => (m.standaloneTo && !hasNotes ? m.standaloneTo : m.to);

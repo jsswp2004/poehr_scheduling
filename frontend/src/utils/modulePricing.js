@@ -6,7 +6,9 @@ export const EXTRA_MODULE_PRICE = 150;
 /** Modules that carry a price (everything except those quoted separately), in the order they were ticked. */
 export const pricedModules = (selected, modules) => {
   const quoted = new Set((modules || []).filter((m) => m.quoted).map((m) => m.code));
-  return (selected || []).filter((code) => !quoted.has(code));
+  // Registration is free when Clinical Notes or the Patient Portal already includes it.
+  const regIncluded = (selected || []).some((c) => c === 'clinical_documentation' || c === 'patient_portal');
+  return (selected || []).filter((code) => !quoted.has(code) && !(code === 'registration' && regIncluded));
 };
 
 // `included` is how many priced services the plan's base price covers (Professional 1, Clinic 2).

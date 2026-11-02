@@ -1,4 +1,5 @@
 import { jwtDecode } from 'jwt-decode';
+import { withIncluded } from './orgModules';
 
 // Where a person lands after signing in (no specific page asked for), from their role and the
 // services their organization signed up for. Administrators keep the Management Portal.
@@ -9,6 +10,7 @@ const SERVICE_LANDINGS = [
   ['staffing', '/staffing'],
   ['telehealth', '/telehealth'],
   ['dictation', '/dictate'],
+  ['registration', '/registration'], // Registration on its own
 ];
 
 const CLINICAL_ROLES = ['doctor', 'nurse', 'registrar', 'receptionist'];
@@ -17,7 +19,8 @@ export const landingPath = (role, modules) => {
   if (role === 'admin' || role === 'system_admin') return '/admin';
   if (!role || role === 'patient') return '/dashboard';
   const all = !Array.isArray(modules);
-  const has = (code) => all || modules.includes(code);
+  const have = withIncluded(modules);
+  const has = (code) => all || have.includes(code);
   if (role === 'staff') return has('staffing') ? '/staffing' : '/dashboard';
   if (CLINICAL_ROLES.includes(role)) {
     const hit = SERVICE_LANDINGS.find(([code]) => has(code));
@@ -45,6 +48,7 @@ export const SOLUTIONS = [
   // Administrators only; not tied to a service, so it is always there for them.
   { key: 'management', label: 'Management Portal', module: null, path: '/admin', roles: ['admin', 'system_admin'] },
   { key: 'notes', label: 'POWER Notes', module: 'clinical_documentation', path: '/patients', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar', 'receptionist'] },
+  { key: 'registration', label: 'POWER Registration', module: 'registration', path: '/registration', roles: ['admin', 'system_admin', 'registrar'] },
   { key: 'scheduler', label: 'POWER Scheduler', module: 'scheduling', path: '/patients?tab=appointments', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar'] },
   { key: 'communicator', label: 'POWER Communicator', module: 'communicator', path: '/communicator', roles: ['admin', 'system_admin', 'registrar'] },
   { key: 'portal', label: 'POWER Patient Portal', module: 'patient_portal', path: '/dashboard', roles: ['admin', 'system_admin', 'patient'] },
@@ -56,7 +60,8 @@ export const SOLUTIONS = [
 /** The solutions a person may open: their organization has the service and their role may use it. */
 export const solutionsFor = (role, modules) => {
   const all = !Array.isArray(modules);
-  return SOLUTIONS.filter((t) => t.roles.includes(role) && (t.module === null || all || modules.includes(t.module)));
+  const have = withIncluded(modules);
+  return SOLUTIONS.filter((t) => t.roles.includes(role) && (t.module === null || all || have.includes(t.module)));
 };
 
 /**

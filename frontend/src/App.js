@@ -8,6 +8,7 @@ import { getAccessToken } from './utils/tokenManager';
 import { autoMigrateTokens } from './utils/authMigration';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import RegistrationWorkspacePage from './pages/RegistrationWorkspacePage';
 import DashboardPage from './pages/DashboardPage';
 import { LandingPageV1Desktop1920Px as LandingPage } from './pages/LandingPage';
 import OrganizationPrompt from './components/OrganizationPrompt';
@@ -270,6 +271,7 @@ function AppContent() {
         <Route path="/telehealth" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><TelehealthPage /></PrivateRoute>} />
         <Route path="/telehealth/join" element={<TelehealthJoinPage />} />
         <Route path="/referral" element={<ReferralLinkPage />} />
+        <Route path="/registration" element={<PrivateRoute blockRoles={["patient", "staff", "doctor", "nurse", "receptionist"]} blockedTo="/solutions"><RegistrationWorkspacePage /></PrivateRoute>} />
         <Route path="/dictate" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><DictatePage /></PrivateRoute>} />
       </Routes>
       {showNavbar && <SimpleFooter />}
