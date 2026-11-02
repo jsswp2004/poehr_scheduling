@@ -11,10 +11,12 @@ import DocumentationImage from "../assets/documentation.png";
 import TelehealthImage from "../assets/telehealth.jpg";
 import DictationImage from "../assets/dictation.jpg";
 import ManagementImage from "../assets/management_portal.jpg";
+import RegistrationImage from "../assets/registration.jpg";
 
 const IMAGES = {
   management: ManagementImage,
   notes: DocumentationImage,
+  registration: RegistrationImage,
   scheduler: SchedulerImage,
   communicator: CommunicatorImage,
   portal: PortalImage,

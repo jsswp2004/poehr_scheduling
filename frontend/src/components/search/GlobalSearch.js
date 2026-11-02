@@ -571,14 +571,14 @@ export default function GlobalSearch({ userId, role = "", canRegister = false })
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
                 {clinical ? "You can also search by date of birth (03/14/1972), a phone number or the last four digits of a phone." : "You can also search by a phone number or an email address."}
               </Typography>
-              {canRegister && clinical && (
+              {canRegister && (clinical || moduleEnabled("registration")) && (
                 <Button
                   size="small"
                   variant="outlined"
                   sx={{ mt: 1.5 }}
                   onClick={() => {
                     close();
-                    navigate("/patients?tab=register");
+                    navigate(moduleEnabled("clinical_documentation") ? "/patients?tab=register" : "/registration");
                   }}
                 >
                   Register a new patient

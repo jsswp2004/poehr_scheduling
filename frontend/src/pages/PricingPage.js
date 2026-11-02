@@ -31,6 +31,14 @@ const CAPABILITIES = {
     "Announcements for patients and staff",
     "Text and email preferences with opt-out",
   ],
+  registration: [
+    "Quick register with arrival type and a duplicate check",
+    "Full registration steps you choose and order: demographics, contacts, insurance, guarantor, employer, visit details",
+    "Newborn registration under the mother",
+    "Numbered payment receipts, with voids that need a reason",
+    "Registration setup: field rules, choice lists, custom forms, ZIP table",
+    "Stands alone, or works with Clinical Notes on the same records",
+  ],
   clinical_documentation: [
     "Ready-made admission, triage, ambulatory, progress and nursing notes",
     "Note and flowsheet builders for your own forms",

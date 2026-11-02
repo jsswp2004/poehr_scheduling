@@ -33,6 +33,9 @@ MODULES = [
     ("clinical_documentation", "Clinical Notes", "Clinical",
      "Notes, flowsheets and their builders, vaccines and screenings, orders and lab results, "
      "prescriptions and referrals, triage and status boards.", False),
+    ("registration", "Registration", "Clinical",
+     "Patient and visit registration: quick register, full registration, newborn, insurance, payments, "
+     "and registration setup. Works on its own or alongside Clinical Notes.", False),
     ("scheduling", "Scheduling and calendar", "Operations",
      "Appointments, availability, holidays, check-in.", False),
     ("staffing", "Staffing and coverage", "Operations",
@@ -46,6 +49,10 @@ MODULES = [
     ("lab_interface", "Electronic lab interface", "Add-ons",
      "Connect to Quest or Labcorp. Set up by arrangement and quoted separately.", True),
 ]
+
+# Registration is also part of Clinical Notes and the Patient Portal (the Register tab has always been there),
+# so those organizations keep it without choosing it and without paying for it twice.
+REGISTRATION_INCLUDED_WITH = {"clinical_documentation", "patient_portal"}
 
 MODULE_CODES = [m[0] for m in MODULES]
 QUOTED_CODES = {m[0] for m in MODULES if m[4]}
@@ -110,6 +117,16 @@ MODULE_ROUTES = [
     ("patient-pharmacy/", "clinical_documentation"),
     ("prescriber-profile/", "clinical_documentation"),
     ("triage/", "clinical_documentation"),
+    ("registration-", "registration"),
+    ("insurance-setup/", "registration"),
+    ("patient-policies/", "registration"),
+    ("custom-forms/", "registration"),
+    ("custom-form-answers/", "registration"),
+    ("newborn-registration/", "registration"),
+    ("visit-transport/", "registration"),
+    ("payments/", "registration"),
+    ("payment-void/", "registration"),
+    ("zip-codes/", "registration"),
     ("appointments/", "scheduling"),
     ("availability/", "scheduling"),
     ("holidays/", "scheduling"),
@@ -142,11 +159,16 @@ def enabled_codes(org):
 
 
 def has_module(org, code):
-    return code in enabled_codes(org)
+    codes = enabled_codes(org)
+    if code == "registration":
+        return "registration" in codes or bool(REGISTRATION_INCLUDED_WITH & set(codes))
+    return code in codes
 
 
 def priced_modules(codes):
-    return [c for c in codes if c not in QUOTED_CODES]
+    """Modules that count toward the price. Registration is free when Notes or the Portal already includes it."""
+    included = bool(REGISTRATION_INCLUDED_WITH & set(codes))
+    return [c for c in codes if c not in QUOTED_CODES and not (c == "registration" and included)]
 
 
 def extra_module_count(codes, plan="basic"):

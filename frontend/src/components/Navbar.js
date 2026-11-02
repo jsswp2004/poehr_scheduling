@@ -37,7 +37,7 @@ import { moduleEnabled } from "../utils/orgModules";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
 
-import { MODULE_LINKS, SECURE_MESSAGE_ROLES, STAFF_MODULE_ROLES } from "../utils/moduleLinks";
+import { MODULE_LINKS, SECURE_MESSAGE_ROLES, STAFF_MODULE_ROLES, linkTarget } from "../utils/moduleLinks";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -360,7 +360,7 @@ function Navbar() {
       (!m.roles || m.roles.includes(role)) &&
       !(m.notFor && m.notFor.includes(role)) &&
       moduleEnabled(m.module)
-  ).map((m) => ({ ...m, active: m.isActive(location.pathname, currentTab, currentChart) }));
+  ).map((m) => ({ ...m, to: linkTarget(m, moduleEnabled("clinical_documentation")), active: m.isActive(location.pathname, currentTab, currentChart) }));
 
   // Waiting-item count per module, shown next to the label in the compact menu.
   const menuBadge = (key) =>

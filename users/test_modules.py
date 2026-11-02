@@ -58,6 +58,21 @@ class PricingTests(TestCase):
         self.assertIsNone(module_for_path("/api/users/me/"))
         self.assertIsNone(module_for_path("/static/x"))
 
+    def test_registration_routes_and_inclusion(self):
+        for path in ("/api/registration-tabs/", "/api/registration-fields/", "/api/newborn-registration/",
+                     "/api/payments/5/", "/api/zip-codes/", "/api/insurance-setup/", "/api/custom-forms/"):
+            self.assertEqual(module_for_path(path), "registration", path)
+        self.assertIsNone(module_for_path("/api/users/payments/history/"))  # billing, not registration
+        from users.modules import has_module
+        self.assertTrue(has_module(make_org("R", enabled_modules=["registration"]), "registration"))
+        self.assertTrue(has_module(make_org("N", enabled_modules=["clinical_documentation"]), "registration"))
+        self.assertTrue(has_module(make_org("P", enabled_modules=["patient_portal"]), "registration"))
+        self.assertFalse(has_module(make_org("S", enabled_modules=["staffing"]), "registration"))
+
+    def test_registration_is_priced_unless_notes_includes_it(self):
+        self.assertEqual(monthly_total(["registration", "staffing"], "basic"), 299 + EXTRA_MODULE_PRICE)
+        self.assertEqual(monthly_total(["clinical_documentation", "registration"], "basic"), 299)
+
     def test_unconfigured_org_has_all(self):
         org = make_org("A")
         self.assertIn("telehealth", enabled_codes(org))
