@@ -20,18 +20,25 @@ const PARTS = [
 export default function RegistrationSetup() {
   const [part, setPart] = useState("steps");
   return (
-    <Box data-testid="registration-setup">
-      <Tabs value={part} onChange={(e, v) => setPart(v)} sx={{ mb: 2, minHeight: 36, "& .MuiTab-root": { minHeight: 36, textTransform: "none" } }}>
+    <Box data-testid="registration-setup" sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      {/* The sub-tabs stay put; only the page under them scrolls */}
+      <Tabs
+        value={part}
+        onChange={(e, v) => setPart(v)}
+        sx={{ mb: 1, flexShrink: 0, minHeight: 36, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, textTransform: "none" } }}
+      >
         {PARTS.map((p) => (
           <Tab key={p.value} value={p.value} label={p.label} data-testid={`setup-tab-${p.value}`} />
         ))}
       </Tabs>
-      {part === "steps" && <RegistrationConfig />}
-      {part === "fields" && <RegistrationFieldSettings />}
-      {part === "dictionaries" && <RegistrationDictionaries />}
-      {part === "insurance" && <InsuranceSetup />}
-      {part === "forms" && <CustomFormsBuilder />}
-      {part === "regional" && <RegionalSettings />}
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }} data-testid="registration-setup-body">
+        {part === "steps" && <RegistrationConfig />}
+        {part === "fields" && <RegistrationFieldSettings />}
+        {part === "dictionaries" && <RegistrationDictionaries />}
+        {part === "insurance" && <InsuranceSetup />}
+        {part === "forms" && <CustomFormsBuilder />}
+        {part === "regional" && <RegionalSettings />}
+      </Box>
     </Box>
   );
 }

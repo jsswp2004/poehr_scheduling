@@ -325,6 +325,8 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           border: "1px solid #e2e8f0",
           minHeight: "60vh",
           maxHeight: modalMode ? "none" : "calc(100vh - 200px)",
+          // Configuration has a fixed height so its sub-tabs stay in place and only the page under them scrolls
+          ...(leftTab === "configuration" && !modalMode ? { height: "calc(100vh - 200px)" } : {}),
           overflowY: "auto",
           overflowX: "hidden",
           p: 1.5,
@@ -380,7 +382,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           )}
 
           {leftTab === "configuration" && ["admin", "system_admin"].includes(userRole) && (
-            <Box sx={{ flex: 1, overflowY: "auto", pr: 1, minHeight: 0 }}>
+            <Box sx={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
               <RegistrationSetup />
             </Box>
           )}
