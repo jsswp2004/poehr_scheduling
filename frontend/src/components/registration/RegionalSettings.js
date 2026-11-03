@@ -108,38 +108,44 @@ export default function RegionalSettings() {
   };
 
   return (
-    <Box sx={{ width: "100%" }} data-testid="regional-settings">
-      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-        Regional settings
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        The country sets the wording on the registration form: Zip Code and State, or Postal Code and Province, and Social Security or Social Insurance Number. A label you set under Field settings still wins.
-      </Typography>
-      {settings && (
-        <Stack spacing={1} sx={{ mb: 3 }}>
-          <FormControl size="small" sx={{ maxWidth: 260 }}>
-            <InputLabel id="rs-country">Country</InputLabel>
-            <Select labelId="rs-country" label="Country" value={settings.country} onChange={(e) => { setSettings({ ...settings, country: e.target.value }); setSettingsMsg(null); }} data-testid="rs-country">
-              {(settings.countries.length ? settings.countries : [{ key: "US", label: "United States" }, { key: "CA", label: "Canada" }]).map((c) => (
-                <MenuItem key={c.key} value={c.key}>
-                  {c.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControlLabel
-            control={<Checkbox checked={settings.validate_zip} onChange={(e) => { setSettings({ ...settings, validate_zip: e.target.checked }); setSettingsMsg(null); }} inputProps={{ "data-testid": "rs-validate" }} />}
-            label="Refuse a ZIP / postal code that is not in the table below (only once the table has codes)"
-          />
-          {settingsMsg && <Alert severity={settingsMsg.severity}>{settingsMsg.text}</Alert>}
-          <Box>
-            <Button variant="contained" onClick={saveSettings} disabled={busy} data-testid="rs-save">
-              Save settings
-            </Button>
-          </Box>
-        </Stack>
-      )}
+    <Box sx={{ width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }} data-testid="regional-settings">
+      {/* The regional settings stay in place; the ZIP section under them scrolls */}
+      <Box sx={{ flexShrink: 0, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+          Regional settings
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          The country sets the wording on the registration form: Zip Code and State, or Postal Code and Province, and Social Security or Social Insurance Number. A label you set under Field settings still wins.
+          Refusing a code that is not in the table only applies once the table has codes.
+        </Typography>
+        {settings && (
+          <>
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 1 }}>
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel id="rs-country">Country</InputLabel>
+                <Select labelId="rs-country" label="Country" value={settings.country} onChange={(e) => { setSettings({ ...settings, country: e.target.value }); setSettingsMsg(null); }} data-testid="rs-country">
+                  {(settings.countries.length ? settings.countries : [{ key: "US", label: "United States" }, { key: "CA", label: "Canada" }]).map((c) => (
+                    <MenuItem key={c.key} value={c.key}>
+                      {c.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControlLabel
+                sx={{ mr: 0 }}
+                control={<Checkbox checked={settings.validate_zip} onChange={(e) => { setSettings({ ...settings, validate_zip: e.target.checked }); setSettingsMsg(null); }} inputProps={{ "data-testid": "rs-validate" }} />}
+                label="Refuse a ZIP / postal code that is not in the table"
+              />
+              <Button variant="contained" onClick={saveSettings} disabled={busy} data-testid="rs-save">
+                Save settings
+              </Button>
+            </Stack>
+            {settingsMsg && <Alert severity={settingsMsg.severity} sx={{ mt: 1 }}>{settingsMsg.text}</Alert>}
+          </>
+        )}
+      </Box>
 
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pt: 1.5, pr: 0.5 }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
         ZIP / postal codes
       </Typography>
@@ -217,6 +223,7 @@ export default function RegionalSettings() {
             Showing the first {zip.results.length}. Search to find a code.
           </Typography>
         )}
+      </Box>
       </Box>
     </Box>
   );
