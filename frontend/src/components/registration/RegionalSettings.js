@@ -108,7 +108,7 @@ export default function RegionalSettings() {
   };
 
   return (
-    <Box sx={{ maxWidth: 720 }} data-testid="regional-settings">
+    <Box sx={{ width: "100%" }} data-testid="regional-settings">
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
         Regional settings
       </Typography>
