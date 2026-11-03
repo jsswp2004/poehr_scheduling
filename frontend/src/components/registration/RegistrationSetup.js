@@ -31,7 +31,7 @@ export default function RegistrationSetup() {
           <Tab key={p.value} value={p.value} label={p.label} data-testid={`setup-tab-${p.value}`} />
         ))}
       </Tabs>
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }} data-testid="registration-setup-body">
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowY: part === "steps" ? "hidden" : "auto", pr: 1 }} data-testid="registration-setup-body">
         {part === "steps" && <RegistrationConfig />}
         {part === "fields" && <RegistrationFieldSettings />}
         {part === "dictionaries" && <RegistrationDictionaries />}

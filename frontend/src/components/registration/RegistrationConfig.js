@@ -135,7 +135,9 @@ export default function RegistrationConfig() {
         : "Using the built-in sequence.";
 
   return (
-    <Box sx={{ width: "100%" }} data-testid="registration-config">
+    <Box sx={{ width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }} data-testid="registration-config">
+      {/* Title, note and "Applies to" stay in place; only the list of steps scrolls */}
+      <Box sx={{ flexShrink: 0 }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
         Tab sequences
       </Typography>
@@ -157,7 +159,9 @@ export default function RegistrationConfig() {
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
         {sourceText}
       </Typography>
+      </Box>
 
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
       <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
         {rows.map((r, i) => (
           <Box
@@ -193,14 +197,15 @@ export default function RegistrationConfig() {
           </Box>
         ))}
       </Box>
+      </Box>
 
       {(problem || message) && (
-        <Alert severity={problem ? "warning" : message.severity} sx={{ mt: 1.5 }}>
+        <Alert severity={problem ? "warning" : message.severity} sx={{ mt: 1.5, flexShrink: 0 }}>
           {problem || message.text}
         </Alert>
       )}
 
-      <Box sx={{ display: "flex", gap: 1, mt: 1.5 }}>
+      <Box sx={{ display: "flex", gap: 1, mt: 1.5, flexShrink: 0 }}>
         <Button variant="contained" onClick={save} disabled={busy || !!problem || !dirty} data-testid="cfg-save">
           Save sequence
         </Button>
