@@ -108,16 +108,21 @@ export default function RegistrationDictionaries() {
   const current = (data?.dictionaries || []).find((d) => d.code === code);
 
   return (
-    <Box data-testid="dictionaries" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "240px 1fr" }, gap: 2 }}>
-      <List dense disablePadding sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, alignSelf: "start" }}>
+    <Box
+      data-testid="dictionaries"
+      sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "240px minmax(0, 1fr)" }, gridTemplateRows: { md: "minmax(0, 1fr)" }, gap: 2, flex: 1, minHeight: 0 }}
+    >
+      {/* The list of dictionaries scrolls by itself */}
+      <List dense disablePadding sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, alignSelf: "start", maxHeight: { md: "100%" }, overflowY: "auto" }} data-testid="dict-list">
         {(data?.dictionaries || []).map((d) => (
           <ListItemButton key={d.code} selected={d.code === code} onClick={() => pick(d.code)} data-testid={`dict-${d.code}`}>
             <ListItemText primary={d.title} secondary={d.source === "organization" ? "Customized" : null} />
           </ListItemButton>
         ))}
       </List>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, minHeight: 0 }}>
+        {/* Title, Reset to defaults and Save stay in place; the entries below scroll */}
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap", flexShrink: 0 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             {current?.title}
           </Typography>
@@ -133,11 +138,12 @@ export default function RegistrationDictionaries() {
           </Button>
         </Box>
         {message && (
-          <Alert severity={message.severity} onClose={() => setMessage(null)}>
+          <Alert severity={message.severity} onClose={() => setMessage(null)} sx={{ flexShrink: 0 }}>
             {message.text}
           </Alert>
         )}
-        {dirty && problem && <Alert severity="warning">{problem}</Alert>}
+        {dirty && problem && <Alert severity="warning" sx={{ flexShrink: 0 }}>{problem}</Alert>}
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1.25, pr: 0.5 }} data-testid="dict-body">
         <Box sx={{ display: "flex", gap: 1 }}>
           <TextField
             size="small"
@@ -190,6 +196,7 @@ export default function RegistrationDictionaries() {
         <Typography variant="caption" color="text.secondary">
           Inactive entries stay on old records but are not offered for new registrations.
         </Typography>
+        </Box>
       </Box>
     </Box>
   );
