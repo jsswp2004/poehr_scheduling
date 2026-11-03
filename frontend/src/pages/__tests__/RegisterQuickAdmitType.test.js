@@ -31,12 +31,17 @@ const fill = () => {
   fireEvent.change(screen.getByLabelText(/^Email/), { target: { value: "Ann@Example.com" } });
 };
 
-const show = (props = { adminMode: true }) =>
-  render(
+// Staff land on the Patients tab; these tests work on the Quick Register tab (the calendar's modal starts there).
+const show = (props = { adminMode: true }) => {
+  const view = render(
     <MemoryRouter>
       <RegisterPage {...props} />
     </MemoryRouter>
   );
+  const quick = screen.queryByRole("tab", { name: "Quick Register" });
+  if (quick) fireEvent.click(quick);
+  return view;
+};
 
 const registerCall = () => axios.post.mock.calls.find((c) => c[0].endsWith("/api/auth/register/"));
 const visitCall = () => axios.post.mock.calls.find((c) => c[0].endsWith("/api/users/registrations/"));
@@ -261,5 +266,14 @@ describe("public sign-up", () => {
     show({ adminMode: false });
     fireEvent.click(screen.getByRole("button", { name: "No, I need one" }));
     expect(screen.getByText(/A member of our team will call you within one business day/)).toBeInTheDocument();
+  });
+});
+
+describe("tabs", () => {
+  test("staff land on the Patients tab, then Open switches to Full Registration", () => {
+    show();
+    expect(screen.getByRole("tab", { name: "Patients" })).toHaveAttribute("aria-selected", "false"); // show() moved to Quick Register
+    fireEvent.click(screen.getByRole("tab", { name: "Patients" }));
+    expect(screen.getByTestId("patients-pane")).toBeInTheDocument();
   });
 });

@@ -2,9 +2,7 @@ import { toast } from "react-toastify";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { Paper, Box, Tabs, Tab, IconButton, Tooltip, Typography } from "@mui/material";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { Paper, Box, Tabs, Tab } from "@mui/material";
 import { jwtDecode } from "jwt-decode";
 import { getValidToken } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
@@ -73,27 +71,9 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
   const [doctors, setDoctors] = useState([]);
   const [userRole, setUserRole] = useState(null);
 
-  // Which left-pane tab is active: the single-step Quick Register form, or the full multi-step
-  // Registration (Identity/Emergency Contact/Financial/Reason for Visit/Legal Documents/Logistics).
-  const [leftTab, setLeftTab] = useState("quick");
-  // The patients panel can be folded away to give the form the whole card; the choice is remembered on this browser
-  const [patientsOpen, setPatientsOpen] = useState(() => {
-    try {
-      return localStorage.getItem("register_patients_open") !== "0";
-    } catch (err) {
-      return true;
-    }
-  });
-  const togglePatients = () => {
-    setPatientsOpen((open) => {
-      try {
-        localStorage.setItem("register_patients_open", open ? "0" : "1");
-      } catch (err) {
-        // the choice just is not remembered
-      }
-      return !open;
-    });
-  };
+  // Which tab is active: the Patients list (the landing tab), the single-step Quick Register form, the full
+  // multi-step Registration, or Configuration. The calendar's modal has no list and starts on Quick Register.
+  const [leftTab, setLeftTab] = useState(modalMode ? "quick" : "patients");
 
   // Set when a patient is opened from the table (or a possible match) -- tells the Registration tab's
   // FullRegistrationForm which patient to load. The nonce makes it react even if the same patient is
@@ -359,7 +339,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         {/* Left pane: the registration forms */}
         <Box
           sx={{
-            flex: modalMode ? "1 1 auto" : { xs: "0 0 auto", lg: "1 1 0" }, // half of the card; the patients table gets the other half
+            flex: "1 1 auto",
             minWidth: 0,
             display: "flex",
             flexDirection: "column",
@@ -370,10 +350,17 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
             onChange={(e, v) => setLeftTab(v)}
             sx={{ mb: 1, flexShrink: 0, minHeight: 36, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, textTransform: "none" } }}
           >
+            {!modalMode && <Tab label="Patients" value="patients" data-testid="register-tab-patients" />}
             <Tab label="Quick Register" value="quick" />
             <Tab label="Full Registration" value="registration" />
             {!modalMode && ["admin", "system_admin"].includes(userRole) && <Tab label="Configuration" value="configuration" data-testid="register-tab-configuration" />}
           </Tabs>
+
+          {leftTab === "patients" && !modalMode && (
+            <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0 }} data-testid="patients-pane">
+              <PatientsRegisterTable userRole={userRole} onEdit={handleEditPatient} refreshKey={refreshKey} />
+            </Box>
+          )}
 
           {leftTab === "quick" && (
             <Box sx={{ flex: 1, overflowY: "auto", pr: 1, minHeight: 0 }}>
@@ -410,37 +397,6 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           )}
         </Box>
 
-        {/* Right pane: find a patient, see visit status, open or start a visit */}
-        {!modalMode && (
-          <Box
-            data-testid="patients-pane"
-            sx={{
-              flex: patientsOpen ? "1 1 0" : "0 0 auto",
-              minWidth: 0,
-              pl: { lg: patientsOpen ? 2 : 0 },
-              borderLeft: { lg: "1px solid #eef1f6" },
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: patientsOpen ? "flex-end" : "center", flexDirection: !patientsOpen ? { lg: "column" } : "row", gap: 0.5, flexShrink: 0 }}>
-              {!patientsOpen && (
-                <Typography variant="caption" color="text.secondary" sx={{ writingMode: { lg: "vertical-rl" }, order: { lg: 2 }, py: { lg: 1 } }}>
-                  Patients
-                </Typography>
-              )}
-              <Tooltip title={patientsOpen ? "Hide patients" : "Show patients"}>
-                <IconButton size="small" onClick={togglePatients} aria-label={patientsOpen ? "Hide patients panel" : "Show patients panel"} aria-expanded={patientsOpen} data-testid="patients-toggle">
-                  {patientsOpen ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
-                </IconButton>
-              </Tooltip>
-            </Box>
-            {/* Kept mounted while folded so its search and filters are still there when it opens again */}
-            <Box sx={{ display: patientsOpen ? "block" : "none", flex: 1, minHeight: 0 }}>
-              <PatientsRegisterTable userRole={userRole} onEdit={handleEditPatient} refreshKey={refreshKey} />
-            </Box>
-          </Box>
-        )}
       </Paper>
     </Box>
   );

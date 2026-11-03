@@ -135,7 +135,7 @@ export default function RegistrationConfig() {
         : "Using the built-in sequence.";
 
   return (
-    <Box sx={{ maxWidth: 640 }} data-testid="registration-config">
+    <Box sx={{ width: "100%" }} data-testid="registration-config">
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
         Tab sequences
       </Typography>
