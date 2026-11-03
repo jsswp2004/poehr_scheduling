@@ -183,3 +183,11 @@ describe("step bar, footer and banner", () => {
     expect(tab("Emergency Contact")).not.toHaveAttribute("title");
   });
 });
+
+test("choosing New Patient after an existing one starts with a clean slate", async () => {
+  open(sofia(null));
+  await screen.findByText("Sofia Marchetti");
+  fireEvent.click(screen.getByRole("button", { name: "New Patient" }));
+  expect(screen.queryByText("Sofia Marchetti")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("First Name")).toHaveValue("");
+});
