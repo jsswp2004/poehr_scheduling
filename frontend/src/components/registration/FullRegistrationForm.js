@@ -396,7 +396,37 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setClosedVisit(null);
   };
 
-  // Loads a patient passed in from the right-pane patients table's Edit
+  // A clean slate: no patient, no visit, nothing typed. Used when New Patient is chosen and by Change Patient.
+  const clearForm = () => {
+    visitLoadToken.current += 1;
+    setActivePatient(null);
+    setPatientFields(EMPTY_PATIENT_FIELDS);
+    setVisitFields(EMPTY_VISIT_FIELDS);
+    setRegistrationId(null);
+    setVisitNumber(null);
+    setEditingOpenVisit(false);
+    setClosedVisit(null);
+    setOpenVisits([]);
+    setMrn(null);
+    setLegalFiles({});
+    setNewPatient({ first_name: "", last_name: "", username: "", email: "", password: "" });
+    setPatientOptions([]);
+    setActiveSubTab("identity");
+    setDirty(false);
+  };
+
+  // New Patient always starts blank, even when it is already selected (a patient just created stays on screen).
+  const chooseMode = (e, val) => {
+    const target = val || (mode === "new" ? "new" : null);
+    if (!target) return;
+    if (target === "new") {
+      if (dirty && typeof window !== "undefined" && window.confirm && !window.confirm("Discard the changes that have not been saved?")) return;
+      clearForm();
+    }
+    setMode(target);
+  };
+
+  // Loads a patient passed in from the patients table's Open/Start visit
   // icon (see RegisterPage.js) into this form's "Existing Patient" flow.
   // Keyed off the nonce (not just the patient) so clicking Edit again on
   // the same patient still re-syncs the form if it was changed in between.
@@ -1049,7 +1079,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", mb: 1 }}>
-        <ToggleButtonGroup value={mode} exclusive size="small" onChange={(e, val) => val && setMode(val)}>
+        <ToggleButtonGroup value={mode} exclusive size="small" onChange={chooseMode}>
           <ToggleButton value="new">New Patient</ToggleButton>
           <ToggleButton value="existing">Existing Patient</ToggleButton>
         </ToggleButtonGroup>
@@ -1191,12 +1221,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               )}
               <Button
                 size="small"
-                onClick={() => {
-                  setActivePatient(null);
-                  setPatientFields(EMPTY_PATIENT_FIELDS);
-                  startNewVisit();
-                  setMrn(null);
-                }}
+                onClick={clearForm}
               >
                 Change Patient
               </Button>
