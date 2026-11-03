@@ -337,7 +337,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
   }
 
   return (
-    <Box sx={{ mt: 0, width: "100%", px: modalMode ? 0 : 2, py: 1 }}>
+    <Box sx={{ mt: 0, width: "100%", px: modalMode ? 0 : 2, py: 0.5 }}>
       <Paper
         elevation={2}
         sx={{
@@ -347,7 +347,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           maxHeight: modalMode ? "none" : "calc(100vh - 200px)",
           overflowY: "auto",
           overflowX: "hidden",
-          p: 2,
+          p: 1.5,
           display: "flex",
           flexDirection: { xs: "column", lg: "row" },
           gap: 2,
@@ -368,7 +368,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           <Tabs
             value={leftTab}
             onChange={(e, v) => setLeftTab(v)}
-            sx={{ mb: 2, flexShrink: 0, minHeight: 36, "& .MuiTab-root": { minHeight: 36, textTransform: "none" } }}
+            sx={{ mb: 1, flexShrink: 0, minHeight: 36, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, textTransform: "none" } }}
           >
             <Tab label="Quick Register" value="quick" />
             <Tab label="Full Registration" value="registration" />

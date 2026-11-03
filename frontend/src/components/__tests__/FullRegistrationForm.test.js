@@ -66,7 +66,7 @@ const goToReason = async () => {
 
 test("editing a patient with an open visit loads that visit and Save updates it", async () => {
   open(sofia(null));
-  expect(await screen.findByText(/Editing the open visit V-55/)).toBeInTheDocument();
+  expect(await screen.findByText(/Visit: V-55/)).toBeInTheDocument();
   expect(axios.get).toHaveBeenCalledWith("/registrations/", expect.objectContaining({ params: { patient: 9, open: 1 } }));
 
   await goToReason();
@@ -85,7 +85,7 @@ test("editing a patient with an open visit loads that visit and Save updates it"
 test("'Start a new visit instead' makes Save create a new visit", async () => {
   open(sofia(null));
   fireEvent.click(await screen.findByRole("button", { name: "Start a new visit instead" }));
-  expect(screen.queryByText(/Editing the open visit/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Visit: V-/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
   await waitFor(() => expect(axios.post).toHaveBeenCalledWith("/registrations/", expect.anything(), expect.anything()));
 });
@@ -94,7 +94,7 @@ test("with several open visits the one on the board (has a bed) is loaded and ot
   const blank = { ...openVisit, id: 60, visit_number: "V-60", bed: null, unit: null, room: null, facility: null, care_setting: "" };
   axios.get.mockResolvedValue({ data: { results: [blank, openVisit] } });
   open(sofia(null));
-  expect(await screen.findByText(/Editing the open visit V-55/)).toBeInTheDocument();
+  expect(await screen.findByText(/Visit: V-55/)).toBeInTheDocument();
   expect(screen.getByLabelText("Open visits")).toBeInTheDocument();
 });
 
@@ -102,7 +102,7 @@ test("no open visits (all discharged) starts a blank visit", async () => {
   axios.get.mockResolvedValue({ data: { results: [] } });
   open(sofia({ id: 55, discharge_datetime: "2026-10-05T10:00:00Z" }));
   await screen.findByText("Sofia Marchetti");
-  expect(screen.queryByText(/Editing the open visit/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Visit: V-/)).not.toBeInTheDocument();
 });
 
 test("a patient with no visit starts a blank one", async () => {
@@ -129,7 +129,7 @@ describe("step bar, footer and banner", () => {
 
   test("Save and continue saves and moves to the next step, Back returns", async () => {
     open(sofia(null));
-    await screen.findByText(/Editing the open visit V-55/);
+    await screen.findByText(/Visit: V-55/);
     expect(tab("Patient Identity")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
@@ -142,7 +142,7 @@ describe("step bar, footer and banner", () => {
   test("a failed save stays on the same step", async () => {
     axios.patch.mockRejectedValue({ response: { data: { detail: "No." } } });
     open(sofia(null));
-    await screen.findByText(/Editing the open visit V-55/);
+    await screen.findByText(/Visit: V-55/);
     fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
     await waitFor(() => expect(axios.patch).toHaveBeenCalled());
     expect(tab("Patient Identity")).toHaveAttribute("aria-selected", "true");
@@ -150,7 +150,7 @@ describe("step bar, footer and banner", () => {
 
   test("the last step offers Save Registration instead", async () => {
     open(sofia(null));
-    await screen.findByText(/Editing the open visit V-55/);
+    await screen.findByText(/Visit: V-55/);
     fireEvent.click(tab("Logistics"));
     expect(screen.getByRole("button", { name: "Save Registration" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save and continue" })).toBeNull();
@@ -158,7 +158,7 @@ describe("step bar, footer and banner", () => {
 
   test("the footer says when there are unsaved changes and when they are saved", async () => {
     open(sofia(null));
-    await screen.findByText(/Editing the open visit V-55/);
+    await screen.findByText(/Visit: V-55/);
     expect(screen.getByTestId("save-status")).toHaveTextContent("All changes saved");
     fireEvent.click(tab("Reason for Visit"));
     fireEvent.change(screen.getByLabelText("Chief Complaint"), { target: { value: "Cough" } });
@@ -169,7 +169,7 @@ describe("step bar, footer and banner", () => {
 
   test("the banner shows age, sex and date of birth", async () => {
     open({ ...sofia(null), date_of_birth: "1972-03-14", legal_sex: "F" });
-    await screen.findByText(/Editing the open visit V-55/);
+    await screen.findByText(/Visit: V-55/);
     const text = screen.getByTestId("patient-banner-details").textContent;
     expect(text).toContain("DOB 03/14/1972");
     expect(text).toMatch(/\d+ y/);
@@ -178,7 +178,7 @@ describe("step bar, footer and banner", () => {
 
   test("a step with its key details entered shows a check", async () => {
     open({ ...sofia(null), date_of_birth: "1972-03-14", legal_sex: "F", phone_number: "3015550142" });
-    await screen.findByText(/Editing the open visit V-55/);
+    await screen.findByText(/Visit: V-55/);
     expect(tab("Patient Identity")).toHaveAttribute("title", "Key details entered");
     expect(tab("Emergency Contact")).not.toHaveAttribute("title");
   });

@@ -1048,7 +1048,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", mb: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", mb: 1 }}>
         <ToggleButtonGroup value={mode} exclusive size="small" onChange={(e, val) => val && setMode(val)}>
           <ToggleButton value="new">New Patient</ToggleButton>
           <ToggleButton value="existing">Existing Patient</ToggleButton>
@@ -1159,8 +1159,8 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               gap: 1,
               alignItems: "center",
               justifyContent: "space-between",
-              mb: 1,
-              p: 1,
+              mb: 0.5,
+              p: 0.75,
               borderRadius: 1,
               bgcolor: "#f0f6ff",
             }}
@@ -1181,9 +1181,14 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                 </Typography>
               )}
             </Box>
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 0.5 }}>
               {mrn && <Chip size="small" label={`MRN: ${mrn}`} />}
               {visitNumber && <Chip size="small" color="primary" label={`Visit: ${visitNumber}`} />}
+              {editingOpenVisit && (
+                <Button size="small" variant="outlined" sx={{ textTransform: "none", whiteSpace: "nowrap" }} onClick={startNewVisit}>
+                  Start a new visit instead
+                </Button>
+              )}
               <Button
                 size="small"
                 onClick={() => {
@@ -1195,77 +1200,39 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               >
                 Change Patient
               </Button>
+              <Button size="small" variant="outlined" sx={{ textTransform: "none", whiteSpace: "nowrap" }} onClick={() => setVisitSearchOpen(true)}>
+                Search for Visit
+              </Button>
             </Stack>
           </Box>
 
-          {editingOpenVisit && (
-            <Alert
-              severity={closedVisit ? "warning" : "info"}
-              sx={{ mb: 2, alignItems: "flex-start", "& .MuiAlert-message": { flex: 1, minWidth: 0 } }}
-            >
-              <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
-                <Box>
-                  <Typography variant="body2" fontWeight={600}>
-                    {closedVisit
-                      ? `${readOnlyVisit ? "Viewing" : "Editing"} the closed visit${visitNumber ? ` ${visitNumber}` : ""}`
-                      : `Editing the open visit${visitNumber ? ` ${visitNumber}` : ""}`}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {closedVisit
-                      ? readOnlyVisit
-                        ? "This visit is discharged. Only admins and registrars can change it."
-                        : "This visit is discharged. Saving updates this closed visit."
-                      : "Saving updates this visit."}
-                  </Typography>
-                </Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  sx={{ textTransform: "none", whiteSpace: "nowrap", flexShrink: 0 }}
-                  onClick={() => setVisitSearchOpen(true)}
-                >
-                  Search for Visit
-                </Button>
-              </Stack>
-              {openVisits.length > 1 && (
-                <FormControl size="small" fullWidth sx={{ mt: 1.5 }}>
-                  <InputLabel id="open-visit-label">Open visits</InputLabel>
-                  <MUISelect
-                    labelId="open-visit-label"
-                    label="Open visits"
-                    value={openVisits.some((v) => v.id === registrationId) ? registrationId : ""}
-                    onChange={(e) => {
-                      const pick = openVisits.find((v) => v.id === e.target.value);
-                      if (pick) applyVisit(pick);
-                    }}
-                  >
-                    {openVisits.map((v) => (
-                      <MenuItem key={v.id} value={v.id}>
-                        {[v.visit_number, v.location_path || v.care_setting || "no location", v.reason_for_visit]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </MenuItem>
-                    ))}
-                  </MUISelect>
-                </FormControl>
-              )}
-              <Button size="small" variant="outlined" sx={{ mt: 1.5, textTransform: "none" }} onClick={startNewVisit}>
-                Start a new visit instead
-              </Button>
+          {editingOpenVisit && closedVisit && (
+            <Alert severity="warning" sx={{ mb: 1, py: 0 }}>
+              {`${readOnlyVisit ? "Viewing" : "Editing"} the closed visit${visitNumber ? ` ${visitNumber}` : ""}. ${
+                readOnlyVisit ? "It is discharged; only admins and registrars can change it." : "It is discharged; saving updates this closed visit."
+              }`}
             </Alert>
           )}
 
-          {!editingOpenVisit && (
-            <Box sx={{ mb: 1.5 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                sx={{ textTransform: "none" }}
-                onClick={() => setVisitSearchOpen(true)}
+          {editingOpenVisit && openVisits.length > 1 && (
+            <FormControl size="small" fullWidth sx={{ mb: 1 }}>
+              <InputLabel id="open-visit-label">Open visits</InputLabel>
+              <MUISelect
+                labelId="open-visit-label"
+                label="Open visits"
+                value={openVisits.some((v) => v.id === registrationId) ? registrationId : ""}
+                onChange={(e) => {
+                  const pick = openVisits.find((v) => v.id === e.target.value);
+                  if (pick) applyVisit(pick);
+                }}
               >
-                Search for Visit
-              </Button>
-            </Box>
+                {openVisits.map((v) => (
+                  <MenuItem key={v.id} value={v.id}>
+                    {[v.visit_number, v.location_path || v.care_setting || "no location", v.reason_for_visit].filter(Boolean).join(" · ")}
+                  </MenuItem>
+                ))}
+              </MUISelect>
+            </FormControl>
           )}
 
           <VisitSearchDialog
