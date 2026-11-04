@@ -7,7 +7,7 @@ import StatusChip from "./StatusChip";
 
 const COLUMNS = [
   { key: "date", label: "Date", render: (r) => usDate(r.date) },
-  { key: "room", label: "Room", render: (r) => r.room?.name || "Unassigned" },
+  { key: "room", label: "Room", render: (r) => (r.room ? <span title={r.room.path || r.room.name}>{r.room.name}</span> : "Unassigned") },
   { key: "time", label: "Time", render: (r) => r.time },
   { key: "case_number", label: "Case ID", render: (r) => r.case_number },
   { key: "patient", label: "Patient Name", render: (r) => displayName(r.patient.name) },

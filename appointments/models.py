@@ -2021,6 +2021,9 @@ class Unit(models.Model):
     code = models.CharField(max_length=20, blank=True)
     care_type = models.CharField(max_length=12, choices=CARE_TYPE_CHOICES, default="outpatient")
     is_active = models.BooleanField(default=True)
+    # Operating rooms / perioperative area. Surgery builds its rooms here; registration and
+    # appointment pickers hide these units so nobody is bedded in an OR by mistake.
+    is_surgical = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name", "id"]

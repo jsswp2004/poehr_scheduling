@@ -62,6 +62,7 @@ export const surgeryApi = {
   removeDocument: (id, docId) => call("delete", apiEndpoints.surgeryDocument(id, docId)),
   rooms: (params) => call("get", apiEndpoints.surgeryRooms, { params }),
   addRoom: (data) => call("post", apiEndpoints.surgeryRooms, { data }),
+  roomOptions: (params) => call("get", apiEndpoints.surgeryRoomOptions, { params }),
   updateRoom: (id, data) => call("patch", apiEndpoints.surgeryRoom(id), { data }),
   searchPatients: async (search) => list(await call("get", apiEndpoints.patients, { params: { search, page_size: 10 } })),
   openVisits: async (patientId) => list(await call("get", apiEndpoints.registrations, { params: { patient: patientId, open: 1 } })),

@@ -18,6 +18,7 @@ from django.utils import timezone
 from appointments.models import Facility
 from users.models import CustomUser, Organization, Patient
 
+from appointments.models import Room as LocationRoom
 from surgery.models import (
     CaseCard,
     CaseParticipant,
@@ -29,7 +30,7 @@ from surgery.models import (
     SurgeryCase,
     SurgeryRoom,
 )
-from surgery.services import generate_charges, record, snapshot
+from surgery.services import generate_charges, record, snapshot, surgical_unit
 
 TAG = "[DEMO]"
 
@@ -126,9 +127,17 @@ class Command(BaseCommand):
         return org
 
     def _rooms(self, facility):
+        """The demo ORs live in Location Manager (the facility's operating-room unit) and Surgery links them."""
+        unit = surgical_unit(facility)
         rooms = []
         for i, name in enumerate(["OR-1", "OR-2", "OR-3"], start=1):
-            room, _ = SurgeryRoom.objects.get_or_create(facility=facility, name=name, defaults={"sort_order": i})
+            loc, _ = LocationRoom.objects.get_or_create(unit=unit, name=name)
+            room = SurgeryRoom.objects.filter(facility=facility, name=name).first()
+            if room is None:
+                room = SurgeryRoom.objects.create(facility=facility, name=name, sort_order=i, location_room=loc)
+            elif room.location_room_id is None and not hasattr(loc, "surgery_room"):
+                room.location_room = loc
+                room.save(update_fields=["location_room"])
             rooms.append(room)
         return rooms
 

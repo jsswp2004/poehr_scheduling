@@ -11,7 +11,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from appointments.models import Facility
+from appointments.models import Facility, Room as LocationRoom
 from staffing.org_scope import acting_org
 from users.facility_scope import assigned_facility_ids, limit_to_facilities
 
@@ -58,6 +58,8 @@ from .services import (
     card_row,
     case_card_row,
     case_row,
+    room_row,
+    surgical_unit,
     charge_row,
     charge_status,
     generate_charges,
@@ -126,57 +128,106 @@ class SurgeryView(APIView):
 
 class RoomList(SurgeryView):
     def get(self, request):
-        rooms = SurgeryRoom.objects.filter(facility__in=self.facilities()).select_related("facility")
+        rooms = SurgeryRoom.objects.filter(facility__in=self.facilities()).select_related("facility", "location_room__unit")
         if request.query_params.get("facility"):
             rooms = rooms.filter(facility_id=request.query_params["facility"])
         if request.query_params.get("all") != "1":
             rooms = rooms.filter(is_active=True)
-        return Response([
-            {"id": r.pk, "facility": r.facility_id, "name": r.name, "sort_order": r.sort_order, "is_active": r.is_active}
-            for r in rooms
-        ])
+        return Response([room_row(r) for r in rooms])
 
     def post(self, request):
+        """Add an operating room: link a Location Manager room (`location_room`), or give a `facility` and
+        `name` and the room is built in that facility's operating-room unit."""
         if request.user.role not in ROOM_ADMIN_ROLES:
             return _bad("Only an administrator can add rooms.", http.HTTP_403_FORBIDDEN)
-        facility = self.facilities().filter(pk=request.data.get("facility")).first()
-        name = str(request.data.get("name", "")).strip()
-        if facility is None:
-            return _bad("Pick a facility.")
-        if not name:
-            return _bad("Room name is required.")
+        linked_id = request.data.get("location_room")
+        loc = None
+        if linked_id not in (None, ""):
+            loc = LocationRoom.objects.filter(pk=linked_id, unit__facility__in=self.facilities()).select_related("unit__facility").first()
+            if loc is None:
+                return _bad("Pick a room from Location Manager.")
+            if not loc.unit.is_surgical:
+                return _bad("That room is not in an operating-room unit.")
+            if not (loc.is_active and loc.unit.is_active):
+                return _bad("That room is switched off in Location Manager.")
+            if getattr(loc, "surgery_room", None) is not None:
+                return _bad(f"{loc.name} is already an operating room.", http.HTTP_409_CONFLICT)
+            facility, name = loc.unit.facility, loc.name
+        else:
+            facility = self.facilities().filter(pk=request.data.get("facility")).first()
+            name = str(request.data.get("name", "")).strip()
+            if facility is None:
+                return _bad("Pick a facility.")
+            if not name:
+                return _bad("Room name is required.")
+            if len(name) > 60:
+                return _bad("Room name can be up to 60 characters.")
         if SurgeryRoom.objects.filter(facility=facility, name__iexact=name).exists():
             return _bad(f"{name} already exists at {facility.name}.", http.HTTP_409_CONFLICT)
         if request.data.get("sort_order") not in (None, ""):
             order = int(request.data["sort_order"])
         else:  # a new room goes to the bottom of the planner
             order = (SurgeryRoom.objects.filter(facility=facility).aggregate(m=Max("sort_order"))["m"] or 0) + 1
-        room = SurgeryRoom.objects.create(facility=facility, name=name, sort_order=order)
-        return Response({"id": room.pk, "facility": facility.pk, "name": room.name, "sort_order": room.sort_order,
-                         "is_active": True}, status=http.HTTP_201_CREATED)
+        with transaction.atomic():
+            if loc is None:  # build it in Location Manager, in the facility's operating-room unit
+                unit = surgical_unit(facility)
+                loc = LocationRoom.objects.filter(unit=unit, name__iexact=name).first()
+                if loc is not None and getattr(loc, "surgery_room", None) is not None:
+                    return _bad(f"{name} already exists at {facility.name}.", http.HTTP_409_CONFLICT)
+                if loc is None:
+                    loc = LocationRoom.objects.create(unit=unit, name=name)
+            room = SurgeryRoom.objects.create(
+                facility=facility, name=loc.name, sort_order=order, is_active=loc.is_active, location_room=loc
+            )
+        return Response(room_row(room), status=http.HTTP_201_CREATED)
+
+
+class RoomOptions(SurgeryView):
+    """Location Manager rooms an operating room can still be built on: active rooms in operating-room units."""
+
+    def get(self, request):
+        qs = LocationRoom.objects.filter(
+            unit__facility__in=self.facilities(), unit__is_surgical=True, unit__is_active=True,
+            is_active=True, surgery_room__isnull=True,
+        ).select_related("unit__facility")
+        if request.query_params.get("facility"):
+            qs = qs.filter(unit__facility_id=request.query_params["facility"])
+        return Response([
+            {"id": r.pk, "name": r.name, "unit": r.unit.name, "facility": r.unit.facility_id,
+             "path": f"{r.unit.facility.name} › {r.unit.name} › {r.name}"}
+            for r in qs.order_by("unit__facility__name", "unit__name", "name")
+        ])
 
 
 class RoomDetail(SurgeryView):
     def patch(self, request, pk):
         if request.user.role not in ROOM_ADMIN_ROLES:
             return _bad("Only an administrator can change rooms.", http.HTTP_403_FORBIDDEN)
-        room = SurgeryRoom.objects.filter(pk=pk, facility__in=self.facilities()).first()
+        room = SurgeryRoom.objects.filter(pk=pk, facility__in=self.facilities()).select_related("facility", "location_room__unit").first()
         if room is None:
             return _bad("Room not found.", http.HTTP_404_NOT_FOUND)
+        loc = room.location_room  # the Location Manager room: renames and on/off are written to it too
         if "name" in request.data:
             name = str(request.data["name"]).strip()
             if not name:
                 return _bad("Room name is required.")
+            if len(name) > 60:
+                return _bad("Room name can be up to 60 characters.")
             if SurgeryRoom.objects.filter(facility=room.facility, name__iexact=name).exclude(pk=room.pk).exists():
                 return _bad(f"{name} already exists at {room.facility.name}.", http.HTTP_409_CONFLICT)
+            if loc is not None and LocationRoom.objects.filter(unit=loc.unit, name__iexact=name).exclude(pk=loc.pk).exists():
+                return _bad(f"{name} already exists in {loc.unit.name}.", http.HTTP_409_CONFLICT)
             room.name = name
         if "sort_order" in request.data:
             room.sort_order = int(request.data["sort_order"] or 0)
         if "is_active" in request.data:
             room.is_active = bool(request.data["is_active"])
-        room.save()
-        return Response({"id": room.pk, "facility": room.facility_id, "name": room.name,
-                         "sort_order": room.sort_order, "is_active": room.is_active})
+        with transaction.atomic():
+            room.save()
+            if loc is not None:
+                loc.name, loc.is_active = room.name, room.is_active
+                loc.save(update_fields=["name", "is_active"])
+        return Response(room_row(room))
 
 
 class CaseList(SurgeryView):

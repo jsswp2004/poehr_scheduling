@@ -997,6 +997,10 @@ class SeedCommandTests(SurgeryBase):
         self.assertEqual(r["count"], 9)
         planner = self.as_(self.nurse).get(f"{API}planner/?date=2026-11-03&facility={self.hospital.pk}").json()
         self.assertTrue(any(b["overlap"] for room in planner["rooms"] for b in room["cases"]))
+        # the demo ORs are built in Location Manager, in an operating-room unit
+        rooms = SurgeryRoom.objects.filter(facility=self.hospital)
+        self.assertEqual(rooms.count(), 3)
+        self.assertTrue(all(r.location_room_id and r.location_room.unit.is_surgical for r in rooms))
 
     @override_settings(DEBUG=True)
     def test_second_run_needs_reset_and_reset_only_removes_demo_cases(self):
@@ -1030,3 +1034,148 @@ class SeedCommandTests(SurgeryBase):
 def ChargePolicy_count():
     from .models import ChargePolicy
     return ChargePolicy.objects.count()
+
+
+class RoomLocationTests(SurgeryBase):
+    """Operating rooms are built on Location Manager rooms in operating-room units."""
+
+    LOC = "/api/locations/"
+
+    def add_room(self, name="OR-3"):
+        r = self.as_(self.admin).post(API + "rooms/", {"facility": self.hospital.pk, "name": name}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        return r.json()
+
+    def surgical_unit(self, name="Main OR"):
+        from appointments.models import Unit
+        return Unit.objects.create(facility=self.hospital, name=name, care_type="outpatient", is_surgical=True)
+
+    def test_new_room_is_built_in_location_manager(self):
+        from appointments.models import Room, Unit
+        row = self.add_room("OR-3")
+        self.assertEqual(row["unit"], "Operating Rooms")
+        self.assertEqual(row["path"], "General Hospital › Operating Rooms › OR-3")
+        unit = Unit.objects.get(facility=self.hospital, name="Operating Rooms")
+        self.assertTrue(unit.is_surgical)
+        self.assertTrue(Room.objects.filter(unit=unit, name="OR-3").exists())
+        tree = self.as_(self.nurse).get(self.LOC + "tree/").json()["locations"]
+        units = {u["name"]: u for f in tree for u in f["units"]}
+        self.assertTrue(units["Operating Rooms"]["is_surgical"])
+        self.assertFalse(units["3 West"]["is_surgical"])
+        self.assertEqual([r["name"] for r in units["Operating Rooms"]["rooms"]], ["OR-3"])
+
+    def test_link_an_existing_location_room(self):
+        from appointments.models import Room
+        unit = self.surgical_unit()
+        loc = Room.objects.create(unit=unit, name="OR 9")
+        options = self.as_(self.nurse).get(API + "room-options/").json()
+        self.assertEqual([(o["name"], o["unit"]) for o in options], [("OR 9", "Main OR")])  # not the inpatient room 312
+        r = self.as_(self.admin).post(API + "rooms/", {"location_room": loc.pk}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual((r.json()["name"], r.json()["location_room"]), ("OR 9", loc.pk))
+        self.assertEqual(self.as_(self.nurse).get(API + "room-options/").json(), [])
+        self.assertEqual(self.as_(self.admin).post(API + "rooms/", {"location_room": loc.pk}, format="json").status_code, 409)
+        self.assertEqual(self.as_(self.admin).post(API + "rooms/", {"location_room": self.room.pk}, format="json").status_code, 400)
+
+    def test_a_nurse_cannot_add_rooms_or_see_other_clinics_rooms(self):
+        self.assertEqual(self.as_(self.nurse).post(API + "rooms/", {"facility": self.hospital.pk, "name": "OR-3"}, format="json").status_code, 403)
+        from appointments.models import Room, Unit
+        elsewhere = Facility.objects.create(organization=self.other_org, name="Elsewhere Hospital")
+        far = Room.objects.create(unit=Unit.objects.create(facility=elsewhere, name="OR", is_surgical=True), name="X1")
+        self.assertEqual(self.as_(self.admin).post(API + "rooms/", {"location_room": far.pk}, format="json").status_code, 400)
+        self.assertEqual(self.as_(self.admin).get(API + "room-options/").json(), [])
+
+    def test_rename_and_switch_off_in_location_manager_follow_into_surgery(self):
+        row = self.add_room("OR-3")
+        loc_id = row["location_room"]
+        r = self.as_(self.admin).patch(f"{self.LOC}rooms/{loc_id}/", {"name": "OR-3A"}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(SurgeryRoom.objects.get(pk=row["id"]).name, "OR-3A")
+        r = self.as_(self.admin).patch(f"{self.LOC}rooms/{loc_id}/", {"is_active": False}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(SurgeryRoom.objects.get(pk=row["id"]).is_active)
+        names = [x["name"] for x in self.as_(self.nurse).get(API + "rooms/").json()]
+        self.assertNotIn("OR-3A", names)
+
+    def test_location_manager_refuses_a_name_another_operating_room_already_has(self):
+        row = self.add_room("OR-3")
+        r = self.as_(self.admin).patch(f"{self.LOC}rooms/{row['location_room']}/", {"name": "or-1"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("operating room", r.json()["detail"])
+        self.assertEqual(SurgeryRoom.objects.get(pk=row["id"]).name, "OR-3")
+
+    def test_rename_in_surgery_writes_through_to_location_manager(self):
+        from appointments.models import Room
+        row = self.add_room("OR-3")
+        self.add_room("OR-4")
+        r = self.as_(self.admin).patch(f"{API}rooms/{row['id']}/", {"name": "OR-3B", "is_active": False}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        loc = Room.objects.get(pk=row["location_room"])
+        self.assertEqual((loc.name, loc.is_active), ("OR-3B", False))
+        r = self.as_(self.admin).patch(f"{API}rooms/{row['id']}/", {"name": "OR-4"}, format="json")
+        self.assertEqual(r.status_code, 409)
+
+    def test_an_operating_room_cannot_be_deleted_in_location_manager(self):
+        row = self.add_room("OR-3")
+        r = self.as_(self.admin).delete(f"{self.LOC}rooms/{row['location_room']}/")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Surgery", r.json()["detail"])
+        self.assertTrue(SurgeryRoom.objects.filter(pk=row["id"]).exists())
+
+    def test_surgical_flag_on_create_and_edit(self):
+        r = self.as_(self.admin).post(self.LOC + "units/", {"facility": self.hospital.pk, "name": "Perioperative", "is_surgical": True}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        unit_id = r.json()["id"]
+        from appointments.models import Unit
+        self.assertTrue(Unit.objects.get(pk=unit_id).is_surgical)
+        # a room Surgery uses keeps the unit surgical
+        loc = self.as_(self.admin).post(self.LOC + "rooms/", {"unit": unit_id, "name": "OR 7"}, format="json").json()["id"]
+        self.as_(self.admin).post(API + "rooms/", {"location_room": loc}, format="json")
+        r = self.as_(self.admin).patch(f"{self.LOC}units/{unit_id}/", {"is_surgical": False}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertTrue(Unit.objects.get(pk=unit_id).is_surgical)
+        # a unit with nothing linked can be switched either way
+        other = self.surgical_unit("Spare OR")
+        r = self.as_(self.admin).patch(f"{self.LOC}units/{other.pk}/", {"is_surgical": False}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_registration_and_check_location_refuse_operating_room_units(self):
+        from appointments.locations import check_location
+        from appointments.models import Room
+        unit = self.surgical_unit()
+        loc = Room.objects.create(unit=unit, name="OR 9")
+        for kwargs in ({"unit": unit}, {"room": loc}):
+            self.assertIn("managed in Surgery", check_location(self.org, **kwargs))
+            self.assertIsNone(check_location(self.org, allow_surgical=True, **kwargs))
+        self.assertIsNone(check_location(self.org, unit=self.west))
+        r = self.register(facility=self.hospital.pk, unit=unit.pk)
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertIn("managed in Surgery", r.content.decode())
+
+    def test_case_rows_carry_the_room_path(self):
+        row = self.add_room("OR-3")
+        case = self.make_case(room=row["id"])
+        self.assertEqual(case["room"]["unit"], "Operating Rooms")
+        self.assertEqual(case["room"]["path"], "General Hospital › Operating Rooms › OR-3")
+        legacy = self.make_case(start="11:00")  # an older, unlinked room still reads fine
+        self.assertEqual(legacy["room"]["path"], "General Hospital › OR-1")
+
+    def test_backfill_links_existing_rooms_once(self):
+        import importlib
+
+        from django.apps import apps
+
+        from appointments.models import Room, Unit
+        migration = importlib.import_module("surgery.migrations.0008_link_existing_rooms")
+        # a plain unit someone already named "Operating Rooms" is adopted, not duplicated
+        existing = Unit.objects.create(facility=self.hospital, name="Operating Rooms", care_type="outpatient")
+        migration.link_rooms(apps, None)
+        self.or1.refresh_from_db()
+        self.or2.refresh_from_db()
+        existing.refresh_from_db()
+        self.assertTrue(existing.is_surgical)
+        self.assertEqual({self.or1.location_room.unit_id, self.or2.location_room.unit_id}, {existing.pk})
+        self.assertEqual(Unit.objects.filter(facility=self.hospital, name__iexact="Operating Rooms").count(), 1)
+        before = (Room.objects.count(), Unit.objects.count())
+        migration.link_rooms(apps, None)
+        self.assertEqual((Room.objects.count(), Unit.objects.count()), before)
