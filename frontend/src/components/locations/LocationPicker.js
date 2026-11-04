@@ -4,8 +4,12 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { authHeader } from "../patientHeader/headerApi";
 
-/** The active location tree for pickers (facility > unit > room > bed). */
-export function useLocationTree() {
+/**
+ * The active location tree for pickers (facility > unit > room > bed).
+ * Operating-room units belong to Surgery, so registration and appointment pickers do not see them
+ * unless the caller passes { includeSurgical: true }.
+ */
+export function useLocationTree({ includeSurgical = false } = {}) {
   const [tree, setTree] = useState(null); // null = loading, [] = none built yet
   useEffect(() => {
     let live = true;
@@ -13,7 +17,9 @@ export function useLocationTree() {
       try {
         const headers = await authHeader();
         const res = await api.get(`${apiEndpoints.locationTree}?active=1`, { headers });
-        if (live) setTree(res.data?.locations || []);
+        const all = res.data?.locations || [];
+        const shown = includeSurgical ? all : all.map((f) => ({ ...f, units: (f.units || []).filter((u) => !u.is_surgical) }));
+        if (live) setTree(shown);
       } catch (err) {
         if (live) setTree([]);
       }
@@ -21,7 +27,7 @@ export function useLocationTree() {
     return () => {
       live = false;
     };
-  }, []);
+  }, [includeSurgical]);
   return tree;
 }
 

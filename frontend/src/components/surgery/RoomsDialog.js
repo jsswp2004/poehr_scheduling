@@ -1,18 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Switch, TextField, Typography } from "@mui/material";
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, Switch, TextField, Typography } from "@mui/material";
 import { toast } from "../SimpleToast";
 import { errorText } from "../patientHeader/headerApi";
 import { surgeryApi } from "./surgeryApi";
 
-/** Administrators add operating rooms here and retire the ones no longer used. */
+/**
+ * Administrators set up operating rooms here. Rooms live in Location Manager (in an operating-room unit):
+ * pick one that already exists there, or type a new name and it is built for you.
+ */
 export default function RoomsDialog({ open, facilityId, onClose, onChanged }) {
   const [rooms, setRooms] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [pick, setPick] = useState("");
   const [name, setName] = useState("");
   const [problem, setProblem] = useState("");
 
   const load = useCallback(async () => {
     try {
-      setRooms(await surgeryApi.rooms({ facility: facilityId, all: 1 }));
+      const [list, free] = await Promise.all([
+        surgeryApi.rooms({ facility: facilityId, all: 1 }),
+        surgeryApi.roomOptions({ facility: facilityId }),
+      ]);
+      setRooms(list);
+      setOptions(free || []);
       setProblem("");
     } catch (err) {
       setProblem(errorText(err, "Could not load the rooms."));
@@ -23,14 +33,29 @@ export default function RoomsDialog({ open, facilityId, onClose, onChanged }) {
     if (open) load();
   }, [open, load]);
 
+  const added = async (message) => {
+    toast.success(message);
+    await load();
+    onChanged();
+  };
+
   const add = async () => {
     if (!name.trim()) return;
     try {
       await surgeryApi.addRoom({ facility: facilityId, name: name.trim() });
       setName("");
-      toast.success("Room added");
-      await load();
-      onChanged();
+      await added("Room added");
+    } catch (err) {
+      setProblem(errorText(err, "The room was not added."));
+    }
+  };
+
+  const use = async () => {
+    if (!pick) return;
+    try {
+      await surgeryApi.addRoom({ location_room: Number(pick) });
+      setPick("");
+      await added("Room added");
     } catch (err) {
       setProblem(errorText(err, "The room was not added."));
     }
@@ -55,6 +80,23 @@ export default function RoomsDialog({ open, facilityId, onClose, onChanged }) {
             {problem}
           </Alert>
         )}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Operating rooms are kept in Location Manager. Renaming or switching a room off there changes it here too.
+        </Typography>
+        {options.length > 0 && (
+          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+            <TextField size="small" select label="Room from Location Manager" value={pick} onChange={(e) => setPick(e.target.value)} fullWidth>
+              {options.map((o) => (
+                <MenuItem key={o.id} value={String(o.id)}>
+                  {o.unit} › {o.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Button variant="outlined" onClick={use} disabled={!pick}>
+              Use
+            </Button>
+          </Stack>
+        )}
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
           <TextField size="small" label="New room" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} fullWidth />
           <Button variant="contained" onClick={add} disabled={!name.trim()}>
@@ -63,7 +105,12 @@ export default function RoomsDialog({ open, facilityId, onClose, onChanged }) {
         </Stack>
         {rooms.length === 0 && <Typography color="text.secondary">No rooms yet.</Typography>}
         {rooms.map((r) => (
-          <FormControlLabel key={r.id} sx={{ display: "flex" }} control={<Switch checked={r.is_active} onChange={() => toggle(r)} />} label={`${r.name}${r.is_active ? "" : " (not in use)"}`} />
+          <FormControlLabel
+            key={r.id}
+            sx={{ display: "flex" }}
+            control={<Switch checked={r.is_active} onChange={() => toggle(r)} />}
+            label={`${r.name}${r.unit ? ` (${r.unit})` : ""}${r.is_active ? "" : " (not in use)"}`}
+          />
         ))}
       </DialogContent>
       <DialogActions>

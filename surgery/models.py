@@ -99,6 +99,11 @@ class SurgeryRoom(models.Model):
     name = models.CharField(max_length=60)
     sort_order = models.PositiveSmallIntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    # The Location Manager room this OR is built on. Name and on/off follow that room (both ways);
+    # Surgery keeps only its planner order. Null = an older room not linked yet.
+    location_room = models.OneToOneField(
+        "appointments.Room", null=True, blank=True, on_delete=models.PROTECT, related_name="surgery_room"
+    )
 
     class Meta:
         ordering = ["sort_order", "name", "id"]
@@ -106,6 +111,16 @@ class SurgeryRoom(models.Model):
 
     def __str__(self):
         return f"{self.facility.name} - {self.name}"
+
+    @property
+    def unit_name(self):
+        return self.location_room.unit.name if self.location_room_id else ""
+
+    @property
+    def path(self):
+        """Facility > Unit > Room as shown to people."""
+        parts = [self.facility.name, self.unit_name, self.name]
+        return " › ".join(p for p in parts if p)
 
 
 class SurgeryCase(models.Model):

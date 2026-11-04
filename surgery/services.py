@@ -5,6 +5,8 @@ from datetime import datetime, time, timedelta
 from django.db import transaction
 from django.utils import timezone
 
+from appointments.models import Unit
+
 from .models import (
     CLOSED_STATUSES,
     STATUS_CHOICES,
@@ -110,7 +112,8 @@ def case_row(case, detail=False):
         "scheduled_start": local_iso(case.scheduled_start),
         "scheduled_end": local_iso(case.scheduled_end),
         "duration_minutes": case.duration_minutes,
-        "room": {"id": case.room_id, "name": case.room.name} if case.room_id else None,
+        "room": {"id": case.room_id, "name": case.room.name, "unit": case.room.unit_name, "path": case.room.path}
+        if case.room_id else None,
         "patient": {
             "id": patient.pk,
             "mrn": patient.mrn,
@@ -159,8 +162,34 @@ def case_row(case, detail=False):
     }
 
 
+SURGICAL_UNIT_NAME = "Operating Rooms"
+
+
+def surgical_unit(facility):
+    """Where new operating rooms are built: the facility's first active operating-room unit, else a new
+    "Operating Rooms" unit (an existing unit of that name is switched to operating-room use)."""
+    unit = Unit.objects.filter(facility=facility, is_surgical=True, is_active=True).order_by("name", "id").first()
+    if unit is not None:
+        return unit
+    unit = Unit.objects.filter(facility=facility, name__iexact=SURGICAL_UNIT_NAME).first()
+    if unit is None:
+        return Unit.objects.create(facility=facility, name=SURGICAL_UNIT_NAME, care_type="outpatient", is_surgical=True)
+    unit.is_surgical = True
+    unit.save(update_fields=["is_surgical"])
+    return unit
+
+
+def room_row(r):
+    return {
+        "id": r.pk, "facility": r.facility_id, "name": r.name, "sort_order": r.sort_order, "is_active": r.is_active,
+        "location_room": r.location_room_id, "unit": r.unit_name, "path": r.path,
+    }
+
+
 def with_related(queryset):
-    return queryset.select_related("patient__user", "visit", "room", "surgeon", "facility").prefetch_related("procedures")
+    return queryset.select_related(
+        "patient__user", "visit", "room__facility", "room__location_room__unit", "surgeon", "facility"
+    ).prefetch_related("procedures")
 
 
 def _minutes_between(a, b):
