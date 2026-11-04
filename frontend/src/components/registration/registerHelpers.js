@@ -67,6 +67,7 @@ export function makeUsername(first, last, random = Math.random) {
 const PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
 
 // Unguessable password for a patient with no portal login. Nobody sees it; they can use Forgot password later.
+/* global globalThis */
 export function makePassword(length = 16, cryptoObj = typeof globalThis !== "undefined" ? globalThis.crypto : undefined) {
   const bytes = new Uint32Array(length);
   if (cryptoObj && cryptoObj.getRandomValues) cryptoObj.getRandomValues(bytes);
