@@ -1,0 +1,462 @@
+"""Case rules: status moves, time stamps, change history, overlap checks and the row/planner payloads."""
+import json
+from datetime import datetime, time, timedelta
+
+from django.db import transaction
+from django.utils import timezone
+
+from .models import (
+    CLOSED_STATUSES,
+    STATUS_CHOICES,
+    STATUS_FLOW,
+    STATUS_LABELS,
+    STATUS_STAMPS,
+    TIME_FIELDS,
+    CHARGE_POLICY_TYPE_LABELS,
+    DOCUMENT_CATEGORY_LABELS,
+    PARTICIPANT_ROLE_LABELS,
+    USAGE_CATEGORY_LABELS,
+    CaseCharge,
+    CaseHistory,
+    ChargePolicy,
+    ChargePrice,
+    SurgeryCase,
+)
+
+TRACKED_FIELDS = [
+    "facility_id", "patient_id", "visit_id", "room_id", "scheduled_start", "duration_minutes", "surgeon_id",
+    "service", "case_type", "anesthesia_type", "comments", "cancel_reason",
+    "planned_start", "scheduled_delay_reason", "planned_delay_reason", "requires_review", "review_reason",
+    "physical_status", "block_id", "booking_comments_2", "procedure_notes", "provider_notes", "time_reasons",
+] + TIME_FIELDS
+
+
+def age_text(dob, today=None):
+    """Age the way the Case List shows it: "59y", "2y 5m" for little ones, "9m 3w" for babies, "3w 2d" for newborns."""
+    today = today or timezone.localdate()
+    years = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    months = (today.year - dob.year) * 12 + today.month - dob.month - (1 if today.day < dob.day else 0)
+    if years >= 5:
+        return f"{years}y"
+    if years >= 1:
+        return f"{years}y {months - years * 12}m" if months - years * 12 else f"{years}y"
+    if months >= 1:
+        anchor_year, anchor_month = divmod(dob.year * 12 + dob.month - 1 + months, 12)
+        try:
+            anchor = dob.replace(year=anchor_year, month=anchor_month + 1)
+        except ValueError:  # e.g. Jan 31 + 1 month
+            anchor = dob.replace(year=anchor_year, month=anchor_month + 1, day=28)
+        return f"{months}m {max((today - anchor).days, 0) // 7}w"
+    days = max((today - dob).days, 0)
+    return f"{days // 7}w {days % 7}d"
+
+
+class TransitionError(Exception):
+    pass
+
+
+def day_bounds(day):
+    """[start, end) of a calendar day in the server's time zone."""
+    start = timezone.make_aware(datetime.combine(day, time.min))
+    end = timezone.make_aware(datetime.combine(day + timedelta(days=1), time.min))
+    return start, end
+
+
+def _text(value):
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True) if value else ""
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, datetime):
+        return timezone.localtime(value).isoformat(timespec="minutes")
+    return str(value)
+
+
+def snapshot(case):
+    return {f: _text(getattr(case, f)) for f in TRACKED_FIELDS}
+
+
+def record(case, user, action, before, after):
+    """Write a history entry holding every field that changed."""
+    changes = {k: [before.get(k, ""), v] for k, v in after.items() if before.get(k, "") != v}
+    if changes or action == "created":
+        CaseHistory.objects.create(case=case, user=user, action=action, changes=changes)
+
+
+def person_name(user):
+    if user is None:
+        return ""
+    return f"{user.last_name}, {user.first_name}".strip(", ") or user.username
+
+
+def local_iso(value):
+    return timezone.localtime(value).isoformat(timespec="minutes") if value else None
+
+
+def case_row(case, detail=False):
+    """One case as the Case List, the planner and the edit form need it."""
+    patient = case.patient
+    visit = case.visit
+    procedures = list(case.procedures.all())
+    start = timezone.localtime(case.scheduled_start)
+    return {
+        "id": case.pk,
+        "case_number": case.case_number,
+        "facility": case.facility_id,
+        "date": start.date().isoformat(),
+        "time": start.strftime("%H:%M"),
+        "scheduled_start": local_iso(case.scheduled_start),
+        "scheduled_end": local_iso(case.scheduled_end),
+        "duration_minutes": case.duration_minutes,
+        "room": {"id": case.room_id, "name": case.room.name} if case.room_id else None,
+        "patient": {
+            "id": patient.pk,
+            "mrn": patient.mrn,
+            "name": person_name(patient.user),
+            "age": age_text(patient.date_of_birth) if patient.date_of_birth else "",
+            "sex": patient.legal_sex,
+        },
+        "visit": {"id": visit.pk, "visit_number": visit.visit_number} if visit else None,
+        "procedures": [
+            {"id": p.pk, "name": p.name, "laterality": p.laterality, "cpt_code": p.cpt_code,
+             "is_primary": p.is_primary, "display": p.display}
+            for p in procedures
+        ],
+        "procedures_text": "; ".join(p.display for p in procedures),
+        "surgeon": {"id": case.surgeon_id, "name": person_name(case.surgeon)} if case.surgeon_id else None,
+        "service": case.service,
+        "case_type": case.case_type,
+        "case_type_label": case.get_case_type_display(),
+        "status": case.status,
+        "status_label": STATUS_LABELS[case.status],
+        "next_statuses": list(STATUS_FLOW[case.status]),
+        "anesthesia_type": case.anesthesia_type,
+        "comments": case.comments,
+        "cancel_reason": case.cancel_reason,
+        "times": {f: local_iso(getattr(case, f)) for f in TIME_FIELDS},
+        "time_reasons": case.time_reasons or {},
+        "header": {
+            "planned_start": local_iso(case.planned_start),
+            "scheduled_delay_reason": case.scheduled_delay_reason,
+            "planned_delay_reason": case.planned_delay_reason,
+            "scheduled_delay_minutes": _delay(case.scheduled_start, case.patient_in),
+            "planned_delay_minutes": _delay(case.planned_start, case.patient_in),
+            "actual_start": local_iso(case.patient_in),
+            "actual_end": local_iso(case.patient_out),
+            "actual_minutes": _minutes_between(case.patient_in, case.patient_out)
+            if case.patient_in and case.patient_out else None,
+            "requires_review": case.requires_review,
+            "review_reason": case.review_reason,
+            "physical_status": case.physical_status,
+            "block_id": case.block_id,
+            "booking_comments_2": case.booking_comments_2,
+            "procedure_notes": case.procedure_notes,
+            "provider_notes": case.provider_notes,
+            "last_status_change": last_status_change(case) if detail else None,
+        },
+    }
+
+
+def with_related(queryset):
+    return queryset.select_related("patient__user", "visit", "room", "surgeon", "facility").prefetch_related("procedures")
+
+
+def _minutes_between(a, b):
+    return int((b - a).total_seconds() // 60)
+
+
+def _delay(planned, actual):
+    """Minutes the case started after the planned time (0 when on time or not started yet)."""
+    if not planned or not actual:
+        return 0
+    return max(_minutes_between(planned, actual), 0)
+
+
+def last_status_change(case):
+    entry = case.history.filter(action="status").select_related("user").first()
+    if entry is None:
+        return None
+    return {"user": person_name(entry.user), "at": local_iso(entry.created_at)}
+
+
+def staff_title(user):
+    return {"doctor": "MD", "nurse": "RN"}.get(getattr(user, "role", ""), "")
+
+
+def participant_row(p):
+    if p.user_id:
+        title = staff_title(p.user)
+        display = f"{person_name(p.user)} ({title})" if title else person_name(p.user)
+    else:
+        display = p.name
+    return {
+        "id": p.pk,
+        "role": p.role,
+        "role_label": PARTICIPANT_ROLE_LABELS[p.role],
+        "user": {"id": p.user_id, "name": person_name(p.user)} if p.user_id else None,
+        "name": p.name,
+        "display": display,
+        "time_in": local_iso(p.time_in),
+        "time_out": local_iso(p.time_out),
+        "comments": p.comments,
+    }
+
+
+def log(case, user, action, changes):
+    """Write a history entry from {label: [previous, new]} (used for rows that are not case fields)."""
+    CaseHistory.objects.create(case=case, user=user, action=action, changes=changes)
+
+
+def overlapping(case):
+    """Other live cases in the same room whose time overlaps this one (a warning, never a block:
+    urgent add-ons are booked on top of a full day all the time)."""
+    if not case.room_id:
+        return []
+    near = SurgeryCase.objects.filter(
+        room_id=case.room_id,
+        scheduled_start__lt=case.scheduled_end,
+        scheduled_start__gt=case.scheduled_start - timedelta(days=1),
+    ).exclude(pk=case.pk).exclude(status="cancelled")
+    return [c for c in near if c.scheduled_end > case.scheduled_start]
+
+
+def overlap_warnings(case):
+    return [f"Overlaps case {c.case_number} in {case.room.name}" for c in overlapping(case)]
+
+
+def transition(case, new_status, user, reason=""):
+    """Move a case along the status flow, stamping the matching times. Raises TransitionError."""
+    if new_status not in STATUS_LABELS:
+        raise TransitionError(f"Unknown status '{new_status}'.")
+    with transaction.atomic():
+        case = SurgeryCase.objects.select_for_update().get(pk=case.pk)
+        allowed = STATUS_FLOW[case.status]
+        if new_status not in allowed:
+            here = STATUS_LABELS[case.status]
+            if allowed:
+                opts = ", ".join(STATUS_LABELS[s] for s in allowed)
+                raise TransitionError(f"A case that is {here} can only move to: {opts}.")
+            raise TransitionError(f"A case that is {here} is closed and cannot change status.")
+        if new_status == "cancelled" and not reason.strip():
+            raise TransitionError("A reason is required to cancel a case.")
+        before = snapshot(case)
+        now = timezone.now()
+        for field in STATUS_STAMPS.get(new_status, []):
+            if getattr(case, field) is None:
+                setattr(case, field, now)
+        if new_status == "cancelled":
+            case.cancel_reason = reason.strip()[:200]
+        old_status = case.status
+        case.status = new_status
+        case.save()
+        after = snapshot(case)
+        after["status"] = new_status
+        before["status"] = old_status
+        record(case, user, "status", before, after)
+    return case
+
+
+def status_counts(queryset):
+    """[{status, label, count}] for the legend, every status listed even at zero."""
+    counts = {s: 0 for s, _ in STATUS_CHOICES}
+    for row in queryset.values_list("status", flat=True):
+        counts[row] += 1
+    return [{"status": s, "label": label, "count": counts[s]} for s, label in STATUS_CHOICES]
+
+
+def planner_bar(case, overlap_ids):
+    label = f"{case.case_number} / {case.patient.mrn} / {case.get_case_type_display()} / {STATUS_LABELS[case.status]}"
+    return {
+        "id": case.pk,
+        "case_number": case.case_number,
+        "mrn": case.patient.mrn,
+        "scheduled_start": local_iso(case.scheduled_start),
+        "scheduled_end": local_iso(case.scheduled_end),
+        "status": case.status,
+        "status_label": STATUS_LABELS[case.status],
+        "case_type": case.case_type,
+        "label": label,
+        "overlap": case.pk in overlap_ids,
+    }
+
+
+def build_planner(cases, rooms, day):
+    """The Day Planner: one row per room with that day's cases as bars, plus the legend counts."""
+    cases = list(cases)
+    live = [c for c in cases if c.status != "cancelled" and c.room_id]
+    overlap_ids = set()
+    for i, a in enumerate(live):
+        for b in live[i + 1:]:
+            if a.room_id == b.room_id and a.scheduled_start < b.scheduled_end and b.scheduled_start < a.scheduled_end:
+                overlap_ids.update((a.pk, b.pk))
+    by_room = {}
+    unassigned = []
+    for c in cases:
+        bar = planner_bar(c, overlap_ids)
+        if c.room_id:
+            by_room.setdefault(c.room_id, []).append(bar)
+        else:
+            unassigned.append(bar)
+    # the visible hours: 7 am to 7 pm, stretched to fit early or late cases
+    day_start, day_end = 7, 19
+    for c in cases:
+        s = timezone.localtime(c.scheduled_start)
+        e = timezone.localtime(c.scheduled_end)
+        day_start = min(day_start, s.hour)
+        if e.date() > s.date():
+            day_end = 24
+        else:
+            day_end = max(day_end, e.hour + (1 if e.minute else 0))
+    return {
+        "date": day.isoformat(),
+        "day_start": day_start,
+        "day_end": min(day_end, 24),
+        "rooms": [{"id": r.pk, "name": r.name, "cases": by_room.get(r.pk, [])} for r in rooms],
+        "unassigned": unassigned,
+        "legend": status_counts_from_list(cases),
+    }
+
+
+def status_counts_from_list(cases):
+    counts = {s: 0 for s, _ in STATUS_CHOICES}
+    for c in cases:
+        counts[c.status] += 1
+    return [{"status": s, "label": label, "count": counts[s]} for s, label in STATUS_CHOICES]
+
+
+def usage_row(u):
+    return {
+        "id": u.pk, "category": u.category, "category_label": USAGE_CATEGORY_LABELS.get(u.category, u.category),
+        "name": u.name, "catalog_number": u.catalog_number, "total": u.total, "hold": u.hold, "wasted": u.wasted,
+        "used": u.used, "notes": u.notes, "charge_code": u.charge_code, "department": u.department,
+    }
+
+
+def card_row(card, detail=False):
+    row = {
+        "id": card.pk, "name": card.name, "procedure_name": card.procedure_name, "is_active": card.is_active,
+        "surgeon": {"id": card.surgeon_id, "name": person_name(card.surgeon)} if card.surgeon_id else None,
+        "item_count": card.items.count() if detail is False else None,
+    }
+    if detail:
+        row.update({
+            "pre_op_notes": card.pre_op_notes, "post_op_notes": card.post_op_notes,
+            "items": [{"id": i.pk, "category": i.category, "name": i.name, "catalog_number": i.catalog_number,
+                       "quantity": i.quantity, "charge_code": i.charge_code, "department": i.department}
+                      for i in card.items.all()],
+        })
+        row.pop("item_count")
+    return row
+
+
+def case_card_row(link):
+    return {"id": link.pk, "card": link.card_id, "name": link.card.name, "procedure_name": link.card.procedure_name,
+            "is_primary": link.is_primary, "merge_status": "Primary" if link.is_primary else "Merged"}
+
+
+def charge_row(c):
+    total = c.item_charge * c.quantity if c.item_charge is not None else None
+    return {
+        "id": c.pk, "charge_code": c.charge_code, "description": c.description, "policy": c.policy_name,
+        "policy_type": c.policy_type, "policy_type_label": CHARGE_POLICY_TYPE_LABELS.get(c.policy_type, "Manual"),
+        "quantity": c.quantity, "item_charge": str(c.item_charge) if c.item_charge is not None else None,
+        "total_charge": str(total) if total is not None else None, "status": c.status,
+        "status_label": c.get_status_display(), "date": c.charge_date.isoformat(), "is_auto": c.is_auto,
+    }
+
+
+def charge_status(charges):
+    """The case's overall charge status: Pending Post while anything is waiting, Posted once all are out."""
+    charges = list(charges)
+    if not charges:
+        return "No charges"
+    return "Pending Post" if any(c.status == "pending" for c in charges) else "Posted"
+
+
+def policy_minutes(case, policy):
+    """Minutes a time-based policy bills: OR time (patient in to out) or anesthesia time (anesthesiologists in to out)."""
+    start, end = case.patient_in, case.patient_out
+    if policy.time_basis == "anesthesia":
+        rows = [p for p in case.participants.all() if p.role == "anesthesiologist" and p.time_in and p.time_out]
+        if rows:
+            start, end = min(p.time_in for p in rows), max(p.time_out for p in rows)
+    if not start or not end or end <= start:
+        return 0
+    return _minutes_between(start, end)
+
+
+def generate_charges(case):
+    """Rebuild the case's pending automatic charges from its supplies and times. Posted charges are never touched.
+    Returns (number created, warnings)."""
+    import math
+
+    warnings = []
+    case.charges.filter(status="pending", is_auto=True).delete()
+    day = timezone.localdate(case.patient_out or case.patient_in or case.scheduled_start)
+    made = 0
+    cache = {}
+    price = lambda code: price_for(case.organization_id, code, cache)
+    for u in case.usage.all():
+        qty = u.used
+        if not qty:
+            continue
+        if not u.charge_code:
+            continue
+        CaseCharge.objects.create(case=case, charge_code=u.charge_code, description=u.name, policy_name="Usage Charges",
+                                  policy_type="usage", quantity=qty, charge_date=day,
+                                  item_charge=price(u.charge_code))
+        made += 1
+    for policy in ChargePolicy.objects.filter(organization_id=case.organization_id, is_active=True):
+        minutes = policy_minutes(case, policy)
+        if not minutes:
+            warnings.append(f"{policy.name}: no times recorded, so no time charge was made.")
+            continue
+        CaseCharge.objects.create(case=case, charge_code=policy.first_code, description=policy.description,
+                                  policy_name=policy.name, policy_type=policy.policy_type, quantity=1, charge_date=day,
+                                  item_charge=price(policy.first_code))
+        made += 1
+        extra = math.ceil(max(minutes - policy.first_minutes, 0) / policy.extra_minutes)
+        if extra and policy.extra_code:
+            CaseCharge.objects.create(case=case, charge_code=policy.extra_code, description=policy.description,
+                                      policy_name=policy.name, policy_type=policy.policy_type, quantity=extra, charge_date=day,
+                                      item_charge=price(policy.extra_code))
+            made += 1
+    return made, warnings
+
+
+def policy_row(p):
+    return {"id": p.pk, "name": p.name, "policy_type": p.policy_type, "time_basis": p.time_basis,
+            "first_code": p.first_code, "first_minutes": p.first_minutes, "extra_code": p.extra_code,
+            "extra_minutes": p.extra_minutes, "description": p.description, "is_active": p.is_active}
+
+
+def code_key(code):
+    """"OOR11665 - PROTECTOR, DONUT" and "oor11665" are the same price-list code."""
+    return (code or "").split(" - ")[0].strip().upper()
+
+
+def price_for(org_id, code, cache=None):
+    key = code_key(code)
+    if cache is not None and key in cache:
+        return cache[key]
+    row = ChargePrice.objects.filter(organization_id=org_id, charge_code=key).first()
+    value = row.unit_price if row else None
+    if cache is not None:
+        cache[key] = value
+    return value
+
+
+def price_row(p):
+    return {"id": p.pk, "charge_code": p.charge_code, "description": p.description, "unit_price": str(p.unit_price)}
+
+
+def document_row(d, user=None):
+    return {
+        "id": d.pk, "title": d.title, "category": d.category,
+        "category_label": DOCUMENT_CATEGORY_LABELS.get(d.category, d.category),
+        "filename": d.original_name, "content_type": d.content_type, "size": d.size,
+        "uploaded_by": person_name(d.uploaded_by), "uploaded_at": local_iso(d.created_at),
+        "can_delete": bool(user and (user.role in ("admin", "system_admin") or d.uploaded_by_id == user.pk)),
+    }

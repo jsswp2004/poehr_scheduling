@@ -74,6 +74,7 @@ import ReportBuilderPage from './pages/ReportBuilderPage';
 import ReportCanvasPage from './pages/ReportCanvasPage';
 import ReportDocumentationPage from './pages/ReportDocumentationPage';
 import ReportViewerPage from './pages/ReportViewerPage';
+import SurgeryPage from './pages/SurgeryPage';
 import TelehealthPage from './pages/TelehealthPage';
 import TelehealthJoinPage from './pages/TelehealthJoinPage';
 import ReferralLinkPage from './pages/ReferralLinkPage';
@@ -268,6 +269,7 @@ function AppContent() {
         <Route path="/reports/:id/canvas" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportCanvasPage /></PrivateRoute>} />
         <Route path="/reports/:id/edit" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportBuilderPage /></PrivateRoute>} />
         <Route path="/reports/:id" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportViewerPage /></PrivateRoute>} />
+        <Route path="/surgery" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><SurgeryPage /></PrivateRoute>} />
         <Route path="/telehealth" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><TelehealthPage /></PrivateRoute>} />
         <Route path="/telehealth/join" element={<TelehealthJoinPage />} />
         <Route path="/referral" element={<ReferralLinkPage />} />

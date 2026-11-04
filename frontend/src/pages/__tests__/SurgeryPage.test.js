@@ -1,0 +1,110 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import SurgeryPage from "../SurgeryPage";
+import { surgeryApi } from "../../components/surgery/surgeryApi";
+
+jest.mock("react-router-dom", () => ({ useNavigate: () => jest.fn() }), { virtual: true });
+jest.mock("jwt-decode", () => ({ jwtDecode: () => ({ role: "nurse" }) }));
+jest.mock("../../components/surgery/surgeryApi", () => ({
+  surgeryApi: {
+    planner: jest.fn(),
+    cases: jest.fn(),
+    getCase: jest.fn(),
+    setStatus: jest.fn(),
+    doctors: jest.fn(),
+    openVisits: jest.fn(),
+    searchPatients: jest.fn(),
+    rooms: jest.fn(),
+    history: jest.fn(),
+    lookups: jest.fn(),
+    participants: jest.fn(),
+  },
+}));
+jest.mock("../../components/SimpleToast", () => ({ toast: { success: jest.fn(), error: jest.fn(), warning: jest.fn() } }));
+jest.mock("../../components/patientHeader/headerApi", () => ({ errorText: (e, f) => e?.response?.data?.detail || f }));
+
+const caseRow = {
+  id: 1, case_number: 1001, date: "2026-11-03", time: "08:00", room: { id: 10, name: "OR-1" },
+  patient: { id: 5, name: "Bascom, Mark B", mrn: "MRN-000001", age: "59y", sex: "M" }, visit: null,
+  procedures_text: "CYSTOSCOPY", surgeon: null, service: "Urology", case_type_label: "Elective",
+  status: "pending", status_label: "Pending", next_statuses: ["preop", "cancelled"], times: { pacu_start: null },
+};
+const plannerPayload = {
+  date: "2026-11-03", facility: 7, facilities: [{ id: 7, name: "General Hospital" }], day_start: 7, day_end: 19,
+  rooms: [{ id: 10, name: "OR-1", cases: [] }], unassigned: [],
+  legend: ["pending", "preop", "or", "pacu", "discharged", "cancelled", "transferred"].map((s) => ({ status: s, label: s, count: s === "pending" ? 1 : 0 })),
+};
+
+const renderPage = () => render(<SurgeryPage />);
+
+beforeEach(() => {
+  jest.spyOn(Storage.prototype, "getItem").mockReturnValue("token");
+  Object.values(surgeryApi).forEach((f) => f.mockReset());
+  surgeryApi.planner.mockResolvedValue(plannerPayload);
+  surgeryApi.cases.mockResolvedValue({ results: [caseRow] });
+  surgeryApi.doctors.mockResolvedValue([]);
+  surgeryApi.openVisits.mockResolvedValue([]);
+  surgeryApi.lookups.mockResolvedValue({ delay_reasons: [], physical_statuses: [], anesthesia_types: [], participant_roles: [], me: { id: 1, name: "Me" } });
+  surgeryApi.participants.mockResolvedValue([]);
+  surgeryApi.setStatus.mockResolvedValue({ ...caseRow, status: "preop", status_label: "In PreOp", case_number: 1001, next_statuses: ["or", "cancelled"] });
+});
+
+test("loads the day's cases and the first facility", async () => {
+  renderPage();
+  expect(await screen.findByText("BASCOM, MARK B")).toBeInTheDocument();
+  expect(surgeryApi.planner).toHaveBeenCalledWith(expect.objectContaining({ date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) }));
+  expect(surgeryApi.cases).toHaveBeenCalledWith(expect.objectContaining({ facility: 7 }));
+  expect(screen.queryByRole("button", { name: "Manage Rooms" })).toBeNull(); // nurses do not manage rooms
+});
+
+test("moving to the next day reloads for that date", async () => {
+  renderPage();
+  await screen.findByText("BASCOM, MARK B");
+  const first = surgeryApi.planner.mock.calls[0][0].date;
+  fireEvent.click(screen.getByLabelText("Next day"));
+  await waitFor(() => expect(surgeryApi.planner.mock.calls.some((c) => c[0].date > first)).toBe(true));
+});
+
+test("Start PreOp on the selected case calls the status endpoint and reloads", async () => {
+  renderPage();
+  fireEvent.click((await screen.findByText("BASCOM, MARK B")).closest("tr"));
+  fireEvent.click(screen.getByRole("button", { name: "Start PreOp" }));
+  await waitFor(() => expect(surgeryApi.setStatus).toHaveBeenCalledWith(1, "preop"));
+  await waitFor(() => expect(surgeryApi.cases.mock.calls.length).toBeGreaterThan(1));
+});
+
+test("Cancel Case opens the dialog instead of cancelling without a reason", async () => {
+  surgeryApi.getCase.mockResolvedValue({ ...caseRow, comments: "", cancel_reason: "", anesthesia_type: "", duration_minutes: 60, case_type: "elective", procedures: [], times: {} });
+  renderPage();
+  fireEvent.click((await screen.findByText("BASCOM, MARK B")).closest("tr"));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel Case" }));
+  expect(await screen.findByText("Case 1001")).toBeInTheDocument();
+  expect(surgeryApi.setStatus).not.toHaveBeenCalled();
+});
+
+test("shows the server's message when the schedule cannot load", async () => {
+  surgeryApi.planner.mockRejectedValue({ response: { data: { detail: "No facility available." } } });
+  renderPage();
+  expect(await screen.findByText("No facility available.")).toBeInTheDocument();
+});
+
+test("the Status Board tab shows the same day's cases", async () => {
+  renderPage();
+  await screen.findByText("BASCOM, MARK B");
+  fireEvent.click(screen.getByRole("tab", { name: "Status Board" }));
+  expect(await screen.findByTestId("status-board")).toBeInTheDocument();
+  expect(screen.getByText("BASCOM, M.")).toBeInTheDocument(); // the board cuts names down by default
+});
+
+test("Open Case Details adds a Case Details tab for the selected case", async () => {
+  surgeryApi.getCase.mockResolvedValue({
+    ...caseRow, scheduled_start: "2026-11-03T08:00:00-05:00", duration_minutes: 60, procedures: [], comments: "", anesthesia_type: "",
+    case_type: "elective", time_reasons: {}, times: {},
+    header: { scheduled_delay_minutes: 0, planned_delay_minutes: 0, actual_minutes: null, requires_review: false },
+  });
+  renderPage();
+  fireEvent.click(await screen.findByText("BASCOM, MARK B"));
+  fireEvent.click(screen.getByRole("button", { name: "Open Case Details" }));
+  expect(await screen.findByRole("tab", { name: "Case Details" })).toBeInTheDocument();
+  await waitFor(() => expect(surgeryApi.getCase).toHaveBeenCalledWith(1));
+  expect(await screen.findByRole("tab", { name: "Case Header" })).toBeInTheDocument();
+});

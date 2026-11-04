@@ -11,6 +11,7 @@ import MicIcon from "@mui/icons-material/Mic";
 import ScienceIcon from "@mui/icons-material/Science";
 import ForumIcon from "@mui/icons-material/Forum";
 import PolicyIcon from "@mui/icons-material/Policy";
+import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 
 // Roles that can use the clinical/staff modules (matches the login redirects
 // and the Staffing page guard).
@@ -112,6 +113,14 @@ export const MODULE_LINKS = [
     Icon: GroupsIcon,
     roles: [...STAFF_MODULE_ROLES, "staff"], // Staffing-only logins use this module too
     isActive: (path) => path.startsWith("/staffing"),
+  },
+  {
+    key: "surgery",
+    label: "Surgery",
+    to: "/surgery",
+    Icon: MedicalServicesIcon,
+    roles: STAFF_MODULE_ROLES,
+    isActive: (path) => path.startsWith("/surgery"),
   },
   {
     key: "telehealth",
