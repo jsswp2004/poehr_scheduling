@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('appointments', '0075_alter_clinicalnote_id_and_more'),
+        ('appointments', '0048_locations'),
         ('users', '0047_patient_birth_details'),
     ]
 
