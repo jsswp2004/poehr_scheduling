@@ -6,6 +6,7 @@ from .removal import user_removal, user_restore
 from .board_builder import StatusSettingsView, StatusViewDetailView, StatusViewListView, StatusViewUndoView
 from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView, EdFollowUpView
 from .org_access import module_catalog, organization_access
+from .mds_session import mds_session
 from .dictionaries import dictionary_detail, dictionary_list
 from .views import (
     RegisterView,
@@ -76,6 +77,7 @@ urlpatterns = [
     path("doctors/", DoctorListView.as_view(), name="doctor-list"),
     path("patients/", get_patients, name="patient-list"),
     path("me/", get_current_user, name="current-user"),
+    path("mds/session/", mds_session, name="mds-session"),
     path(
         "patients/by-user/<int:user_id>/",
         PatientDetailView.as_view(),
