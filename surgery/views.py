@@ -156,6 +156,8 @@ class RoomList(SurgeryView):
                 return _bad("That room is switched off in Location Manager.")
             if getattr(loc, "surgery_room", None) is not None:
                 return _bad(f"{loc.name} is already an operating room.", http.HTTP_409_CONFLICT)
+            if loc.beds.exists():
+                return _bad(f"{loc.name} has beds, so it is a PreOp/PACU bay, not an operating room.")
             facility, name = loc.unit.facility, loc.name
         else:
             facility = self.facilities().filter(pk=request.data.get("facility")).first()
@@ -178,6 +180,8 @@ class RoomList(SurgeryView):
                 loc = LocationRoom.objects.filter(unit=unit, name__iexact=name).first()
                 if loc is not None and getattr(loc, "surgery_room", None) is not None:
                     return _bad(f"{name} already exists at {facility.name}.", http.HTTP_409_CONFLICT)
+                if loc is not None and loc.beds.exists():
+                    return _bad(f"{name} has beds, so it is a PreOp/PACU bay, not an operating room.")
                 if loc is None:
                     loc = LocationRoom.objects.create(unit=unit, name=name)
             room = SurgeryRoom.objects.create(
@@ -192,7 +196,7 @@ class RoomOptions(SurgeryView):
     def get(self, request):
         qs = LocationRoom.objects.filter(
             unit__facility__in=self.facilities(), unit__is_surgical=True, unit__is_active=True,
-            is_active=True, surgery_room__isnull=True,
+            is_active=True, surgery_room__isnull=True, beds__isnull=True,  # a room with beds is a PreOp/PACU bay
         ).select_related("unit__facility")
         if request.query_params.get("facility"):
             qs = qs.filter(unit__facility_id=request.query_params["facility"])

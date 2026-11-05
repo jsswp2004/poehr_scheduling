@@ -1309,6 +1309,29 @@ class BayTests(SurgeryBase):
         self.move(case["id"], "preop")
         self.assertEqual(self.move(case["id"], "or", bed=self.pacu1.pk).status_code, 409)
 
+    def test_a_room_with_beds_is_a_bay_and_cannot_be_made_an_operating_room(self):
+        options = self.as_(self.nurse).get(API + "room-options/").json()
+        self.assertEqual([o["name"] for o in options], [])  # Pre-op and PACU have beds; OR 9 is already an OR
+        r = self.as_(self.admin).post(API + "rooms/", {"location_room": self.preop.pk}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("PreOp/PACU bay", r.json()["detail"])
+        r = self.as_(self.admin).post(API + "rooms/", {"facility": self.hospital.pk, "name": "PACU"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(SurgeryRoom.objects.filter(name__iexact="PACU").exists())
+
+    def test_cleanup_frees_the_beds_of_a_bay_that_was_set_up_as_a_room(self):
+        import importlib
+
+        from django.apps import apps
+        mistake = SurgeryRoom.objects.create(facility=self.hospital, name="Pre-op", location_room=self.preop)
+        case = self.make_case(room=mistake.pk)  # someone booked a case into the "room" too
+        self.assertEqual(self.move(case["id"], "preop", bed=self.pre1.pk).status_code, 400)  # hidden while it is an OR
+        importlib.import_module("surgery.migrations.0010_unlink_bay_rooms").unlink_bays(apps, None)
+        self.assertFalse(SurgeryRoom.objects.filter(pk=mistake.pk).exists())
+        self.assertTrue(SurgeryRoom.objects.filter(pk=self.or9.pk).exists())  # a real OR is untouched
+        self.assertIsNone(SurgeryCase.objects.get(pk=case["id"]).room_id)  # the case is unassigned, not deleted
+        self.assertEqual(self.move(case["id"], "preop", bed=self.pre1.pk).status_code, 200)
+
     def test_a_case_without_a_visit_still_keeps_its_bay(self):
         case = self.make_case()
         r = self.move(case["id"], "preop", bed=self.pre1.pk)
