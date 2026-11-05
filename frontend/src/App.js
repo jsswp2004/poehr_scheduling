@@ -79,6 +79,7 @@ import TelehealthPage from './pages/TelehealthPage';
 import TelehealthJoinPage from './pages/TelehealthJoinPage';
 import ReferralLinkPage from './pages/ReferralLinkPage';
 import DictatePage from './pages/DictatePage';
+import MdsPage from './pages/MdsPage';
 
 function AppContent() {
   const location = useLocation();
@@ -275,6 +276,7 @@ function AppContent() {
         <Route path="/referral" element={<ReferralLinkPage />} />
         <Route path="/registration" element={<PrivateRoute blockRoles={["patient", "staff", "doctor", "nurse", "receptionist"]} blockedTo="/solutions"><RegistrationWorkspacePage /></PrivateRoute>} />
         <Route path="/dictate" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><DictatePage /></PrivateRoute>} />
+        <Route path="/mds" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><MdsPage /></PrivateRoute>} />
       </Routes>
       {showNavbar && <SimpleFooter />}
     </>

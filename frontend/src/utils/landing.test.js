@@ -39,9 +39,11 @@ describe('postLoginPath', () => {
   test('each role sees only its own tiles', () => {
     const keys = (role, mods) => solutionsFor(role, mods).map((t) => t.key);
     expect(keys('registrar', null)).toEqual(['notes', 'registration', 'scheduler', 'communicator', 'staffing', 'surgery', 'telehealth']);
-    expect(keys('nurse', null)).toEqual(['notes', 'scheduler', 'staffing', 'surgery', 'telehealth', 'dictate']);
+    expect(keys('nurse', null)).toEqual(['notes', 'scheduler', 'staffing', 'surgery', 'telehealth', 'dictate', 'mds']);
     expect(keys('receptionist', null)).toEqual(['notes', 'telehealth']);
     expect(keys('nurse', ['dictation'])).toEqual(['dictate']);
+    expect(keys('nurse', ['mds'])).toEqual(['mds']);
+    expect(postLoginPath('nurse', ['mds'])).toBe('/mds');
     expect(keys('nurse', ['surgery'])).toEqual(['surgery']); // Surgery is its own service
     expect(keys('staff', null)).not.toContain('surgery');
     expect(postLoginPath('doctor', ['surgery'])).toBe('/surgery');
