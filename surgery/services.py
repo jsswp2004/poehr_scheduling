@@ -369,6 +369,21 @@ def _restore_place(case, visit):
     _set_place(visit)
 
 
+def _admit_as_inpatient(visit):
+    """A surgery patient moved to an inpatient bed is admitted: Acute Care, and out of any outpatient unit
+    until a bed is chosen (day-surgery patients stay Ambulatory; only an admission changes that)."""
+    from users.models import Registration
+
+    if visit.unit_id and visit.unit.care_setting != "acute":
+        _set_place(visit)
+    fields = {"care_setting": "acute"}
+    if visit.admission_type in ("", "scheduled"):
+        fields["admission_type"] = "direct"
+    Registration.objects.filter(pk=visit.pk).update(**fields)
+    for name, value in fields.items():
+        setattr(visit, name, value)
+
+
 def place_visit(case):
     """
     Move the linked visit to where the case says the patient is, so the census follows:
@@ -383,6 +398,8 @@ def place_visit(case):
         if case.previous_place or inside:
             _restore_place(case, visit)
         case.previous_place = {}
+        if case.status == "transferred":
+            _admit_as_inpatient(visit)
         return
     if not inside and not case.previous_place:
         case.previous_place = {"unit": visit.unit_id, "room": visit.room_id, "bed": visit.bed_id}
