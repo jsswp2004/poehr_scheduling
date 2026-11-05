@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import SettingsToolbarPortal, { SETTINGS_STICKY_TOP } from "../settings/SettingsToolbarSlot";
 import {
   Alert,
   Box,
@@ -33,7 +34,7 @@ import SingleFacilityOnly from "../facility/SingleFacilityOnly";
 import { applyToFacilities } from "../../utils/facilityScope";
 import { authHeader, errorText, loadMeta } from "./referralShared";
 
-const BLANK = { name: "", specialty: "", kind: "external", provider: "", npi: "", phone: "", fax: "", address: "", direct_address: "", notes: "", is_active: true };
+const BLANK = { name: "", specialty: "", kind: "external", provider: "", npi: "", phone: "", fax: "", mobile: "", email: "", address: "", direct_address: "", notes: "", is_active: true };
 
 function DestinationDialog({ initial, meta, onClose, onSaved }) {
   const [form, setForm] = useState({ ...BLANK, ...initial, provider: initial?.provider || "" });
@@ -97,6 +98,24 @@ function DestinationDialog({ initial, meta, onClose, onSaved }) {
             <TextField size="small" fullWidth label="Fax" value={form.fax} onChange={set("fax")} />
           </Stack>
           <Stack direction="row" spacing={2}>
+            <TextField
+              size="small"
+              fullWidth
+              label="Mobile (for texting the secure link)"
+              value={form.mobile}
+              onChange={set("mobile")}
+              inputProps={{ "data-testid": "destination-mobile" }}
+            />
+            <TextField
+              size="small"
+              fullWidth
+              label="Email (for the secure link)"
+              value={form.email}
+              onChange={set("email")}
+              inputProps={{ "data-testid": "destination-email" }}
+            />
+          </Stack>
+          <Stack direction="row" spacing={2}>
             <TextField size="small" fullWidth label="NPI (10 digits)" value={form.npi} onChange={set("npi")} inputProps={{ "data-testid": "destination-npi" }} />
             <TextField size="small" fullWidth label="Direct address" value={form.direct_address} onChange={set("direct_address")} />
           </Stack>
@@ -127,6 +146,7 @@ const URGENCIES = [
 function Timers({ canEdit }) {
   const [days, setDays] = useState({ routine: "14", urgent: "3", emergent: "1" });
   const [report, setReport] = useState("14");
+  const [notice, setNotice] = useState({ clinicEmail: true, clinicSms: false, receipt: true });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -137,6 +157,11 @@ function Timers({ canEdit }) {
         const d = res.data.schedule_days || {};
         setDays({ routine: String(d.routine ?? 14), urgent: String(d.urgent ?? 3), emergent: String(d.emergent ?? 1) });
         setReport(String(res.data.report_days ?? 14));
+        setNotice({
+          clinicEmail: res.data.notify_clinic_email !== false,
+          clinicSms: res.data.notify_clinic_sms === true,
+          receipt: res.data.notify_specialist_receipt !== false,
+        });
       } catch (err) {
         setError(errorText(err, "Could not load the timers."));
       }
@@ -156,9 +181,19 @@ function Timers({ canEdit }) {
     setBusy(true);
     try {
       await applyToFacilities(async () =>
-        api.put(apiEndpoints.referralSettings, { schedule_days: parsed, report_days: r }, { headers: await authHeader() })
+        api.put(
+          apiEndpoints.referralSettings,
+          {
+            schedule_days: parsed,
+            report_days: r,
+            notify_clinic_email: notice.clinicEmail,
+            notify_clinic_sms: notice.clinicSms,
+            notify_specialist_receipt: notice.receipt,
+          },
+          { headers: await authHeader() }
+        )
       );
-      toast.success("Timers saved. They apply to referrals sent from now on.");
+      toast.success("Saved. Timers apply to referrals sent from now on.");
     } catch (err) {
       setError(errorText(err, "Could not save the timers."));
     } finally {
@@ -196,10 +231,38 @@ function Timers({ canEdit }) {
           inputProps={{ min: 1, max: 365, "data-testid": "timer-report" }}
         />
       </Stack>
+      <Typography variant="subtitle1" sx={{ mt: 3 }}>
+        When a specialist replies through the secure link
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        The referral's status always changes and shows in the Referral List. These choices add a message. The clinic message goes to the person the referral is assigned to, or the referring physician if no one is. Neither message has patient details. Each text or email counts toward your monthly messages.
+      </Typography>
+      <Stack>
+        {[
+          ["clinicEmail", "Email the clinic when a specialist replies"],
+          ["clinicSms", "Text the clinic when a specialist replies"],
+          ["receipt", "Send the specialist a receipt, by the way their link was sent"],
+        ].map(([key, label]) => (
+          <FormControlLabel
+            key={key}
+            control={
+              <Switch
+                checked={notice[key]}
+                disabled={!canEdit}
+                onChange={(e) => setNotice((n) => ({ ...n, [key]: e.target.checked }))}
+                inputProps={{ "data-testid": `notice-${key}` }}
+              />
+            }
+            label={label}
+          />
+        ))}
+      </Stack>
       {canEdit && (
-        <Button sx={{ mt: 2 }} variant="contained" onClick={save} disabled={busy} data-testid="timers-save">
-          Save timers
-        </Button>
+        <SettingsToolbarPortal>
+          <Button size="small" sx={{ order: 3, ml: "auto" }} variant="contained" onClick={save} disabled={busy} data-testid="timers-save">
+            Save timers
+          </Button>
+        </SettingsToolbarPortal>
       )}
     </Paper>
   );
@@ -239,8 +302,7 @@ export default function ReferralSettings() {
   const canEdit = !!meta?.can_manage;
 
   return (
-    <Box sx={{ p: 2, maxWidth: 980 }} data-testid="referral-settings">
-      <Typography variant="h6">Referrals</Typography>
+    <Box sx={{ maxWidth: 980 }} data-testid="referral-settings">
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Where your clinic sends patients, and when a referral counts as overdue.
       </Typography>
@@ -248,24 +310,22 @@ export default function ReferralSettings() {
       <Timers canEdit={canEdit} />
 
       <SingleFacilityOnly what="The destination directory">
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="subtitle1">Destination directory</Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <FormControlLabel control={<Switch checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />} label="Show retired" />
-            {canEdit && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialog({})} data-testid="destination-add">
-                Add destination
-              </Button>
-            )}
-          </Stack>
-        </Stack>
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>Destination directory</Typography>
+        <SettingsToolbarPortal>
+          <FormControlLabel sx={{ order: 1, m: 0 }} control={<Switch size="small" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />} label="Show retired" />
+          {canEdit && (
+            <Button size="small" sx={{ order: 1 }} variant="contained" startIcon={<AddIcon />} onClick={() => setDialog({})} data-testid="destination-add">
+              Add destination
+            </Button>
+          )}
+        </SettingsToolbarPortal>
         {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
         {loading ? (
           <CircularProgress size={22} />
         ) : (
           <Paper variant="outlined">
             <Table size="small" aria-label="Destinations">
-              <TableHead>
+              <TableHead sx={{ "& th": { position: "sticky", top: SETTINGS_STICKY_TOP, bgcolor: "#f3f5f9", zIndex: 2, fontWeight: 700 } }}>
                 <TableRow>
                   <TableCell>Name</TableCell>
                   <TableCell>Specialty</TableCell>

@@ -189,6 +189,10 @@ def _log(user, conversation_id, question, answer="", used=None, model="", tokens
             output_tokens=tokens_out,
             error=error[:200],
         )
+        if not error:
+            from users.assistant_billing import record_question
+
+            record_question(getattr(user, "organization", None), "communicator")
     except Exception:  # noqa: BLE001 - never fail the user's answer because logging failed
         logger.exception("could not write communicator assistant log")
 

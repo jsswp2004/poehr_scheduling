@@ -6,11 +6,12 @@ import {
     CircularProgress,
     IconButton,
     InputAdornment,
+    Menu,
+    MenuItem,
     Paper,
     Table,
     TableBody,
     TableCell,
-    TableContainer,
     TableHead,
     TableRow,
     TextField,
@@ -22,8 +23,9 @@ import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import SearchIcon from "@mui/icons-material/Search";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { BUILDER_STICKY_TOP, BuilderToolbar } from "../builders/BuilderShell";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
@@ -72,6 +74,7 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
     const [banner, setBanner] = useState(null);
     const [uploadErrors, setUploadErrors] = useState([]);
     const fileInputRef = useRef(null);
+    const [moreAnchor, setMoreAnchor] = useState(null);
 
     // Downloads go through axios (not a plain link) so the auth header is sent.
     const saveCsv = async (url, fallbackName) => {
@@ -229,6 +232,7 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
         const hay = `${t.name} ${t.code}`.toLowerCase();
         return terms.every((term) => hay.includes(term));
     });
+    const headSx = { position: "sticky", top: BUILDER_STICKY_TOP, zIndex: 2, bgcolor: "background.paper", fontWeight: 700 };
     const typeBadge = (tpl) => {
         if (!tpl.note_type) {
             return (
@@ -274,13 +278,13 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
                     </Table>
                 </Paper>
             )}
-            <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 2 }}>
+            <BuilderToolbar>
                 <TextField
                     size="small"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search name or code"
-                    sx={{ minWidth: 260 }}
+                    sx={{ minWidth: { xs: "100%", sm: 260 } }}
                     slotProps={{
                         htmlInput: { "aria-label": "Search templates" },
                         input: {
@@ -293,26 +297,33 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
                     }}
                 />
                 <Box sx={{ flexGrow: 1 }} />
-                <Button
-                    variant="outlined"
-                    startIcon={<FileDownloadIcon />}
-                    onClick={() => saveCsv(apiEndpoints.noteTemplatesSampleCsv, "note_template_upload_template.csv")}
-                >
-                    Download Sample CSV
-                </Button>
-                <Button
-                    variant="outlined"
-                    startIcon={uploading ? <CircularProgress size={16} /> : <UploadFileIcon />}
-                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                    disabled={uploading}
-                >
-                    Upload CSV
-                </Button>
-                <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleUploadFile} />
-                <Button variant="contained" startIcon={<AddIcon />} onClick={onNew}>
+                <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={onNew}>
                     {isOrderForm ? "New Detail Form" : "New Template"}
                 </Button>
-            </Box>
+                <IconButton size="small" aria-label="More actions" onClick={(e) => setMoreAnchor(e.currentTarget)}>
+                    <MoreVertIcon fontSize="small" />
+                </IconButton>
+                <Menu anchorEl={moreAnchor} open={Boolean(moreAnchor)} onClose={() => setMoreAnchor(null)}>
+                    <MenuItem
+                        onClick={() => {
+                            setMoreAnchor(null);
+                            saveCsv(apiEndpoints.noteTemplatesSampleCsv, "note_template_upload_template.csv");
+                        }}
+                    >
+                        Download Sample CSV
+                    </MenuItem>
+                    <MenuItem
+                        disabled={uploading}
+                        onClick={() => {
+                            setMoreAnchor(null);
+                            fileInputRef.current && fileInputRef.current.click();
+                        }}
+                    >
+                        {uploading ? "Uploading..." : "Upload CSV"}
+                    </MenuItem>
+                </Menu>
+                <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleUploadFile} />
+            </BuilderToolbar>
             {!isOrderForm && all.length > 0 && (
                 <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 2 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
@@ -350,17 +361,17 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
                     )}
                 </Box>
             )}
-            <TableContainer component={Paper}>
+            <Box sx={{ overflowX: { xs: "auto", md: "clip" } }}>
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Code</TableCell>
-                            {!isOrderForm && <TableCell>Note type</TableCell>}
-                            <TableCell align="center">Version</TableCell>
-                            <TableCell align="center">Fields</TableCell>
-                            <TableCell align="center">Status</TableCell>
-                            <TableCell align="right">Actions</TableCell>
+                            <TableCell sx={headSx}>Name</TableCell>
+                            <TableCell sx={headSx}>Code</TableCell>
+                            {!isOrderForm && <TableCell sx={headSx}>Note type</TableCell>}
+                            <TableCell align="center" sx={headSx}>Version</TableCell>
+                            <TableCell align="center" sx={headSx}>Fields</TableCell>
+                            <TableCell align="center" sx={headSx}>Status</TableCell>
+                            <TableCell align="right" sx={headSx}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -434,7 +445,7 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
                         )}
                     </TableBody>
                 </Table>
-            </TableContainer>
+            </Box>
         </Box>
     );
 }

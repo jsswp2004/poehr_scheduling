@@ -480,3 +480,27 @@ class VideoVisitFromAppointmentTypeTests(TenantTestCase):
         series = Appointment.all_objects.filter(patient=self.patient)
         self.assertGreater(series.count(), 1)
         self.assertTrue(all(services.appointment_is_video(a) for a in series))
+
+
+class SystemAdminChosenOrganizationTests(TestCase):
+    """A system admin who chose an organization sees that organization's video visits."""
+
+    def setUp(self):
+        from rest_framework_simplejwt.tokens import AccessToken
+
+        self.home, self.demo = make_org("Home"), make_org("Demo")
+        self.home_visit = make_appointment(self.home, make_user("doc-h", "doctor", self.home))
+        self.demo_visit = make_appointment(self.demo, make_user("doc-d", "doctor", self.demo))
+        self.admin = make_user("sa", "system_admin", self.home)
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.admin)}")
+
+    def _visits(self):
+        return {i["appointment_id"] for i in self.client.get("/api/telehealth/schedule/").json()["items"]}
+
+    def test_the_schedule_follows_the_chosen_organization(self):
+        self.assertEqual(self._visits(), {self.home_visit.pk})
+        self.client.put("/api/users/acting-organization/", {"organization": self.demo.id}, format="json")
+        self.assertEqual(self._visits(), {self.demo_visit.pk})
+        self.client.put("/api/users/acting-organization/", {"organization": self.home.id}, format="json")
+        self.assertEqual(self._visits(), {self.home_visit.pk})

@@ -37,6 +37,7 @@ CATALOG = [
     ("clinical_summary", "Clinical Summary", True),
     ("vaccines", "Vaccines", True),
     ("messages", "Messages", False),
+    ("inbox", "Inbox", False),
 ]
 # Tabs that only make sense in one module.
 ONLY_IN = {"ed_follow_up": "emergency"}

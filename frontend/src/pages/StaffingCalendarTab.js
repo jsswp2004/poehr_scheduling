@@ -20,7 +20,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  Divider,
   IconButton,
   Menu,
   Snackbar,
@@ -41,6 +40,7 @@ import StaffingCalendarToolbar, {
   StaffingCalendarSearchContext,
 } from "../components/calendar/StaffingCalendarToolbar";
 import StaffingDayPanel from "../components/calendar/StaffingDayPanel";
+import StaffingDayDetail from "../components/calendar/StaffingDayDetail";
 import { StaffingWeekContext, StaffingWeekView } from "../components/calendar/StaffingWeekGrid";
 import { StaffingDayContext, StaffingDayView } from "../components/calendar/StaffingDayBoard";
 import { StaffingAgendaView } from "../components/calendar/StaffingAgenda";
@@ -712,8 +712,6 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
 
   const selectedDay = dayDialog ? coverage?.days?.[dayDialog] : null;
 
-  const fmtHrs = (h) => (Math.round(Number(h) * 10) / 10).toString();
-
   // One census line per unit for the selected day (taken from its shift items).
   const censusSummary = (() => {
     const byUnit = {};
@@ -1009,7 +1007,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
       />
 
       {/* Day detail */}
-      <Dialog open={!!dayDialog} onClose={() => setDayDialog(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!dayDialog} onClose={() => setDayDialog(null)} maxWidth="md" fullWidth>
         <DialogTitle>
           {dayDialog && moment(dayDialog).format("dddd, MMMM D, YYYY")}
           {selectedDay && COVERAGE_STATUS[selectedDay.status] && (
@@ -1026,97 +1024,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
           )}
         </DialogTitle>
         <DialogContent dividers>
-          {!selectedDay || selectedDay.items.length === 0 ? (
-            <Typography color="text.secondary">
-              No coverage requirements apply to this day. Add a coverage requirement on the Assign
-              Schedule tab, or enter a unit census so state rules can be calculated.
-            </Typography>
-          ) : (
-            <Stack spacing={1.5} divider={<Divider flexItem />}>
-              {selectedDay.open_emergencies > 0 && (
-                <Alert severity="error">
-                  {selectedDay.open_emergencies} emergency call-out(s) waiting for cover. See the Time Off tab.
-                </Alert>
-              )}
-              {selectedDay.pending_requests > 0 && (
-                <Alert severity="warning">{selectedDay.pending_requests} pending time-off request(s) this day.</Alert>
-              )}
-              {censusSummary.map((c) => (
-                <Box key={c.unit_name}>
-                  <Typography variant="subtitle2">{c.unit_name} census</Typography>
-                  <Typography variant="body2">
-                    {c.census} resident{c.census === 1 ? "" : "s"}
-                    {c.hppd != null && ` × ${c.hppd} nursing hrs/resident/day = ${fmtHrs(c.census * c.hppd)} care hours for the day`}
-                    {c.required_total != null && ` · split across the shifts below (${fmtHrs(c.required_total)} hrs in total)`}
-                  </Typography>
-                  {c.carried && (
-                    <Typography variant="caption" color="text.secondary">
-                      Census carried forward from an earlier day (none entered for this date).
-                    </Typography>
-                  )}
-                </Box>
-              ))}
-              {selectedDay.items.map((it, idx) => {
-                const m = COVERAGE_STATUS[it.status];
-                return (
-                  <Box key={idx}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="subtitle2">
-                        {it.unit_name || "Whole organization"}
-                        {it.shift_label ? ` - ${it.shift_label}` : ""}
-                      </Typography>
-                      {m && (
-                        <Chip
-                          size="small"
-                          label={`${m.icon} ${m.label}`}
-                          sx={{ bgcolor: m.bg, color: m.color, fontWeight: 600 }}
-                        />
-                      )}
-                    </Stack>
-                    {it.status !== "unknown" && it.status !== "no_standard" && (
-                      <Typography variant="body2">
-                        Staff scheduled: {it.assigned} (need {it.required}
-                        {it.shift_hours != null ? ` full ${fmtHrs(it.shift_hours)}-hr shifts` : ""})
-                        {it.required_hours != null &&
-                          ` · Care hours: ${it.hours_scheduled ?? 0} of ${Math.round(it.required_hours * 10) / 10} needed for this shift`}
-                        {it.required_rn != null && ` · RNs in facility: ${it.rn_scheduled ?? 0} (need ${it.required_rn})`}
-                      </Typography>
-                    )}
-                    {it.census != null && it.required_hours != null && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                        Census {it.census}
-                        {coverage?.rule?.hppd_min != null &&
-                          ` × ${coverage.rule.hppd_min} = ${fmtHrs(it.census * coverage.rule.hppd_min)} hrs/day; this shift carries ${fmtHrs(it.required_hours)} of them`}
-                      </Typography>
-                    )}
-                    {it.shift_hours != null && it.assigned > 0 && Math.abs(it.hours_scheduled / it.assigned - it.shift_hours) > 0.01 && (
-                      <Typography variant="caption" color="warning.main" sx={{ display: "block" }}>
-                        The {it.assigned} scheduled average {fmtHrs(it.hours_scheduled / it.assigned)} hrs each, but this
-                        unit's {it.shift_label} shift is {fmtHrs(it.shift_hours)} hrs, so they supply fewer care hours than
-                        the requirement assumes. Check the shift start/end times.
-                      </Typography>
-                    )}
-                    {it.on_call?.length > 0 && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                        On call: {it.on_call.map((o) => `${o.name}${ROLE_LABELS[o.role] ? ` · ${ROLE_LABELS[o.role]}` : ""} (${fmtHrs(o.hours)} hrs)`).join(", ")}.
-                        On-call time is ad hoc: it can lift a short shift to amber but never makes it green.
-                      </Typography>
-                    )}
-                    {it.reasons.map((r) => (
-                      <Typography key={r} variant="body2" sx={{ color: m?.color }}>
-                        {r}
-                      </Typography>
-                    ))}
-                    {it.note && (
-                      <Typography variant="caption" color="text.secondary">
-                        {it.note}
-                      </Typography>
-                    )}
-                  </Box>
-                );
-              })}
-            </Stack>
-          )}
+          <StaffingDayDetail day={selectedDay} census={censusSummary} rule={coverage?.rule} />
         </DialogContent>
         <DialogActions>
           {(isAdmin || me?.staff_id) && selectedDay?.status === "not_met" && dayDialog >= toISO(new Date()) && (

@@ -21,6 +21,16 @@ class CustomUser(AbstractUser):
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="none"
     )  # 🔗 Link user to organization
+    # System administrators only: the organization they are working in right now. Chosen at sign-in or in the
+    # header, cleared at every sign-in. Empty means "not chosen yet" (lists span every organization).
+    acting_organization = models.ForeignKey(
+        "Organization", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    # A role added in System Dictionaries. `role` above holds the built-in role it behaves like, so every
+    # access check keeps working; this only supplies the name people see.
+    role_entry = models.ForeignKey(
+        "DictionaryEntry", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+    )
     organization = models.ForeignKey(
         "Organization",
         on_delete=models.CASCADE,
@@ -289,6 +299,31 @@ class Patient(models.Model):
     # store (avoids holding a full SSN at rest).
     ssn_last4 = models.CharField(max_length=4, blank=True)
     preferred_language = models.CharField(max_length=100, blank=True)
+
+    # -- Patient Demographics (Registration > Demographics) -----------------
+    # The choice-list fields hold the chosen text (the clinic's dictionary entry), so an older
+    # record keeps showing its value even after the entry is made inactive.
+    title = models.CharField(max_length=20, blank=True)
+    middle_name = models.CharField(max_length=100, blank=True)
+    suffix = models.CharField(max_length=20, blank=True)
+    marital_status = models.CharField(max_length=50, blank=True)
+    race = models.CharField(max_length=100, blank=True)
+    ethnicity = models.CharField(max_length=100, blank=True)
+    religion = models.CharField(max_length=100, blank=True)
+    veteran_status = models.CharField(max_length=30, blank=True)
+    secondary_phone = models.CharField(max_length=20, blank=True)
+    address2 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=50, blank=True)
+    zip_code = models.CharField(max_length=20, blank=True)
+    address_type = models.CharField(max_length=30, blank=True)
+    # -- Advance directive (Registration > Contacts) --------------------------
+    directive_type = models.CharField(max_length=100, blank=True)
+    directive_received_date = models.DateField(null=True, blank=True)
+    # A newborn registered under the mother's visit keeps a link to her chart.
+    mother = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="newborns"
+    )
     # System-generated Medical Record Number, assigned once, before the patient is
     # first saved (see save() below and MRNCounter). Format: MRN-000001. Required and
     # unique in the database: a patient can never exist without one.
@@ -446,6 +481,17 @@ class Organization(models.Model):
         ),
     )
 
+    enabled_modules = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Modules this organization can use (codes from users/modules.py), in the order they "
+            "were chosen; the first priced one is the included module. Empty/None means never "
+            "configured: every module is on. Only a system admin can change it."
+        ),
+    )
+
     # ---- Dictation (speech-to-text for clinical notes; see the `dictation` app) ----
     DICTATION_SPECIALTY_CHOICES = [
         ("PRIMARYCARE", "Primary care"),
@@ -511,10 +557,10 @@ class Organization(models.Model):
     
     @property
     def current_user_count(self):
-        """Return the current number of active users in the organization"""
-        return self.users.filter(is_active=True).count()
-    
-    @property 
+        """Active people who work here. Patients are not seats, so they never count against the limit."""
+        return self.users.filter(is_active=True).exclude(role="patient").count()
+
+    @property
     def can_add_users(self):
         """Check if organization can add more users based on subscription"""
         return self.current_user_count < self.max_users
@@ -541,7 +587,9 @@ class Organization(models.Model):
                 'features': ['standard_reports', 'advanced_analytics', 'team_management', 'enterprise_features']
             }
         }
-        return limits.get(self.subscription_tier, limits['basic'])
+        from .modules import plan_key
+
+        return limits.get(plan_key(self.subscription_tier), limits['basic'])
 
 
 class UserRightOverride(models.Model):
@@ -635,6 +683,24 @@ class Registration(models.Model):
     scheduled_procedure = models.CharField(max_length=255, blank=True)
     referring_physician = models.CharField(max_length=255, blank=True)
     current_diagnoses = models.TextField(blank=True)
+
+    # -- Visit details (Registration > Visit Details) -----------------------
+    # Choice-list answers are stored as the chosen text, like the patient demographics.
+    admit_source = models.CharField(max_length=100, blank=True)
+    admit_via = models.CharField(max_length=100, blank=True)
+    mode_of_arrival = models.CharField(max_length=100, blank=True)
+    id_source = models.CharField(max_length=100, blank=True)
+    accident_type = models.CharField(max_length=100, blank=True)
+    special_program = models.CharField(max_length=100, blank=True)
+    service = models.CharField(max_length=100, blank=True)
+    expected_los_days = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # -- Insurance for this visit -----------------------------------------
+    visit_policy = models.ForeignKey(
+        "appointments.PatientPolicy", on_delete=models.SET_NULL, null=True, blank=True, related_name="visits"
+    )
+    authorization_number = models.CharField(max_length=60, blank=True)
+    copay_due = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
 
     # -- Logistics -----------------------------------------------------
     admission_type = models.CharField(
@@ -835,3 +901,118 @@ class StatusBoardPreference(models.Model):
     user = models.OneToOneField("CustomUser", on_delete=models.CASCADE, related_name="status_board_preference")
     view_key = models.CharField(max_length=20)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class OrganizationAccessChange(models.Model):
+    """One line of the Organization access change history: who changed a plan, limit or module, and when."""
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="access_changes"
+    )
+    changed_by = models.ForeignKey(
+        "CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    summary = models.CharField(max_length=300)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.organization_id}: {self.summary}"
+
+
+class AssistantUsage(models.Model):
+    """
+    How many questions an organization asked each AI assistant in a calendar month.
+
+    The assistants purge their own logs after 30 days, so billing cannot count log rows; this small counter is
+    what the monthly usage report reads. One row per organization, month and assistant.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="assistant_usage")
+    year = models.PositiveSmallIntegerField()
+    month = models.PositiveSmallIntegerField()
+    assistant = models.CharField(max_length=20)  # "staffing", "communicator" or "scheduler"
+    questions = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = [("organization", "year", "month", "assistant")]
+
+    def __str__(self):
+        return f"{self.organization_id} {self.year}-{self.month:02d} {self.assistant}: {self.questions}"
+
+
+class ActingOrganizationLog(models.Model):
+    """Who worked in which organization, and when: one row each time a system administrator chooses one."""
+
+    user = models.ForeignKey("CustomUser", on_delete=models.CASCADE, related_name="acting_log")
+    organization = models.ForeignKey("Organization", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    organization_name = models.CharField(max_length=255, blank=True)
+    source = models.CharField(max_length=20, default="header")  # "login" or "header"
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user_id} -> {self.organization_name or self.organization_id} ({self.source})"
+
+
+class Dictionary(models.Model):
+    """
+    A configurable list shown as a choice in the app (the first one is "roles"). Shared by every
+    organization. System administrators edit dictionaries in System Dictionaries; everyone reads them.
+    """
+
+    DISPLAY_CHOICES = (
+        ("checkboxes", "Checkboxes"),
+        ("radio", "Radio buttons"),
+        ("dropdown", "Dropdown"),
+        ("searchable", "Dropdown, searchable"),
+    )
+    code = models.SlugField(max_length=50, unique=True)
+    name = models.CharField(max_length=100)
+    used_by = models.CharField(max_length=200, blank=True)
+    display_type = models.CharField(max_length=20, choices=DISPLAY_CHOICES, default="dropdown")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class DictionaryEntry(models.Model):
+    """
+    One choice in a Dictionary. `value` is what is stored and never changes; `label` is what people read.
+    Locked (built-in) entries cannot be removed or have their value changed because the app's access checks
+    depend on them. For roles, `behaves_like` names the built-in role a custom entry acts as.
+    """
+
+    dictionary = models.ForeignKey(Dictionary, on_delete=models.CASCADE, related_name="entries")
+    value = models.CharField(max_length=50)
+    label = models.CharField(max_length=100)
+    behaves_like = models.CharField(max_length=50, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    is_locked = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [models.UniqueConstraint(fields=["dictionary", "value"], name="uniq_dictionary_value")]
+
+    def __str__(self):
+        return f"{self.dictionary.code}:{self.value}"
+
+
+from django.db.models.signals import pre_save  # noqa: E402
+from django.dispatch import receiver  # noqa: E402
+
+
+@receiver(pre_save, sender=CustomUser)
+def _drop_stale_role_entry(sender, instance, **kwargs):
+    """If a person's built-in role is changed, a System Dictionaries role they held no longer applies."""
+    if instance.role_entry_id and instance.role_entry.behaves_like != instance.role:
+        instance.role_entry = None

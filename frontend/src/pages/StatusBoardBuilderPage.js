@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { Container, Typography } from "@mui/material";
 import StatusBoardBuilder from "../components/edBoard/StatusBoardBuilder";
 
 /**
@@ -34,12 +33,7 @@ function StatusBoardBuilderPage() {
     if (checking) return null;
 
     return (
-        <Container maxWidth="xl" sx={{ py: 3 }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>
-                Status Board Builder
-            </Typography>
-            <StatusBoardBuilder />
-        </Container>
+        <StatusBoardBuilder />
     );
 }
 

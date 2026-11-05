@@ -27,6 +27,7 @@ import {
   TableContainer,
 } from "@mui/material";
 import axios from "axios";
+import SettingsToolbarPortal, { SETTINGS_STICKY_TOP } from "../components/settings/SettingsToolbarSlot";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { getValidToken } from "../utils/auth";
@@ -265,26 +266,19 @@ function HolidaysTab() {
   return (
     <Box
       sx={{
-        minHeight: "50vh",
         bgcolor: "background.default",
-        p: 3,
+        p: 0,
       }}
     >
       <Box sx={{ width: "100%" }}>
-        <Stack
-          direction="row"
-          spacing={2}
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ mb: 3 }}
-        >
+        <SettingsToolbarPortal>
           <TextField
             size="small"
             variant="outlined"
             placeholder="Search holidays..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ maxWidth: 350 }}
+            sx={{ width: { xs: "100%", sm: 240 } }}
             InputProps={{
               endAdornment: searchQuery && (
                 <IconButton size="small" onClick={() => setSearchQuery("")}>
@@ -293,45 +287,29 @@ function HolidaysTab() {
               ),
             }}
           />
-          <Typography variant="body2" color="text.secondary">
-            <b>Tip:</b> Click "Add Holiday" to create a new holiday. Use the
-            delete button to remove any unwanted holidays.
-          </Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <TextField
-              label="Year"
-              type="number"
-              size="small"
-              value={yearInput}
-              onChange={(e) => setYearInput(e.target.value)}
-              sx={{ maxWidth: 120 }}
-              disabled={loadingYear}
-            />
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleLoadYear}
-              disabled={loadingYear}
-            >
-              {loadingYear ? (
-                <FontAwesomeIcon
-                  icon={faSpinner}
-                  spin
-                  style={{ marginRight: 8 }}
-                />
-              ) : null}
-              Load Year
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => handleOpenHolidayDialog(null)}
-            >
-              <FontAwesomeIcon icon={faPlus} style={{ marginRight: 6 }} />
-              Add Holiday
-            </Button>
-          </Stack>
-        </Stack>
+          <TextField
+            label="Year"
+            type="number"
+            size="small"
+            value={yearInput}
+            onChange={(e) => setYearInput(e.target.value)}
+            sx={{ width: 110 }}
+            disabled={loadingYear}
+          />
+          <Button size="small" variant="outlined" onClick={handleLoadYear} disabled={loadingYear}>
+            {loadingYear ? <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: 8 }} /> : null}
+            Load Year
+          </Button>
+          <Button size="small" variant="contained" onClick={() => handleOpenHolidayDialog(null)}>
+            <FontAwesomeIcon icon={faPlus} style={{ marginRight: 6 }} />
+            Add Holiday
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          <Button size="small" variant="contained" onClick={handleSave} disabled={saving || loading}>
+            {saving ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
+            Save Changes
+          </Button>
+        </SettingsToolbarPortal>
 
         <TableContainer
           sx={{
@@ -339,8 +317,7 @@ function HolidaysTab() {
             boxShadow: 2,
             bgcolor: "#fff",
             mb: 3,
-            maxHeight: "50vh",
-            overflowY: "auto",
+            overflow: "visible",
           }}
         >
           <Table
@@ -360,7 +337,7 @@ function HolidaysTab() {
                 backgroundColor: "#f8fafc",
                 borderBottom: "2px solid #e2e8f0",
                 position: "sticky",
-                top: 0,
+                top: SETTINGS_STICKY_TOP,
                 zIndex: 1,
               },
             }}
@@ -459,28 +436,9 @@ function HolidaysTab() {
           </Table>
         </TableContainer>
 
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            Make changes to holiday recognition status and click Save.
-          </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleSave}
-            disabled={saving || loading}
-            sx={{ minWidth: 120 }}
-          >
-            {saving ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
-            Save Changes
-          </Button>
-        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Make changes to holiday recognition status and click Save Changes.
+        </Typography>
 
         {status && (
           <Alert

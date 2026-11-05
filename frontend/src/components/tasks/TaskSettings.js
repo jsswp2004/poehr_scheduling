@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import SettingsToolbarPortal from "../settings/SettingsToolbarSlot";
 import { Alert, Box, Button, CircularProgress, Paper, Stack, TextField, Typography } from "@mui/material";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
@@ -77,8 +78,7 @@ export default function TaskSettings() {
   if (!cfg && !error) return <CircularProgress size={22} />;
 
   return (
-    <Box sx={{ p: 2, maxWidth: 900 }} data-testid="task-settings">
-      <Typography variant="h6">Tasks</Typography>
+    <Box sx={{ maxWidth: 900 }} data-testid="task-settings">
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         How nurse tasks made from signed orders behave in your clinic.
       </Typography>
@@ -103,9 +103,11 @@ export default function TaskSettings() {
         </Stack>
       </Paper>
       {canEdit ? (
-        <Button variant="contained" onClick={save} disabled={busy} data-testid="task-settings-save">
-          Save task rules
-        </Button>
+        <SettingsToolbarPortal>
+          <Button size="small" sx={{ ml: "auto" }} variant="contained" onClick={save} disabled={busy} data-testid="task-settings-save">
+            Save task rules
+          </Button>
+        </SettingsToolbarPortal>
       ) : (
         <Typography variant="caption" color="text.secondary">
           An administrator sets these rules.

@@ -94,9 +94,19 @@ const theme = createTheme({
         root: { fontWeight: 600 },
       },
     },
+    // Every table is the same compact size, so the Patient List, My Schedule, the boards and the worklists
+    // line up. A table that needs its own spacing sets it on the table or cell (sx), which wins over these.
+    MuiTable: {
+      defaultProps: { size: 'small' },
+    },
     MuiTableCell: {
       styleOverrides: {
-        head: { fontWeight: 600, color: '#475569', backgroundColor: '#f8fafc' },
+        // header cells stand a little taller than body rows through line height, so their padding stays as easy to override as any cell's
+        head: { fontWeight: 600, color: '#475569', backgroundColor: '#f8fafc', lineHeight: 1.9 },
+        sizeSmall: {
+          padding: '4px 12px',
+          fontSize: '0.8125rem',
+        },
       },
     },
   },

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import SettingsToolbarPortal, { SETTINGS_STICKY_TOP } from "../components/settings/SettingsToolbarSlot";
+import { MultiDayPicker, defaultMultiState, expandDates, dateKey, parseKey } from "../components/scheduling/MultiDayPicker";
 import axios from "axios";
 import { API_BASE_URL } from '../config/api';
 import { getValidToken } from "../utils/auth";
@@ -25,6 +27,15 @@ import {
   Container,
   IconButton,
   Tooltip,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  RadioGroup,
+  Radio,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
@@ -36,6 +47,10 @@ function MaintenancePage() {
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [holidays, setHolidays] = useState([]);
+  const [mode, setMode] = useState("one"); // "one" day (with recurrence) or "many" days
+  const [multi, setMulti] = useState(defaultMultiState);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteScope, setDeleteScope] = useState("one");
 
   // Refs for auto-scrolling tables
   const availabilityTableRef = useRef(null);
@@ -168,8 +183,63 @@ function MaintenancePage() {
     );
   };
 
+  // Days that cannot be ticked in the Multiple days grid, with the reason
+  const todayKey = dateKey(new Date());
+  const holidayNames = {};
+  holidays.forEach((h) => {
+    holidayNames[h.date] = h.name;
+  });
+  const bookedKeys = new Set(
+    schedules.filter((x) => !!x.is_blocked === !!formData.is_blocked).map((x) => dateKey(new Date(x.start_time)))
+  );
+  const isOff = (key) => {
+    if (key < todayKey) return "past";
+    if ([0, 6].includes(parseKey(key).getDay())) return "weekend";
+    if (holidayNames[key]) return holidayNames[key].split(" ")[0];
+    if (bookedKeys.has(key)) return "booked";
+    return "";
+  };
+  const bulkDates = mode === "many" ? expandDates(multi, isOff) : [];
+  const bulkNeedsEnd = mode === "many" && multi.recurrence !== "none" && !multi.recurrenceEnd;
+
+  const handleBulkSubmit = async () => {
+    if (!selectedDoctor || bulkDates.length === 0 || bulkNeedsEnd) return;
+    if (multi.endTime <= multi.startTime) {
+      toast.error("The end time must be after the start time.");
+      return;
+    }
+    const items = bulkDates.map((k) => ({
+      start_time: new Date(`${k}T${multi.startTime}:00`).toISOString(),
+      end_time: new Date(`${k}T${multi.endTime}:00`).toISOString(),
+    }));
+    try {
+      const token = await getValidToken();
+      if (!token) {
+        toast.error("Not authenticated. Please log in again.");
+        return;
+      }
+      const res = await axios.post(
+        `${API_BASE_URL}/api/availability/bulk/`,
+        {
+          doctor: selectedDoctor.value,
+          is_blocked: formData.is_blocked,
+          block_type: formData.is_blocked ? formData.block_type : null,
+          items,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const made = res.data?.created ?? items.length;
+      toast.success(`${made} schedule${made === 1 ? "" : "s"} added.`);
+      setMulti((m) => ({ ...m, picked: {} }));
+      await fetchSchedules();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to save schedules.");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (mode === "many" && !editingId) return handleBulkSubmit();
     if (!selectedDoctor || !formData.start_time || !formData.end_time) return;
     const startDate = new Date(formData.start_time);
     if ([0, 6].includes(startDate.getDay()) || isHoliday(formData.start_time))
@@ -225,6 +295,7 @@ function MaintenancePage() {
   };
 
   const handleEdit = (schedule) => {
+    setMode("one");
     setEditingId(schedule.id);
     setFormData({
       start_time: toLocalDatetimeInputValue(schedule.start_time),
@@ -242,18 +313,27 @@ function MaintenancePage() {
     );
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this schedule?")) return;
+  const askDelete = (schedule) => {
+    setDeleteScope("one");
+    setDeleteTarget(schedule);
+  };
+
+  const confirmDelete = async () => {
+    const target = deleteTarget;
+    if (!target) return;
     try {
       const token = await getValidToken();
       if (!token) {
         toast.error("Not authenticated. Please log in again.");
         return;
       }
-      await axios.delete(`${API_BASE_URL}/api/availability/${id}/`, {
+      const wholeSeries = deleteScope === "series" && target.series_id;
+      await axios.delete(`${API_BASE_URL}/api/availability/${target.id}/`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: wholeSeries ? { scope: "series" } : undefined,
       });
-      toast.success("Deleted.");
+      toast.success(wholeSeries ? "Deleted the series." : "Deleted.");
+      setDeleteTarget(null);
       await fetchSchedules();
     } catch {
       toast.error("Failed to delete schedule.");
@@ -285,10 +365,16 @@ function MaintenancePage() {
         py: 0,
         px: 0,
         textAlign: "left",
-        height: "calc(100vh - 220px)", // Adjust for header height
-        overflow: "hidden",
       }}
     >
+      <SettingsToolbarPortal>
+        <Chip size="small" color="success" variant="outlined" label={`Availability ${schedules.filter((x) => !x.is_blocked).length}`} />
+        <Chip size="small" color="error" variant="outlined" label={`Blocked ${schedules.filter((x) => x.is_blocked).length}`} />
+        <Box sx={{ flex: 1 }} />
+        <Typography variant="caption" color="text.secondary">
+          Pick a clinician to see and change their schedule
+        </Typography>
+      </SettingsToolbarPortal>
       {/*<Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }} >
         <Typography variant="h5" sx={{ mb: 2 }}>
           Clinician Schedule Maintenance 
@@ -299,12 +385,12 @@ function MaintenancePage() {
         spacing={1}
         justifyContent="flex-start"
         alignItems="stretch"
-        sx={{ ml: 0, height: "50%", pt: 1 }}
+        sx={{ ml: 0, pt: 0 }}
       >
         {/* LEFT: Schedule Maintenance Form */}
         <Grid
           size={{ xs: 12, md: 6 }}
-          sx={{ pl: 0, minWidth: 0, display: "flex", flexDirection: "column" }}
+          sx={{ pl: 0, minWidth: 0, display: "flex", flexDirection: "column", alignSelf: "flex-start", position: { md: "sticky" }, top: { md: `calc(${SETTINGS_STICKY_TOP} + 14px)` } }}
         >
           <Box
             sx={{
@@ -312,10 +398,10 @@ function MaintenancePage() {
               minWidth: 400,
               width: "100%",
               textAlign: "left",
-              flex: 1,
               display: "flex",
               flexDirection: "column",
-              maxHeight: "100vh",
+              maxHeight: { md: "calc(100vh - 64px - var(--settings-sticky-h, 150px) - 28px)" },
+              overflowY: { md: "auto" },
             }}
           >
             <form
@@ -323,7 +409,6 @@ function MaintenancePage() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                height: "100%",
               }}
             >
               <Stack spacing={2} sx={{ textAlign: "left" }}>
@@ -353,6 +438,28 @@ function MaintenancePage() {
                     ))}
                   </MUISelect>
                 </FormControl>{" "}
+                {!editingId && (
+                  <ToggleButtonGroup
+                    exclusive
+                    size="small"
+                    value={mode}
+                    onChange={(e, v) => v && setMode(v)}
+                    aria-label="Schedule mode"
+                  >
+                    <ToggleButton value="one" data-testid="mode-one">One day</ToggleButton>
+                    <ToggleButton value="many" data-testid="mode-many">Multiple days</ToggleButton>
+                  </ToggleButtonGroup>
+                )}
+                {mode === "many" && !editingId ? (
+                  <MultiDayPicker
+                    state={multi}
+                    onChange={setMulti}
+                    isOff={isOff}
+                    isBlocked={formData.is_blocked}
+                    blockType={formData.block_type}
+                  />
+                ) : (
+                  <>
                 <TextField
                   fullWidth
                   label="Start Time"
@@ -403,6 +510,8 @@ function MaintenancePage() {
                   InputLabelProps={{ shrink: true }}
                   sx={{ "& .MuiInputBase-input": { fontSize: "0.875rem" } }}
                 />
+                  </>
+                )}
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -441,8 +550,15 @@ function MaintenancePage() {
                     variant="contained"
                     fullWidth
                     sx={{ mb: 1 }}
+                    disabled={mode === "many" && !editingId && (bulkDates.length === 0 || bulkNeedsEnd)}
                   >
-                    {editingId ? "Update" : "Save"}
+                    {editingId
+                      ? "Update"
+                      : mode === "many"
+                        ? bulkDates.length > 0
+                          ? `Add ${bulkDates.length} schedule${bulkDates.length === 1 ? "" : "s"}`
+                          : "Add schedules"
+                        : "Save"}
                   </Button>
                   {editingId && (
                     <Button variant="outlined" onClick={handleCancel} fullWidth>
@@ -455,19 +571,16 @@ function MaintenancePage() {
           </Box>
         </Grid>
         {/* RIGHT: Schedule Overview */}
-        <Grid size={{ xs: 12, md: 6 }} sx={{ minWidth: 0 }}>
+        <Grid size={{ xs: 12, md: 6 }} sx={{ minWidth: 0, alignSelf: "flex-start", position: { md: "sticky" }, top: { md: `calc(${SETTINGS_STICKY_TOP} + 14px)` } }}>
           <Box
             sx={{
               p: 1,
               display: "flex",
               flexDirection: "column",
-              //height: "100%",
-              maxHeight: "100vh",
-              overflowY: "hidden",
             }}
           >
-            <Typography variant="h6" gutterBottom>
-              Schedule Overview
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>
+              Schedule overview
             </Typography>
             <Box
               sx={{
@@ -475,8 +588,6 @@ function MaintenancePage() {
                 display: "flex",
                 flexDirection: "row",
                 gap: 1,
-                minHeight: 0,
-                maxHeight: "calc(100vh - 150px)",
               }}
             >
               {/* Availability Section */}
@@ -489,8 +600,6 @@ function MaintenancePage() {
                   minWidth: 0,
                   display: "flex",
                   flexDirection: "column",
-                  minHeight: 0,
-                  maxHeight: "100%",
                 }}
               >
                 <Typography color="success.main" sx={{ mb: 1 }}>
@@ -501,13 +610,11 @@ function MaintenancePage() {
                   ref={availabilityTableRef}
                   sx={{
                     flex: 1,
-                    overflowY: "auto",
-                    overflowX: "hidden",
+                    overflow: "auto",
+                    maxHeight: "calc(100vh - 64px - var(--settings-sticky-h, 150px) - 120px)",
                     boxShadow: "none",
                     borderRadius: 0,
                     border: "0px solid #e2e8f0",
-                    minHeight: "300px",
-                    maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
                     },
@@ -524,7 +631,7 @@ function MaintenancePage() {
                   }}
                 >
                   <Table size="small" stickyHeader>
-                    <TableHead>
+                    <TableHead sx={{ "& th": { top: 0, bgcolor: "#f3f5f9", fontWeight: 700 } }}>
                       <TableRow>
                         <TableCell>Date/Time</TableCell>
                         <TableCell align="right">Actions</TableCell>
@@ -546,7 +653,7 @@ function MaintenancePage() {
                           .filter((s) => !s.is_blocked)
                           .map((s) => (
                             <TableRow key={s.id}>
-                              <TableCell>{`${new Date(
+                              <TableCell>{s.series_id && <Chip size="small" variant="outlined" label="Series" sx={{ mr: 1, height: 20 }} />}{`${new Date(
                                 s.start_time
                               ).toLocaleString()} — ${new Date(
                                 s.end_time
@@ -598,7 +705,7 @@ function MaintenancePage() {
                                         alignItems: "center",
                                         justifyContent: "center",
                                       }}
-                                      onClick={() => handleDelete(s.id)}
+                                      onClick={() => askDelete(s)}
                                     >
                                       <FontAwesomeIcon icon={faTrash} />
                                     </IconButton>
@@ -623,8 +730,6 @@ function MaintenancePage() {
                   minWidth: 0,
                   display: "flex",
                   flexDirection: "column",
-                  minHeight: 0,
-                  maxHeight: "100%",
                 }}
               >
                 <Typography color="error.main" sx={{ mb: 1 }}>
@@ -635,13 +740,11 @@ function MaintenancePage() {
                   ref={blockedTableRef}
                   sx={{
                     flex: 1,
-                    overflowY: "auto",
-                    overflowX: "hidden",
+                    overflow: "auto",
+                    maxHeight: "calc(100vh - 64px - var(--settings-sticky-h, 150px) - 120px)",
                     boxShadow: "none",
                     borderRadius: 0,
                     border: "0px solid #e2e8f0",
-                    minHeight: "300px",
-                    maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
                     },
@@ -658,7 +761,7 @@ function MaintenancePage() {
                   }}
                 >
                   <Table size="small" stickyHeader>
-                    <TableHead>
+                    <TableHead sx={{ "& th": { top: 0, bgcolor: "#f3f5f9", fontWeight: 700 } }}>
                       <TableRow>
                         <TableCell>Date/Time</TableCell>
                         <TableCell align="right">Actions</TableCell>
@@ -680,7 +783,7 @@ function MaintenancePage() {
                           .filter((s) => s.is_blocked)
                           .map((s) => (
                             <TableRow key={s.id}>
-                              <TableCell>{`${new Date(
+                              <TableCell>{s.series_id && <Chip size="small" variant="outlined" label="Series" sx={{ mr: 1, height: 20 }} />}{`${new Date(
                                 s.start_time
                               ).toLocaleString()} — ${new Date(
                                 s.end_time
@@ -737,7 +840,7 @@ function MaintenancePage() {
                                         alignItems: "center",
                                         justifyContent: "center",
                                       }}
-                                      onClick={() => handleDelete(s.id)}
+                                      onClick={() => askDelete(s)}
                                     >
                                       <FontAwesomeIcon icon={faTrash} />
                                     </IconButton>
@@ -755,6 +858,50 @@ function MaintenancePage() {
           </Box>
         </Grid>
       </Grid>
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{deleteTarget?.series_id ? "Delete recurring schedule" : "Delete this schedule?"}</DialogTitle>
+        <DialogContent>
+          {deleteTarget && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {new Date(deleteTarget.start_time).toLocaleString()} to {new Date(deleteTarget.end_time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            </Typography>
+          )}
+          {deleteTarget?.series_id && (
+            <RadioGroup value={deleteScope} onChange={(e) => setDeleteScope(e.target.value)} aria-label="Delete scope">
+              <FormControlLabel
+                value="one"
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>This schedule only</Typography>
+                    <Typography variant="caption" color="text.secondary">Keeps the rest of the series.</Typography>
+                  </Box>
+                }
+                sx={{ alignItems: "flex-start", mb: 1 }}
+              />
+              <FormControlLabel
+                value="series"
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>The entire series</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Removes all {schedules.filter((x) => x.series_id === deleteTarget.series_id).length} schedules created together, past and future.
+                    </Typography>
+                  </Box>
+                }
+                sx={{ alignItems: "flex-start" }}
+              />
+            </RadioGroup>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={confirmDelete} data-testid="confirm-delete">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

@@ -20,6 +20,7 @@ export const CHART_TABS = [
   { value: "clinical_summary", label: "Clinical Summary", clinical: true },
   { value: "vaccines", label: "Vaccines", clinical: true },
   { value: "messages", label: "Messages", clinical: false },
+  { value: "inbox", label: "Inbox", clinical: false },
 ];
 
 // Tabs that have no page behind them yet (none at the moment: every chart tab has its page).
@@ -43,7 +44,7 @@ export function visibleChartTabs(role, keys = null, careSetting = null) {
   return ordered;
 }
 
-export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null, careSetting = null, badges = {}, badgeOverdue = {} }) {
+export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null, careSetting = null, badges = {}, badgeOverdue = {}, visitMarker = null }) {
   const tabs = visibleChartTabs(role, keys, careSetting);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
@@ -71,7 +72,7 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
                 {badges[t.value] > 0 && (
                   <Box
                     component="span"
-                    aria-label={`${badges[t.value]} need review${badgeOverdue[t.value] > 0 ? `, ${badgeOverdue[t.value]} overdue` : ""}`}
+                    aria-label={`${badges[t.value]} need review${badgeOverdue[t.value] > 0 ? `, ${badgeOverdue[t.value]} ${t.value === "results" ? "critical" : "overdue"}` : ""}`}
                     data-testid={`chart-tab-badge-${t.value}`}
                     sx={{ ml: 0.75, minWidth: 18, height: 18, px: 0.5, borderRadius: 9, bgcolor: badgeOverdue[t.value] === 0 ? "warning.main" : "error.main", color: "#fff", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                   >
@@ -84,6 +85,15 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
           />
         ))}
       </Tabs>
+      {visitMarker && (
+        <Box
+          component="span"
+          data-testid="visit-marker"
+          sx={{ flexShrink: 0, mr: 1, px: 1, py: 0.25, borderRadius: 1, bgcolor: "#fff4e5", color: "#7a4100", border: 1, borderColor: "warning.main", fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap" }}
+        >
+          ● {visitMarker}
+        </Box>
+      )}
       {right}
     </Box>
   );

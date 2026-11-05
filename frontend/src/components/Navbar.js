@@ -23,165 +23,32 @@ import ListItemText from "@mui/material/ListItemText";
 import Divider from "@mui/material/Divider";
 import MenuIcon from "@mui/icons-material/Menu";
 import useForceUpdate from "../utils/useForceUpdate";
+import OrganizationSwitcher from "./OrganizationSwitcher";
+import GlobalSearch from "./search/GlobalSearch";
+import { clearActingOrg, useActingOrg } from "../utils/actingOrg";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ChatIcon from "@mui/icons-material/Chat";
-import DescriptionIcon from "@mui/icons-material/Description";
-import HowToRegIcon from "@mui/icons-material/HowToReg";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
-import GroupsIcon from "@mui/icons-material/Groups";
-import VideocamIcon from "@mui/icons-material/Videocam";
-import MicIcon from "@mui/icons-material/Mic";
-import ScienceIcon from "@mui/icons-material/Science";
-import PeopleIcon from "@mui/icons-material/People";
-import BarChartIcon from "@mui/icons-material/BarChart";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import AppsIcon from "@mui/icons-material/Apps";
+import { currentSignIn, solutionsFor } from "../utils/landing";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import ForumIcon from "@mui/icons-material/Forum";
-import PolicyIcon from "@mui/icons-material/Policy";
 import useSecureUnread from "../hooks/secureMessages/useSecureUnread";
+import { moduleEnabled } from "../utils/orgModules";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
 
-// Roles that can use the clinical/staff modules (matches the login redirects
-// and the Staffing page guard).
-const STAFF_MODULE_ROLES = [
-  "admin",
-  "system_admin",
-  "doctor",
-  "nurse",
-  "registrar",
-];
-
-// Module links shown in the header. `to` is where the link goes; `isActive`
-// decides which one is highlighted for the current URL. Patients page tabs are
-// kept in ?tab=, so Documentation and Scheduler share /patients and are told
-// apart by that parameter.
-// Views of the Patients page that have their own header icon (opened with ?tab=...).
-const PATIENTS_PAGE_VIEWS = ["appointments", "team", "analytics", "register"];
-
-// Roles that can use secure staff messaging (the server decides; this only hides the icon).
-const SECURE_MESSAGE_ROLES = ["doctor", "nurse", "registrar", "receptionist", "admin"];
-
-const MODULE_LINKS = [
-  {
-    key: "check-in",
-    label: "Check-In",
-    to: "/check-in",
-    Icon: HowToRegIcon,
-    roles: ["admin", "system_admin", "registrar"], // the roles the Check-In page allows
-    isActive: (path) => path.startsWith("/check-in"),
-  },
-  {
-    key: "documentation",
-    label: "Documentation",
-    to: "/patients",
-    Icon: DescriptionIcon,
-    roles: STAFF_MODULE_ROLES,
-    isActive: (path, tab) =>
-      path.startsWith("/patients") &&
-      !(path === "/patients" && PATIENTS_PAGE_VIEWS.includes(tab)),
-  },
-  {
-    key: "scheduler",
-    label: "Scheduler",
-    to: "/patients?tab=appointments",
-    Icon: CalendarMonthIcon,
-    roles: STAFF_MODULE_ROLES,
-    isActive: (path, tab) =>
-      (path === "/patients" && tab === "appointments") ||
-      path.startsWith("/appointments"),
-  },
-  {
-    key: "team",
-    label: "Team",
-    to: "/patients?tab=team",
-    Icon: PeopleIcon,
-    roles: STAFF_MODULE_ROLES,
-    isActive: (path, tab) => path === "/patients" && tab === "team",
-  },
-  {
-    key: "analytics",
-    label: "Analytics",
-    to: "/patients?tab=analytics",
-    Icon: BarChartIcon,
-    roles: STAFF_MODULE_ROLES,
-    isActive: (path, tab) => path === "/patients" && tab === "analytics",
-  },
-  {
-    key: "register",
-    label: "Register",
-    to: "/patients?tab=register",
-    Icon: PersonAddIcon,
-    roles: ["admin", "system_admin", "registrar"],
-    isActive: (path, tab) => path === "/patients" && tab === "register",
-  },
-  {
-    key: "portal",
-    label: "Patient Portal",
-    to: "/dashboard",
-    Icon: MedicalInformationIcon,
-    roles: null, // every signed-in user ...
-    notFor: ["staff"], // ... except Staffing-only logins, who have no business in the portal
-    isActive: (path) => path === "/dashboard",
-  },
-  {
-    key: "staffing",
-    label: "Staffing",
-    to: "/staffing",
-    Icon: GroupsIcon,
-    roles: [...STAFF_MODULE_ROLES, "staff"], // Staffing-only logins use this module too
-    isActive: (path) => path.startsWith("/staffing"),
-  },
-  {
-    key: "telehealth",
-    label: "Telehealth",
-    to: "/telehealth",
-    Icon: VideocamIcon,
-    roles: ["doctor", "nurse", "receptionist", "registrar", "admin", "system_admin"],
-    isActive: (path) => path.startsWith("/telehealth"),
-  },
-  {
-    key: "dictate",
-    label: "Dictate",
-    to: "/dictate",
-    Icon: MicIcon,
-    roles: ["doctor", "nurse", "admin", "system_admin"],
-    isActive: (path) => path.startsWith("/dictate"),
-  },
-  {
-    key: "lab-inbox",
-    label: "Lab Results",
-    to: "/lab-inbox",
-    Icon: ScienceIcon,
-    roles: ["doctor", "nurse", "system_admin"], // the roles that review results
-    isActive: (path) => path.startsWith("/lab-inbox"),
-  },
-  {
-    key: "secure-messages",
-    label: "Secure Messages",
-    to: "/secure-messages",
-    Icon: ForumIcon,
-    roles: SECURE_MESSAGE_ROLES,
-    isActive: (path) => path.startsWith("/secure-messages") && !path.startsWith("/secure-messages/audit"),
-  },
-  {
-    key: "secure-audit",
-    label: "Messaging Audit Log",
-    to: "/secure-messages/audit",
-    Icon: PolicyIcon,
-    roles: ["admin", "system_admin"], // the roles that hold the audit right by default (the server decides)
-    isActive: (path) => path.startsWith("/secure-messages/audit"),
-  },
-];
+import { MODULE_LINKS, SECURE_MESSAGE_ROLES, STAFF_MODULE_ROLES, linkTarget } from "../utils/moduleLinks";
 
 function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [username, setUsername] = useState("");
   const [role, setRole] = useState("");
+  const [userId, setUserId] = useState(null);
   const [organizationName, setOrganizationName] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Make it stateful
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const actingOrg = useActingOrg();
   const [logoUrl, setLogoUrl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const forceUpdate = useForceUpdate();
@@ -237,6 +104,7 @@ function Navbar() {
       const firstName = decoded.first_name || decoded.username || "";
       setUsername(firstName);
       setRole(decoded.role || "");
+      setUserId(userId || null);
 
       const response = await axios.get(`${API_BASE_URL}/api/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -364,6 +232,7 @@ function Navbar() {
 
     // Clear all authentication data using the centralized function
     clearAuthData();
+    clearActingOrg(); // the next sign-in starts on the person's own organization
 
     // Also clear any legacy token storage that might exist
     localStorage.removeItem("access_token"); // Old format key
@@ -474,15 +343,24 @@ function Navbar() {
   }, [isAuthenticated, canSeeLab, refreshLabWaiting, location.pathname]);
 
   const isSystemAdmin = role === "system_admin";
+  // Only a system administrator can work in another organization.
+  useEffect(() => {
+    if (role && role !== "system_admin") clearActingOrg();
+  }, [role]);
+  const openSwitcher = () => setSwitcherOpen(true);
 
   // Unread secure messages: a badge on the Secure Messages icon.
   const secureUnread = useSecureUnread(isAuthenticated && SECURE_MESSAGE_ROLES.includes(role));
 
   // Module links this user may see, with the current page flagged.
   const currentTab = new URLSearchParams(location.search).get("tab");
+  const currentChart = new URLSearchParams(location.search).get("chart");
   const moduleLinks = MODULE_LINKS.filter(
-    (m) => (!m.roles || m.roles.includes(role)) && !(m.notFor && m.notFor.includes(role))
-  ).map((m) => ({ ...m, active: m.isActive(location.pathname, currentTab) }));
+    (m) =>
+      (!m.roles || m.roles.includes(role)) &&
+      !(m.notFor && m.notFor.includes(role)) &&
+      moduleEnabled(m.module)
+  ).map((m) => ({ ...m, to: linkTarget(m, moduleEnabled("clinical_documentation")), active: m.isActive(location.pathname, currentTab, currentChart) }));
 
   // Waiting-item count per module, shown next to the label in the compact menu.
   const menuBadge = (key) =>
@@ -493,13 +371,18 @@ function Navbar() {
       : 0;
   const anyWaiting = moduleLinks.some((m) => menuBadge(m.key) > 0);
   const showCommunicator =
+    moduleEnabled("communicator") &&
     (role === "system_admin" || role === "admin" || role === "registrar") &&
     location.pathname !== "/communicator" &&
     location.pathname !== "/dashboard";
   const showAdminPortal =
-    (role === "admin" || role === "registrar" || role === "receptionist" || role === "system_admin") &&
-    location.pathname !== "/dashboard";
+    (role === "admin" || role === "system_admin") && location.pathname !== "/dashboard";
   const showAccount = role === "admin" || role === "system_admin";
+  // Back to the Solutions page: only for people who have something to choose there (two or more solutions).
+  const me = currentSignIn();
+  const showSolutions = isAuthenticated && !!me && solutionsFor(me.role, me.modules).length >= 2;
+  const onSolutions = location.pathname === "/solutions";
+  const showReports = STAFF_MODULE_ROLES.includes(role);  // Reports is always on, for every organization
   const goTo = (path) => {
     closeMenu();
     navigate(path);
@@ -527,7 +410,21 @@ function Navbar() {
             minWidth: 0,
             cursor: "pointer",
           }}
-          onClick={handleLogoClick}
+          {...(isSystemAdmin
+            ? {
+                onClick: openSwitcher,
+                role: "button",
+                tabIndex: 0,
+                "aria-haspopup": "dialog",
+                "aria-label": "Work in another organization",
+                onKeyDown: (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openSwitcher();
+                  }
+                },
+              }
+            : { onClick: handleLogoClick })}
         >
           <Avatar
             src={logoUrl || logo}
@@ -564,7 +461,8 @@ function Navbar() {
               ? `${organizationName || "POWER"} Communicator`
               : location.pathname === "/dashboard"
               ? `${organizationName || "POWER"} Portal`
-              : `${organizationName || "POWER"}`}
+              : `${(isSystemAdmin && actingOrg?.name) || organizationName || "POWER"}`}
+            {isSystemAdmin && " ▾"}
           </Typography>
           {/*{organizationName && (
             <Typography
@@ -587,6 +485,30 @@ function Navbar() {
         <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           {isAuthenticated && (
             <>
+              {/* Search: patients, MRNs and visits (Ctrl+K). Always shown, also on small screens. */}
+              {STAFF_MODULE_ROLES.includes(role) && (
+                <GlobalSearch userId={userId} role={role} canRegister={["admin", "system_admin", "registrar"].includes(role)} />
+              )}
+
+              {/* Solutions icon: one click back to the Solutions page */}
+              {showSolutions && (
+                <Tooltip title="Solutions">
+                  <IconButton
+                    color="inherit"
+                    sx={{
+                      mr: 1,
+                      display: { xs: "none", lg: "inline-flex" },
+                      bgcolor: onSolutions ? "rgba(255,255,255,0.2)" : "transparent",
+                    }}
+                    onClick={() => navigate("/solutions")}
+                    aria-label="Solutions"
+                    aria-current={onSolutions ? "page" : undefined}
+                  >
+                    <AppsIcon sx={{ color: "white" }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+
               {/* Module links: Documentation, Scheduler, Patient Portal, Staffing */}
               {role && moduleLinks.length > 0 && (
                 <Box
@@ -684,6 +606,14 @@ function Navbar() {
                     onClose={closeMenu}
                     PaperProps={{ sx: { minWidth: 240, maxHeight: "70vh" } }}
                   >
+                    {showSolutions && (
+                      <MenuItem selected={onSolutions} onClick={() => goTo("/solutions")}>
+                        <ListItemIcon>
+                          <AppsIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Solutions</ListItemText>
+                      </MenuItem>
+                    )}
                     {moduleLinks.map(({ key, label, to, Icon, active }) => (
                       <MenuItem
                         key={key}
@@ -718,7 +648,15 @@ function Navbar() {
                         )}
                       </MenuItem>
                     ))}
-                    {(showCommunicator || showAdminPortal || showAccount) && <Divider />}
+                    {(showReports || showCommunicator || showAdminPortal || showAccount) && <Divider />}
+                    {showReports && (
+                      <MenuItem onClick={() => goTo("/reports")}>
+                        <ListItemIcon>
+                          <AssessmentIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Reports</ListItemText>
+                      </MenuItem>
+                    )}
                     {showCommunicator && (
                       <MenuItem onClick={() => goTo("/communicator")}>
                         <ListItemIcon>
@@ -747,12 +685,27 @@ function Navbar() {
                 </>
               )}
 
+              {/* Reports Icon Link - everyone who can use the Staffing reports */}
+              {showReports && (
+                <Tooltip title="Reports">
+                  <IconButton
+                    color="inherit"
+                    sx={{
+                      mr: 1,
+                      display: { xs: "none", lg: "inline-flex" },
+                      bgcolor: location.pathname.startsWith("/reports") ? "rgba(255,255,255,0.2)" : "transparent",
+                    }}
+                    onClick={() => navigate("/reports")}
+                    aria-label="Reports"
+                  >
+                    <AssessmentIcon sx={{ color: "white" }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+
               {/* Communicator Icon Link - only for system_admin, admin, and registrar roles */}
-              {(role === "system_admin" ||
-                role === "admin" ||
-                role === "registrar") &&
-                location.pathname !== "/communicator" &&
-                location.pathname !== "/dashboard" && (
+              {role &&
+                showCommunicator && (
                   <Tooltip title="POWER Communicator">
                     <IconButton
                       color="inherit"
@@ -765,12 +718,8 @@ function Navbar() {
                   </Tooltip>
                 )}
 
-              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin and not on dashboard page */}
-              {(role === "admin" ||
-                role === "registrar" ||
-                role === "receptionist" ||
-                role === "system_admin") &&
-                location.pathname !== "/dashboard" && (
+              {/* Management Portal icon - administrators only, and not on the dashboard page */}
+              {showAdminPortal && (
                   <Tooltip title="Management Portal">
                     <IconButton
                       color="inherit"
@@ -882,6 +831,7 @@ function Navbar() {
           )}
         </Box>
       </Toolbar>
+      {isSystemAdmin && <OrganizationSwitcher open={switcherOpen} onClose={() => setSwitcherOpen(false)} />}
     </AppBar>
   );
 }

@@ -1,6 +1,7 @@
 import {
   formatDobInput,
   formatPhone,
+  apiErrorText,
   isPossibleMatch,
   makePassword,
   makeUsername,
@@ -170,5 +171,21 @@ describe("age and filled steps", () => {
     expect(stepFilled("reason", {}, { reason_for_visit: "Chest pain" })).toBe(true);
     expect(stepFilled("logistics", {}, { care_setting: "emergency", attending_provider: "" })).toBe(false);
     expect(stepFilled("nope")).toBe(false);
+  });
+});
+
+describe("apiErrorText", () => {
+  const fail = (data) => ({ response: { data } });
+  test("writes field errors as sentences, not JSON", () => {
+    expect(apiErrorText(fail({ username: ["A user with that username already exists."] }), "x")).toBe(
+      "Username: A user with that username already exists."
+    );
+    expect(apiErrorText(fail({ first_name: ["Required."], email: ["Bad.", "Worse."] }), "x")).toBe("First name: Required. Email: Bad. Worse.");
+  });
+  test("prefers the server's detail and falls back when there is nothing to show", () => {
+    expect(apiErrorText(fail({ detail: "Nope." }), "x")).toBe("Nope.");
+    expect(apiErrorText(fail({ non_field_errors: ["Plan full."] }), "x")).toBe("Plan full.");
+    expect(apiErrorText(fail("<html>500</html>"), "Failed.")).toBe("Failed.");
+    expect(apiErrorText({}, "Failed.")).toBe("Failed.");
   });
 });

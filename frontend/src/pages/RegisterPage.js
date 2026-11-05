@@ -9,6 +9,7 @@ import { API_BASE_URL } from "../config/api";
 import FullRegistrationForm from "../components/registration/FullRegistrationForm";
 import PatientsRegisterTable from "../components/registration/PatientsRegisterTable";
 import QuickRegisterForm from "../components/registration/QuickRegisterForm";
+import RegistrationSetup from "../components/registration/RegistrationSetup";
 import PublicSignUp from "../components/registration/PublicSignUp";
 import useDuplicateCheck from "../components/registration/useDuplicateCheck";
 import {
@@ -70,9 +71,9 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
   const [doctors, setDoctors] = useState([]);
   const [userRole, setUserRole] = useState(null);
 
-  // Which left-pane tab is active: the single-step Quick Register form, or the full multi-step
-  // Registration (Identity/Emergency Contact/Financial/Reason for Visit/Legal Documents/Logistics).
-  const [leftTab, setLeftTab] = useState("quick");
+  // Which tab is active: the Patients list (the landing tab), the single-step Quick Register form, the full
+  // multi-step Registration, or Configuration. The calendar's modal has no list and starts on Quick Register.
+  const [leftTab, setLeftTab] = useState(modalMode ? "quick" : "patients");
 
   // Set when a patient is opened from the table (or a possible match) -- tells the Registration tab's
   // FullRegistrationForm which patient to load. The nonce makes it react even if the same patient is
@@ -316,7 +317,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
   }
 
   return (
-    <Box sx={{ mt: 0, width: "100%", px: modalMode ? 0 : 2, py: 1 }}>
+    <Box sx={{ mt: 0, width: "100%", px: modalMode ? 0 : 2, py: 0.5 }}>
       <Paper
         elevation={2}
         sx={{
@@ -324,9 +325,11 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           border: "1px solid #e2e8f0",
           minHeight: "60vh",
           maxHeight: modalMode ? "none" : "calc(100vh - 200px)",
+          // Configuration has a fixed height so its sub-tabs stay in place and only the page under them scrolls
+          ...(leftTab === "configuration" && !modalMode ? { height: "calc(100vh - 200px)" } : {}),
           overflowY: "auto",
           overflowX: "hidden",
-          p: 2,
+          p: 1.5,
           display: "flex",
           flexDirection: { xs: "column", lg: "row" },
           gap: 2,
@@ -338,7 +341,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         {/* Left pane: the registration forms */}
         <Box
           sx={{
-            flex: modalMode ? "1 1 auto" : { xs: "0 0 auto", lg: "0 0 460px" },
+            flex: "1 1 auto",
             minWidth: 0,
             display: "flex",
             flexDirection: "column",
@@ -347,11 +350,19 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           <Tabs
             value={leftTab}
             onChange={(e, v) => setLeftTab(v)}
-            sx={{ mb: 2, flexShrink: 0, minHeight: 36, "& .MuiTab-root": { minHeight: 36, textTransform: "none" } }}
+            sx={{ mb: 1, flexShrink: 0, minHeight: 36, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, textTransform: "none" } }}
           >
+            {!modalMode && <Tab label="Patients" value="patients" data-testid="register-tab-patients" />}
             <Tab label="Quick Register" value="quick" />
             <Tab label="Full Registration" value="registration" />
+            {!modalMode && ["admin", "system_admin"].includes(userRole) && <Tab label="Configuration" value="configuration" data-testid="register-tab-configuration" />}
           </Tabs>
+
+          {leftTab === "patients" && !modalMode && (
+            <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0 }} data-testid="patients-pane">
+              <PatientsRegisterTable userRole={userRole} onEdit={handleEditPatient} refreshKey={refreshKey} />
+            </Box>
+          )}
 
           {leftTab === "quick" && (
             <Box sx={{ flex: 1, overflowY: "auto", pr: 1, minHeight: 0 }}>
@@ -370,6 +381,12 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
             </Box>
           )}
 
+          {leftTab === "configuration" && ["admin", "system_admin"].includes(userRole) && (
+            <Box sx={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+              <RegistrationSetup />
+            </Box>
+          )}
+
           {leftTab === "registration" && (
             <Box sx={{ flex: 1, overflowY: "auto", pr: 1, minHeight: 0 }}>
               <FullRegistrationForm
@@ -382,12 +399,6 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           )}
         </Box>
 
-        {/* Right pane: find a patient, see visit status, open or start a visit */}
-        {!modalMode && (
-          <Box sx={{ flex: "1 1 0", minWidth: 0, pl: { lg: 2 }, borderLeft: { lg: "1px solid #eef1f6" } }}>
-            <PatientsRegisterTable userRole={userRole} onEdit={handleEditPatient} refreshKey={refreshKey} />
-          </Box>
-        )}
       </Paper>
     </Box>
   );

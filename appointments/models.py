@@ -171,6 +171,13 @@ class Availability(models.Model):
         help_text="Type of block for this availability (if blocked)",
     )
 
+    series_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Schedules created together (a recurrence or a multi-day save) share this id",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -488,6 +495,149 @@ class ClinicalNote(models.Model):
 
     def __str__(self):
         return f"{self.get_note_type_display()} for {self.patient} ({self.status})"
+
+
+class NoteCosign(models.Model):
+    """
+    A request that another provider co-sign a signed note. The note is signed and in the chart
+    straight away; this row says who has been asked, by when, and how it ended. A returned
+    request is answered by an addendum on the note and a fresh request (a new row).
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Awaiting co-signature"),
+        ("cosigned", "Co-signed"),
+        ("returned", "Returned with comments"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name="note_cosigns")
+    note = models.ForeignKey(ClinicalNote, on_delete=models.CASCADE, related_name="cosign_requests")
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cosigns_requested")
+    cosigner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cosigns_assigned")
+    message = models.TextField(blank=True)
+    due_at = models.DateTimeField(null=True, blank=True)
+    reminder_minutes = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Remind the co-signer this many minutes before it is due; 0 = at the due time"
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    comment = models.TextField(blank=True, help_text="The co-signer's comment when returning the note")
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["cosigner", "status"])]
+
+    def __str__(self):
+        return f"Co-sign of note {self.note_id} by {self.cosigner_id} ({self.status})"
+
+
+class MessageThread(models.Model):
+    """An internal message (like email, not chat) and its replies, sent between staff."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name="message_threads")
+    subject = models.CharField(max_length=200)
+    patient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="message_threads_about",
+        help_text="The patient this message is about, if any",
+    )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="message_threads_started")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_message_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-last_message_at", "-id"]
+
+    def __str__(self):
+        return self.subject
+
+
+class ThreadParticipant(models.Model):
+    """One person on a thread, with their own read and done state."""
+
+    thread = models.ForeignKey(MessageThread, on_delete=models.CASCADE, related_name="participants")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="thread_participations")
+    last_read_at = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["thread", "user"], name="uniq_thread_participant")]
+
+
+class ThreadMessage(models.Model):
+    thread = models.ForeignKey(MessageThread, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="thread_messages_sent")
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+
+class InboxAlert(models.Model):
+    """Something the system tells one person: a critical or abnormal result, or a notice that
+    a note they sent was co-signed or returned. Acknowledging it moves it to Done."""
+
+    KIND_CHOICES = [
+        ("critical", "Critical result"),
+        ("abnormal", "Abnormal result"),
+        ("result", "New result"),
+        ("notice", "Notice"),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name="inbox_alerts")
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="inbox_alerts")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="inbox_alerts_about")
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default="notice")
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    source_type = models.CharField(max_length=30, blank=True)
+    source_id = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    read_at = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["recipient", "done_at"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient", "source_type", "source_id", "kind"],
+                condition=models.Q(source_id__isnull=False),
+                name="uniq_inbox_alert_source",
+            )
+        ]
+
+
+class InboxState(models.Model):
+    """Whether a person has opened an item that is worked out from other records (a note or order
+    to sign, a co-sign request). `key` names the item, e.g. "sign:note:12". Those items are done
+    when the underlying record is, so only the read time is kept here."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="inbox_states")
+    key = models.CharField(max_length=60)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "key"], name="uniq_inbox_state")]
+
+
+class SearchAudit(models.Model):
+    """A chart opened from the header search: who looked, at whom, when, and how it was found.
+    Only opens are logged. The words typed are kept only when they were a name, MRN or visit number."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="search_audits")
+    organization = models.ForeignKey("users.Organization", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    registration_id = models.PositiveIntegerField(null=True, blank=True)
+    kind = models.CharField(max_length=10, blank=True)
+    query = models.CharField(max_length=60, blank=True)
+    action = models.CharField(max_length=20, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 # Row layout for the Vital Signs flowsheet -- deliberately a plain Python
@@ -1567,6 +1717,211 @@ class PatientHeaderConfig(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class RegistrationTabSequence(models.Model):
+    """
+    The steps Full Registration shows, in order, and which ones must be opened before saving.
+    `tabs` is [{"key": "identity", "require_review": true}, ...]. One row per clinic and care
+    setting; a blank care_setting applies to every setting that has no row of its own. A clinic
+    with no row uses the built-in sequence.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="registration_tab_sequences")
+    care_setting = models.CharField(max_length=12, blank=True, default="")
+    tabs = models.JSONField(default=list)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "care_setting"], name="uniq_registration_tabs_org_setting"),
+        ]
+
+
+class InsuranceType(models.Model):
+    """A kind of coverage (Medicare, Commercial HMO...). The policy number format uses A (letter),
+    N (digit), Z (letter or digit) and P (punctuation); any other character must match exactly."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="insurance_types")
+    name = models.CharField(max_length=120)
+    policy_format = models.CharField(max_length=40, blank=True)
+    required_primary = models.BooleanField(default=False)  # a policy of this type has to be the primary one
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="uniq_insurance_type_org_name")]
+
+
+class InsuranceCarrier(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="insurance_carriers")
+    name = models.CharField(max_length=120)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="uniq_insurance_carrier_org_name")]
+
+
+class InsurancePlan(models.Model):
+    """A carrier's plan. It needs a type and a carrier first."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="insurance_plans")
+    carrier = models.ForeignKey(InsuranceCarrier, on_delete=models.CASCADE, related_name="plans")
+    insurance_type = models.ForeignKey(InsuranceType, on_delete=models.PROTECT, related_name="plans")
+    name = models.CharField(max_length=120)
+    active = models.BooleanField(default=True)  # false = discontinued
+
+    class Meta:
+        ordering = ["carrier__name", "name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="uniq_insurance_plan_org_name")]
+
+
+class PatientPolicy(models.Model):
+    """One policy a patient holds. cob_order 1 is the primary. Ended or inactive policies stay as history."""
+
+    patient = models.ForeignKey("users.Patient", on_delete=models.CASCADE, related_name="policies")
+    plan = models.ForeignKey(InsurancePlan, on_delete=models.PROTECT, related_name="policies")
+    cob_order = models.PositiveSmallIntegerField(default=1)
+    insured_person = models.CharField(max_length=255, blank=True, default="Self")
+    relationship = models.CharField(max_length=100, blank=True)
+    policy_number = models.CharField(max_length=60)
+    group_number = models.CharField(max_length=60, blank=True)
+    effective_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-active", "cob_order", "id"]
+
+
+class CustomForm(models.Model):
+    """A clinic-defined form shown as a section of the Forms step. used_as says whether the answers belong
+    to the patient (kept across visits) or to the visit. roles empty means every staff role may fill it in."""
+
+    USED_AS_CHOICES = [("patient", "Patient"), ("visit", "Visit")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="custom_forms")
+    name = models.CharField(max_length=120)
+    used_as = models.CharField(max_length=10, choices=USED_AS_CHOICES, default="patient")
+    roles = models.JSONField(default=list)
+    active = models.BooleanField(default=True)
+    sequence = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sequence", "id"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="uniq_custom_form_org_name")]
+
+
+class CustomFormItem(models.Model):
+    """One question. show_when_item/show_when_value hide it until an earlier answer matches."""
+
+    TYPE_CHOICES = [("yes_no", "Yes / No"), ("dictionary", "Choice list"), ("text", "Text"), ("date", "Date"), ("number", "Number")]
+
+    form = models.ForeignKey(CustomForm, on_delete=models.CASCADE, related_name="items")
+    sequence = models.PositiveSmallIntegerField(default=0)
+    label = models.CharField(max_length=200)
+    item_type = models.CharField(max_length=12, choices=TYPE_CHOICES, default="text")
+    options = models.JSONField(default=list)
+    required = models.BooleanField(default=False)
+    show_when_item = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="dependents")
+    show_when_value = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        ordering = ["sequence", "id"]
+
+
+class CustomFormAnswer(models.Model):
+    """An answer. Patient forms have no registration; visit forms are tied to the visit."""
+
+    item = models.ForeignKey(CustomFormItem, on_delete=models.CASCADE, related_name="answers")
+    patient = models.ForeignKey("users.Patient", on_delete=models.CASCADE, related_name="custom_answers")
+    registration = models.ForeignKey("users.Registration", on_delete=models.CASCADE, null=True, blank=True, related_name="custom_answers")
+    value = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["item", "patient"], condition=models.Q(registration__isnull=True), name="uniq_answer_patient_level"),
+            models.UniqueConstraint(fields=["item", "patient", "registration"], condition=models.Q(registration__isnull=False), name="uniq_answer_visit_level"),
+        ]
+
+
+class PatientContact(models.Model):
+    """Another person to reach for a patient (next of kin, guardian, health care proxy...). The first
+    emergency contact stays on the patient record; these are the additional ones."""
+
+    patient = models.ForeignKey("users.Patient", on_delete=models.CASCADE, related_name="extra_contacts")
+    sequence = models.PositiveSmallIntegerField(default=0)
+    contact_type = models.CharField(max_length=60, blank=True)
+    name = models.CharField(max_length=255)
+    relationship = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    receives_communication = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["sequence", "id"]
+
+
+class PatientGuarantor(models.Model):
+    """Who is responsible for the bill. is_self means the patient; otherwise the person named."""
+
+    patient = models.OneToOneField("users.Patient", on_delete=models.CASCADE, related_name="guarantor")
+    is_self = models.BooleanField(default=True)
+    name = models.CharField(max_length=255, blank=True)
+    relationship = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+
+
+class PatientEmployer(models.Model):
+    patient = models.OneToOneField("users.Patient", on_delete=models.CASCADE, related_name="employer_record")
+    employer_name = models.CharField(max_length=255, blank=True)
+    employment_status = models.CharField(max_length=60, blank=True)
+    occupation = models.CharField(max_length=120, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    from_date = models.DateField(null=True, blank=True)
+
+
+class RegistrationDictionary(models.Model):
+    """
+    A clinic's choice list for a registration field (language, relationship, payer...).
+    `entries` is [{"value": "Spanish", "abbr": "SPA", "active": true}, ...] in display order.
+    A clinic with no row uses the built-in list.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="registration_dictionaries")
+    code = models.CharField(max_length=40)
+    entries = models.JSONField(default=list)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "code"], name="uniq_registration_dictionary_org_code"),
+        ]
+
+
+class RegistrationFieldSetting(models.Model):
+    """
+    How a clinic shows the fields of one registration step: relabelled, optional, required,
+    view-only or hidden. `settings_map` is {"address": {"label": "Home address", "mode": "req"}}.
+    Fields not listed keep their built-in label and are optional.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="registration_field_settings")
+    window = models.CharField(max_length=20)
+    settings_map = models.JSONField(default=dict)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "window"], name="uniq_registration_fields_org_window"),
+        ]
+
+
 class HeaderFieldDefinition(models.Model):
     """An extra header item a clinic defines itself, e.g. 'Code status' or 'Isolation'."""
 
@@ -1666,6 +2021,9 @@ class Unit(models.Model):
     code = models.CharField(max_length=20, blank=True)
     care_type = models.CharField(max_length=12, choices=CARE_TYPE_CHOICES, default="outpatient")
     is_active = models.BooleanField(default=True)
+    # Operating rooms / perioperative area. Surgery builds its rooms here; registration and
+    # appointment pickers hide these units so nobody is bedded in an OR by mistake.
+    is_surgical = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["name", "id"]
@@ -1733,6 +2091,9 @@ class ReferralDestination(models.Model):
     fax = models.CharField(max_length=30, blank=True)
     address = models.CharField(max_length=300, blank=True)
     direct_address = models.CharField(max_length=120, blank=True)
+    # Where the secure referral link is sent: a mobile number for texts and an email address.
+    mobile = models.CharField(max_length=30, blank=True)
+    email = models.CharField(max_length=254, blank=True)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1754,6 +2115,10 @@ class ReferralSettings(models.Model):
     organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="referral_settings")
     schedule_days = models.JSONField(default=dict, blank=True)  # {"routine": 14, "urgent": 3, "emergent": 1}
     report_days = models.PositiveIntegerField(default=14)
+    # Who is told when a specialist replies through the secure link (the in-app status always changes).
+    notify_clinic_email = models.BooleanField(default=True)
+    notify_clinic_sms = models.BooleanField(default=False)
+    notify_specialist_receipt = models.BooleanField(default=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -1839,6 +2204,66 @@ class ReferralEvent(models.Model):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+
+class ReferralLink(models.Model):
+    """
+    A private link that lets the receiving specialist open one referral and answer it.
+
+    Only a hash of the link's key is stored (the key itself goes out in the text or email and in
+    the address after the "#", which browsers never send to a server). The link stops working when
+    it expires, is turned off, or the referral closes. A new link replaces the one before it.
+    """
+
+    referral = models.ForeignKey(Referral, on_delete=models.CASCADE, related_name="links")
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    # where it went: [{"channel": "sms"|"email", "to": "masked", "sent": bool, "reason": "", "at": iso}]
+    deliveries = models.JSONField(default=list, blank=True)
+    recipient_mobile = models.CharField(max_length=30, blank=True)
+    recipient_email = models.CharField(max_length=254, blank=True)
+
+    # the second check: a 6-digit code sent to the other contact; only a hash is kept
+    require_code = models.BooleanField(default=True)
+    code_hash = models.CharField(max_length=64, blank=True)
+    code_expires_at = models.DateTimeField(null=True, blank=True)
+    code_attempts = models.PositiveSmallIntegerField(default=0)
+    code_sends = models.JSONField(default=list, blank=True)  # ISO times of the last hour's sends
+
+    first_opened_at = models.DateTimeField(null=True, blank=True)
+    last_opened_at = models.DateTimeField(null=True, blank=True)
+    open_count = models.PositiveIntegerField(default=0)
+    verify_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["referral", "revoked_at"])]
+
+
+class ReferralAttachment(models.Model):
+    """A file the specialist sent back (a consult letter). The bytes live on the lab document it was filed as."""
+
+    referral = models.ForeignKey(Referral, on_delete=models.CASCADE, related_name="attachments")
+    lab_report = models.ForeignKey(
+        "appointments.LabReport", on_delete=models.PROTECT, related_name="referral_attachments"
+    )
+    link = models.ForeignKey(ReferralLink, null=True, blank=True, on_delete=models.SET_NULL, related_name="attachments")
+    file_name = models.CharField(max_length=150)
+    file_content_type = models.CharField(max_length=50)
+    file_size = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -2766,3 +3191,74 @@ class TriageReassessment(models.Model):
 
     def __str__(self):
         return f"Reassessment of appointment {self.appointment_id} at {self.recorded_at:%Y-%m-%d %H:%M}"
+
+
+class VisitTransport(models.Model):
+    """Transportation arranged for one visit (registration > Transportation)."""
+
+    registration = models.OneToOneField("users.Registration", on_delete=models.CASCADE, related_name="transport")
+    needed = models.CharField(max_length=3, blank=True)  # "yes", "no" or blank (not asked)
+    reason = models.CharField(max_length=100, blank=True)
+    provider = models.CharField(max_length=100, blank=True)
+    location_type = models.CharField(max_length=100, blank=True)
+    trip_indicator = models.CharField(max_length=100, blank=True)
+    pickup_location = models.CharField(max_length=255, blank=True)
+    destination = models.CharField(max_length=255, blank=True)
+    pickup_time = models.DateTimeField(null=True, blank=True)
+    notes = models.CharField(max_length=500, blank=True)
+
+
+class ReceiptSequence(models.Model):
+    """The last receipt number a clinic has issued; numbers are never reused."""
+
+    organization = models.OneToOneField("users.Organization", on_delete=models.CASCADE, related_name="receipt_sequence")
+    last_number = models.PositiveIntegerField(default=0)
+
+
+class PaymentReceipt(models.Model):
+    """
+    Money taken at registration. A receipt is never edited or deleted; a mistake is voided with a reason
+    and a new receipt is written.
+    """
+
+    organization = models.ForeignKey("users.Organization", on_delete=models.CASCADE, related_name="payment_receipts")
+    patient = models.ForeignKey("users.Patient", on_delete=models.CASCADE, related_name="payment_receipts")
+    registration = models.ForeignKey("users.Registration", null=True, blank=True, on_delete=models.SET_NULL, related_name="payment_receipts")
+    receipt_number = models.PositiveIntegerField()
+    payment_type = models.CharField(max_length=100)
+    method = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=9, decimal_places=2)
+    reference = models.CharField(max_length=100, blank=True)  # check number, card last four, ...
+    note = models.CharField(max_length=255, blank=True)
+    received_by = models.ForeignKey("users.CustomUser", null=True, on_delete=models.SET_NULL, related_name="+")
+    received_at = models.DateTimeField(auto_now_add=True)
+    voided = models.BooleanField(default=False)
+    void_reason = models.CharField(max_length=255, blank=True)
+    voided_by = models.ForeignKey("users.CustomUser", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    voided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organization", "receipt_number"], name="uniq_receipt_per_clinic")]
+        ordering = ["-receipt_number"]
+
+
+class ZipCode(models.Model):
+    """A clinic's ZIP / postal code table: typing a code fills in the city and state."""
+
+    organization = models.ForeignKey("users.Organization", on_delete=models.CASCADE, related_name="zip_codes")
+    code = models.CharField(max_length=10)  # normalized: 5 digits (US) or 3-6 letters/digits (Canada)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=50)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organization", "code"], name="uniq_zip_per_clinic")]
+        ordering = ["code"]
+
+
+class RegistrationSettings(models.Model):
+    """Clinic-wide registration options: which country's labels to use, and whether ZIP codes must be known."""
+
+    COUNTRY_CHOICES = [("US", "United States"), ("CA", "Canada")]
+    organization = models.OneToOneField("users.Organization", on_delete=models.CASCADE, related_name="registration_settings")
+    country = models.CharField(max_length=2, choices=COUNTRY_CHOICES, default="US")
+    validate_zip = models.BooleanField(default=False)

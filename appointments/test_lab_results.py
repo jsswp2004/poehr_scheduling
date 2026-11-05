@@ -414,6 +414,33 @@ class OrganizationSwitchTests(Base):
         self.assertTrue(self.org.lab_interface_enabled)
 
 
+class SystemAdminChosenOrganizationTests(Base):
+    """A system admin who chose an organization sees only that organization's lab results."""
+
+    def _titles_for_sysadmin(self):
+        from rest_framework_simplejwt.tokens import AccessToken
+
+        c = APIClient()
+        c.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.sysadmin)}")
+        return c
+
+    def test_lab_results_follow_the_chosen_organization(self):
+        mine = self.enter(self.doctor, title="Clinic A panel")
+        theirs = self.enter(self.outsider, patient=self.other_patient.pk, title="Clinic B panel")
+        c = self._titles_for_sysadmin()
+
+        def ids():
+            data = c.get(URL).json()
+            rows = data["results"] if isinstance(data, dict) and "results" in data else data
+            return {r["id"] for r in rows}
+
+        self.assertEqual(ids(), {mine["id"], theirs["id"]})
+        self.assertEqual(c.put("/api/users/acting-organization/", {"organization": self.other_org.pk}, format="json").status_code, 200)
+        self.assertEqual(ids(), {theirs["id"]})
+        c.put("/api/users/acting-organization/", {"organization": self.org.pk}, format="json")
+        self.assertEqual(ids(), {mine["id"]})
+
+
 # ---------------------------------------------------------------------------
 # Scanned documents
 # ---------------------------------------------------------------------------

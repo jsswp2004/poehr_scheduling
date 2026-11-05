@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   alpha,
   Alert,
@@ -174,7 +175,19 @@ function StaffingRosterTab({ isAdmin = false }) {
 
   // Tiles, search, filters and paging (all client-side; the whole roster is loaded).
   const [tile, setTile] = useState("all");
-  const [search, setSearch] = useState("");
+  // ?q= (from the header search) starts the roster filtered to that person.
+  const [rosterParams] = useSearchParams();
+  const queryParam = rosterParams.get("q") || "";
+  const [search, setSearch] = useState(queryParam);
+  useEffect(() => {
+    if (queryParam) {
+      setSearch(queryParam);
+      setTile("all");
+      setStatusFilter("all");
+      setRoleFilter("all");
+      setPage(0);
+    }
+  }, [queryParam]);
   const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive
   const [roleFilter, setRoleFilter] = useState("all"); // all | rn | lpn | cna | other
   const [page, setPage] = useState(0);

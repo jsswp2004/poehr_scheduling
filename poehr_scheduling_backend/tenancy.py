@@ -122,6 +122,16 @@ class TenantScopeMiddleware(MiddlewareMixin):
         return None
 
 
+def sees_all_orgs(user):
+    """
+    True for a system administrator who has not chosen an organization to work in: their lists span every
+    organization. Once they choose one (at sign-in, in the header, or with a facility header), they see and
+    change that organization only. Use this where a view used to ask "is this a system admin?" to decide
+    WHICH DATA to show. Whether someone may do something still depends on their role.
+    """
+    return getattr(user, "role", None) == "system_admin" and not getattr(user, "acting_for_org", False)
+
+
 class TenantAwareJWTAuthentication(JWTAuthentication):
     """
     Drop-in replacement for rest_framework_simplejwt's JWTAuthentication
@@ -142,8 +152,28 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
             if getattr(user, "role", None) == "staff":
                 self._enforce_staff_scope(request)
             self._act_for_facility(request, user)
+            self._enforce_module(request, user)
             set_current_organization(getattr(user, "organization", None))
         return result
+
+    def _enforce_module(self, request, user):
+        """
+        Block the API of a module the organization has switched off. Hiding a menu is not enough:
+        the server refuses the request. System administrators are never blocked (they manage
+        every organization), and an organization that was never configured keeps everything.
+        """
+        if getattr(user, "role", None) == "system_admin":
+            return
+        from rest_framework.exceptions import PermissionDenied
+
+        from users.modules import has_module, module_for_path
+
+        code = module_for_path(request.path)
+        org = getattr(user, "organization", None)
+        if code and org is not None and not has_module(org, code):
+            raise PermissionDenied(
+                detail={"detail": "This service is not turned on for your organization.", "code": "module_not_enabled", "module": code}
+            )
 
     FACILITY_HEADER = "HTTP_X_FACILITY_ID"
 
@@ -163,16 +193,20 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
         if getattr(user, "role", None) != "system_admin":
             return
         raw = request.META.get(self.FACILITY_HEADER, "")
-        if not raw:
-            return
         from rest_framework.exceptions import ParseError
 
         from users.models import Organization
 
-        try:
-            org = Organization.objects.get(pk=int(raw))
-        except (TypeError, ValueError, Organization.DoesNotExist):
-            raise ParseError("Unknown facility.")
+        if raw:
+            try:
+                org = Organization.objects.get(pk=int(raw))
+            except (TypeError, ValueError, Organization.DoesNotExist):
+                raise ParseError("Unknown facility.")
+        else:
+            # No header: use the organization this administrator chose at sign-in or in the header switcher.
+            org = getattr(user, "acting_organization", None)
+            if org is None:
+                return
 
         real_org_id = user.organization_id
         real_save = user.save
@@ -187,6 +221,8 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
 
         user.organization = org
         user.save = safe_save
+        # From here on this request is about ONE organization, so lists are limited to it (see sees_all_orgs).
+        user.acting_for_org = True
 
     # Roster-staff logins ("My Shifts") may only touch these API prefixes.
     # Everything else (patients, appointments, users, billing, ...) is

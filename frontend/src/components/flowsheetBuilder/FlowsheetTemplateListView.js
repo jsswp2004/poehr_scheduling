@@ -5,11 +5,12 @@ import {
     Chip,
     CircularProgress,
     IconButton,
+    Menu,
+    MenuItem,
     Paper,
     Table,
     TableBody,
     TableCell,
-    TableContainer,
     TableHead,
     TableRow,
     Tooltip,
@@ -20,10 +21,11 @@ import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
+import { BUILDER_STICKY_TOP, BuilderToolbar } from "../builders/BuilderShell";
 
 // The shared `api` axios instance carries no Authorization header of its
 // own -- every call site attaches its own token, matching the pattern used
@@ -48,6 +50,7 @@ function FlowsheetTemplateListView({ onEdit, onNew }) {
     const [banner, setBanner] = useState(null);
     const [uploadErrors, setUploadErrors] = useState([]);
     const fileInputRef = useRef(null);
+    const [moreAnchor, setMoreAnchor] = useState(null);
 
     // Downloads go through axios (not a plain link) so the auth header is sent.
     const saveCsv = async (url, fallbackName) => {
@@ -171,6 +174,8 @@ function FlowsheetTemplateListView({ onEdit, onNew }) {
         }
     };
 
+    const headSx = { position: "sticky", top: BUILDER_STICKY_TOP, zIndex: 2, bgcolor: "background.paper", fontWeight: 700 };
+
     if (templates === null && !error) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
@@ -213,37 +218,45 @@ function FlowsheetTemplateListView({ onEdit, onNew }) {
                     </Table>
                 </Paper>
             )}
-            <Box sx={{ display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: 1, mb: 2 }}>
-                <Button
-                    variant="outlined"
-                    startIcon={<FileDownloadIcon />}
-                    onClick={() => saveCsv(apiEndpoints.flowsheetTemplatesSampleCsv, "flowsheet_template_upload_template.csv")}
-                >
-                    Download Sample CSV
-                </Button>
-                <Button
-                    variant="outlined"
-                    startIcon={uploading ? <CircularProgress size={16} /> : <UploadFileIcon />}
-                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                    disabled={uploading}
-                >
-                    Upload CSV
-                </Button>
-                <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleUploadFile} />
-                <Button variant="contained" startIcon={<AddIcon />} onClick={onNew}>
+            <BuilderToolbar>
+                <Box sx={{ flexGrow: 1 }} />
+                <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={onNew}>
                     New Flowsheet Type
                 </Button>
-            </Box>
-            <TableContainer component={Paper}>
+                <IconButton size="small" aria-label="More actions" onClick={(e) => setMoreAnchor(e.currentTarget)}>
+                    <MoreVertIcon fontSize="small" />
+                </IconButton>
+                <Menu anchorEl={moreAnchor} open={Boolean(moreAnchor)} onClose={() => setMoreAnchor(null)}>
+                    <MenuItem
+                        onClick={() => {
+                            setMoreAnchor(null);
+                            saveCsv(apiEndpoints.flowsheetTemplatesSampleCsv, "flowsheet_template_upload_template.csv");
+                        }}
+                    >
+                        Download Sample CSV
+                    </MenuItem>
+                    <MenuItem
+                        disabled={uploading}
+                        onClick={() => {
+                            setMoreAnchor(null);
+                            fileInputRef.current && fileInputRef.current.click();
+                        }}
+                    >
+                        {uploading ? "Uploading..." : "Upload CSV"}
+                    </MenuItem>
+                </Menu>
+                <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleUploadFile} />
+            </BuilderToolbar>
+            <Box sx={{ overflowX: { xs: "auto", md: "clip" } }}>
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Code</TableCell>
-                            <TableCell align="center">Version</TableCell>
-                            <TableCell align="center">Rows</TableCell>
-                            <TableCell align="center">Status</TableCell>
-                            <TableCell align="right">Actions</TableCell>
+                            <TableCell sx={headSx}>Name</TableCell>
+                            <TableCell sx={headSx}>Code</TableCell>
+                            <TableCell align="center" sx={headSx}>Version</TableCell>
+                            <TableCell align="center" sx={headSx}>Rows</TableCell>
+                            <TableCell align="center" sx={headSx}>Status</TableCell>
+                            <TableCell align="right" sx={headSx}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -304,7 +317,7 @@ function FlowsheetTemplateListView({ onEdit, onNew }) {
                         )}
                     </TableBody>
                 </Table>
-            </TableContainer>
+            </Box>
         </Box>
     );
 }

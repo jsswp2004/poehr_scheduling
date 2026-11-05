@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from users.models import Organization, Patient, Registration
@@ -70,6 +71,13 @@ class HeaderContentTests(Base):
     def test_default_items_in_order(self):
         response = self.get()
         self.assertEqual([i["key"] for i in response.json()["items"]], ph.DEFAULT_VISIBLE)
+
+    def test_photo_is_the_profile_picture_or_blank(self):
+        self.assertEqual(self.get().json()["photo_url"], "")
+        self.patient.profile_picture = "profile_pics/test.png"
+        self.patient.save()
+        url = self.get().json()["photo_url"]
+        self.assertTrue(url.endswith("/media/profile_pics/test.png"), url)
 
     def test_values_without_a_visit(self):
         items = self.items()
@@ -439,3 +447,56 @@ class HeaderGrowthChartFlagTests(Base):
         self.profile.date_of_birth = None
         self.profile.save()
         self.assertIsNone(self.get(self.nurse).json()["age_months"])
+
+
+class VisitHistoryTests(Base):
+    def url(self, patient=None):
+        return HEADER.format((patient or self.patient).pk) + "visits/"
+
+    def make(self, **kw):
+        kw.setdefault("admission_type", "scheduled")
+        return Registration.objects.create(patient=self.profile, organization=self.org, **kw)
+
+    def test_lists_newest_first_and_marks_current(self):
+        old = self.make(reason_for_visit="Old", discharge_datetime=timezone.now())
+        new = self.make(reason_for_visit="New")
+        self.client.force_authenticate(self.doctor)
+        data = self.client.get(self.url()).json()
+        self.assertEqual([v["id"] for v in data["visits"]], [new.pk, old.pk])
+        self.assertEqual(data["current_id"], new.pk)
+        self.assertTrue(data["visits"][0]["is_current"])
+        self.assertFalse(data["visits"][1]["is_current"])
+        self.assertFalse(data["visits"][1]["is_open"])
+        self.assertEqual(data["visits"][0]["reason"], "New")
+
+    def test_no_visits(self):
+        self.client.force_authenticate(self.doctor)
+        data = self.client.get(self.url()).json()
+        self.assertEqual(data["visits"], [])
+        self.assertIsNone(data["current_id"])
+
+    def test_other_clinic_blocked(self):
+        self.client.force_authenticate(self.outsider)
+        self.assertIn(self.client.get(self.url()).status_code, (403, 404))
+
+    def test_patient_cannot_read_visit_list(self):
+        self.client.force_authenticate(self.patient)
+        self.assertIn(self.client.get(self.url()).status_code, (403, 404))
+
+    def test_header_for_a_chosen_past_visit(self):
+        old = self.make(reason_for_visit="Old cough", visit_number="VN-1")
+        self.make(reason_for_visit="New", visit_number="VN-2")
+        items = self.items(visit=old.pk)
+        self.assertEqual(items["visit_id"]["value"], "VN-1")
+
+    def test_unknown_or_bad_visit_falls_back_to_latest(self):
+        self.make(visit_number="VN-1")
+        self.make(visit_number="VN-2")
+        self.assertEqual(self.items(visit=999999)["visit_id"]["value"], "VN-2")
+        self.assertEqual(self.items(visit="abc")["visit_id"]["value"], "VN-2")
+
+    def test_another_patients_visit_id_is_ignored(self):
+        self.make(visit_number="VN-MINE")
+        other_profile = Patient.objects.get(user=self.other_patient)
+        foreign = Registration.objects.create(patient=other_profile, organization=self.other_org, visit_number="VN-FOREIGN")
+        self.assertEqual(self.items(visit=foreign.pk)["visit_id"]["value"], "VN-MINE")

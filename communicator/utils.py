@@ -198,7 +198,7 @@ def send_sms(to: str, message: str, user=None, organization=None, bypass_opt_out
             body=message,
             message_type="sms",
             status="failed",
-            provider_id=str(exc),
+            provider_id=str(exc)[:100],
         )
         raise
 
@@ -237,6 +237,6 @@ def send_email(to_email: str, subject: str, message: str, user=None, organizatio
             body=message,
             message_type="email",
             status="failed",
-            provider_id=str(exc),
+            provider_id=str(exc)[:100],
         )
         raise

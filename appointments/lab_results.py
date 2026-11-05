@@ -20,7 +20,9 @@ flags (LL / HH) are never guessed -- the lab or the person entering the
 result has to say so.
 """
 
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 import hashlib
+import logging
 import os
 import re
 from decimal import Decimal, InvalidOperation
@@ -31,6 +33,7 @@ from django.utils import timezone
 
 from users.models import Registration
 
+from . import inbox
 from .models import LabReport, LabReportEvent, LabReportFileData, LabResultItem, Order
 
 MAX_ITEMS = 100
@@ -224,7 +227,7 @@ def _find_patient(user, patient_id):
     patient = User.objects.filter(pk=patient_id, role="patient").first()
     if patient is None:
         raise LabResultError("Patient not found.", 404)
-    if not _is_system_admin(user) and patient.organization_id != user.organization_id:
+    if not sees_all_orgs(user) and patient.organization_id != user.organization_id:
         raise LabResultError("Patient not found.", 404)
     return patient
 
@@ -345,6 +348,12 @@ def create_report(user, data, *, source="manual"):
         source="user" if source != "interface" else "interface",
         detail={"source": source, "items": len(items), "order": order.pk if order else None},
     )
+    # Tell the patient's provider (Inbox alert); never let that stop the result being saved.
+    try:
+        with transaction.atomic():
+            inbox.notify_lab_report(report)
+    except Exception:  # pragma: no cover - alerts are best effort
+        logging.getLogger(__name__).exception("Inbox alert for lab report %s failed", report.pk)
     return report
 
 
@@ -434,6 +443,7 @@ def review_report(report, user, comment=""):
     report.review_comment = str(comment or "").strip()
     report.save()
     log_event(report, "reviewed", user, detail={"comment": bool(report.review_comment)})
+    inbox.close_lab_alerts(report)
     return report
 
 
@@ -450,6 +460,7 @@ def mark_entered_in_error(report, user, reason):
     report.error_reason = reason
     report.save()
     log_event(report, "entered_in_error", user, detail={"from_status": previous, "reason": reason})
+    inbox.close_lab_alerts(report)
     return report
 
 

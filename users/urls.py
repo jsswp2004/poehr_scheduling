@@ -5,6 +5,8 @@ from .admissions import AdmitView, TransferView, DischargeView, AttendingView
 from .removal import user_removal, user_restore
 from .board_builder import StatusSettingsView, StatusViewDetailView, StatusViewListView, StatusViewUndoView
 from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView, EdFollowUpView
+from .org_access import module_catalog, organization_access
+from .dictionaries import dictionary_detail, dictionary_list
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
@@ -60,6 +62,8 @@ from .payment_views import (
     messaging_usage,
 )
 
+from .acting_org import acting_organization
+
 router = DefaultRouter()
 router.register(r"organizations", OrganizationViewSet, basename="organization")
 router.register(r"registrations", RegistrationViewSet, basename="registration")
@@ -67,6 +71,7 @@ router.register(r"registrations", RegistrationViewSet, basename="registration")
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("acting-organization/", acting_organization, name="acting-organization"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("doctors/", DoctorListView.as_view(), name="doctor-list"),
     path("patients/", get_patients, name="patient-list"),
@@ -123,6 +128,10 @@ urlpatterns = [
     path(
         "trial-reminders/", send_trial_reminders, name="send-trial-reminders"
     ),  # Trial reminders endpoint
+    path("dictionaries/", dictionary_list, name="dictionary-list"),
+    path("dictionaries/<slug:code>/", dictionary_detail, name="dictionary-detail"),
+    path("modules/", module_catalog, name="module-catalog"),
+    path("organization-access/", organization_access, name="organization-access"),
     path("team/", get_team_members, name="team-list"),
     # Debug endpoint for Stripe configuration
     path("debug-stripe/", debug_stripe_config, name="debug-stripe-config"),

@@ -67,6 +67,7 @@ export function makeUsername(first, last, random = Math.random) {
 const PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
 
 // Unguessable password for a patient with no portal login. Nobody sees it; they can use Forgot password later.
+/* global globalThis */
 export function makePassword(length = 16, cryptoObj = typeof globalThis !== "undefined" ? globalThis.crypto : undefined) {
   const bytes = new Uint32Array(length);
   if (cryptoObj && cryptoObj.getRandomValues) cryptoObj.getRandomValues(bytes);
@@ -189,16 +190,47 @@ export function ageText(iso, today = new Date()) {
 // Patient-level fields live on the patient, visit-level fields on the visit.
 export const STEP_REQUIREMENTS = {
   identity: { patient: ["legal_sex", "date_of_birth", "phone_number"] },
+  demographics: { patient: ["city", "state", "zip_code"] },
   emergency: { patient: ["emergency_contact_name", "emergency_contact_phone"] },
   financial: { patient: ["insurance_payer_name", "insurance_member_id"] },
   reason: { visit: ["reason_for_visit"] },
+  visitdetails: { visit: ["admit_source"] },
   legal: { patient: ["consent_to_treat"] },
   logistics: { visit: ["care_setting", "attending_provider"] },
 };
 
-export function stepFilled(step, patientFields = {}, visitFields = {}) {
+export function stepFilled(step, patientFields = {}, visitFields = {}, extras = null) {
+  if (step === "insurance") return !!extras && (extras.policies || []).some((p) => p.active && !p.end_date);
+  const has = (v) => v === true || (v !== false && v !== null && v !== undefined && String(v).trim() !== "");
+  // These steps keep their details outside the patient and visit fields (contacts, guarantor, employer).
+  if (step === "contacts") return !!extras && ((extras.contacts || []).length > 0 || has(patientFields.directive_type));
+  if (step === "guarantor") return !!extras && !!extras.guarantor && (!!extras.guarantor.is_self || has(extras.guarantor.name));
+  if (step === "employer") return !!extras && !!extras.employer && (has(extras.employer.employer_name) || has(extras.employer.employment_status));
+  if (step === "forms") return !!extras && extras.formsComplete === true;
+  if (step === "payments") return !!extras && Number(extras.paymentCount) > 0;
+  if (step === "transportation") return !!extras && !!extras.transport && (extras.transport.needed === "no" || (extras.transport.needed === "yes" && has(extras.transport.reason)));
   const need = STEP_REQUIREMENTS[step];
   if (!need) return false;
-  const has = (v) => v === true || (v !== false && v !== null && v !== undefined && String(v).trim() !== "");
   return (need.patient || []).every((k) => has(patientFields[k])) && (need.visit || []).every((k) => has(visitFields[k]));
+}
+
+// A readable message from a failed request: the server's own "detail", or its field errors written out
+// ("Username: A user with that username already exists.") instead of the raw JSON.
+export function apiErrorText(err, fallback) {
+  const data = err?.response?.data;
+  if (data && typeof data === "object" && data.detail) return String(data.detail);
+  if (typeof data === "string" && data.trim() && !data.trim().startsWith("<")) return data.trim();
+  if (data && typeof data === "object") {
+    const parts = Object.entries(data)
+      .map(([field, value]) => {
+        const text = (Array.isArray(value) ? value : [value]).filter((v) => typeof v === "string").join(" ");
+        if (!text) return "";
+        if (field === "non_field_errors" || field === "error") return text;
+        const label = field.replace(/_/g, " ");
+        return `${label.charAt(0).toUpperCase()}${label.slice(1)}: ${text}`;
+      })
+      .filter(Boolean);
+    if (parts.length) return parts.join(" ");
+  }
+  return fallback;
 }

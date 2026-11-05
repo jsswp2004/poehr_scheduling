@@ -117,7 +117,7 @@ To continue using POWER Scheduling without interruption:
 3. 🔄 Your subscription will automatically continue after the trial
 
 🔗 Manage your subscription:
-• Log in at: https://powerhealthcareit.com/login
+• Log in at: https://powerhealthit.com/login
 • Go to Account Settings > Subscription
 • Update payment methods and billing preferences
 

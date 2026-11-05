@@ -197,3 +197,114 @@ class OnceSubscriptionApiTests(TestCase):
         r = c.post(f"{BASE}/report-subscriptions/", self.payload(frequency="weekly", start_date="2030-03-06"), format="json")
         self.assertEqual(r.json()["weekday"], 2)  # Wednesday
         self.assertEqual(r.json()["month_day"], 6)
+
+
+class CustomReportSubscriptionTests(TestCase):
+    """Emailing a saved Reports-module report, with Hide PHI chosen per schedule."""
+
+    def setUp(self):
+        from appointments.models import PatientAllergy
+
+        from .models import CustomReport
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(
+            username="a", password="x", role="admin", organization=self.org, email="a@example.com")
+        self.nurse = CustomUser.objects.create_user(
+            username="n", password="x", role="nurse", organization=self.org, email="nurse@example.com")
+        self.ann = CustomUser.objects.create_user(
+            username="p1", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames")
+        PatientAllergy.objects.create(organization=self.org, patient=self.ann, substance="Penicillin", severity="severe")
+        self.allergies = CustomReport.objects.create(
+            organization=self.org, created_by=self.admin, name="Allergy list", module="allergies", source="allergies",
+            config={"columns": ["patient", "substance", "allergies"]}, audience="org",
+        )
+        self.shifts = CustomReport.objects.create(
+            organization=self.org, created_by=self.admin, name="Shifts", module="staffing", source="shifts",
+            config={"group_by": "shift", "columns": ["shift", "shifts"]}, audience="org",
+        )
+
+    def payload(self, report, **kw):
+        base = {
+            "report": "custom", "custom_report": report.pk, "frequency": "weekly", "send_hour": 7,
+            "timezone": "America/New_York", "covers": "this_week", "formats": ["pdf", "csv"],
+            "recipients": ["outside@example.com"],
+        }
+        base.update(kw)
+        return base
+
+    def csv_of(self, message):
+        for name, content, _type in message.attachments:
+            if name.endswith(".csv"):
+                return (content if isinstance(content, str) else content.decode("utf-8-sig"))
+        return ""
+
+    def test_hide_phi_is_the_default_and_any_address_may_receive_it(self):
+        from .models import ReportAuditLog
+
+        c = client_for(self.admin)
+        r = c.post(f"{BASE}/report-subscriptions/", self.payload(self.allergies), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(r.json()["hide_phi"])
+        self.assertEqual(r.json()["report_label"], "Allergy list")
+        sent = c.post(f"{BASE}/report-subscriptions/{r.json()['id']}/send-now/", {"to": "everyone"}, format="json")
+        self.assertEqual(sent.status_code, 200, sent.content)
+        self.assertEqual(len(mail.outbox), 1)
+        text = self.csv_of(mail.outbox[0])
+        self.assertIn("Patient 1", text)
+        self.assertNotIn("Ames", text)
+        self.assertEqual(sorted(a[0].rsplit(".", 1)[1] for a in mail.outbox[0].attachments), ["csv", "pdf"])
+        log = ReportAuditLog.objects.get(source="allergies")
+        self.assertTrue(log.phi_hidden)
+        self.assertEqual(log.user, self.admin)
+
+    def test_names_shown_only_to_users_who_may_run_the_report(self):
+        c = client_for(self.admin)
+        outside = c.post(f"{BASE}/report-subscriptions/", self.payload(self.allergies, hide_phi=False), format="json")
+        self.assertEqual(outside.status_code, 400)
+        self.assertIn("outside@example.com", str(outside.json()))
+        inside = c.post(
+            f"{BASE}/report-subscriptions/", self.payload(self.allergies, hide_phi=False, recipients=["nurse@example.com"]), format="json"
+        )
+        self.assertEqual(inside.status_code, 201, inside.content)
+        c.post(f"{BASE}/report-subscriptions/{inside.json()['id']}/send-now/", {"to": "everyone"}, format="json")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Ann Ames", self.csv_of(mail.outbox[0]))
+        self.assertIn("patient information", mail.outbox[0].body)
+
+    def test_a_recipient_who_loses_access_stops_receiving_names(self):
+        c = client_for(self.admin)
+        pk = c.post(
+            f"{BASE}/report-subscriptions/", self.payload(self.allergies, hide_phi=False, recipients=["nurse@example.com"]), format="json"
+        ).json()["id"]
+        CustomUser.objects.filter(pk=self.nurse.pk).update(is_active=False)
+        r = c.post(f"{BASE}/report-subscriptions/{pk}/send-now/", {"to": "everyone"}, format="json")
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(r.status_code, 502)
+        self.assertIn("not allowed to receive patient names", r.json()["detail"])
+
+    def test_reports_without_patient_data_go_to_any_address(self):
+        c = client_for(self.admin)
+        r = c.post(f"{BASE}/report-subscriptions/", self.payload(self.shifts, hide_phi=False), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertFalse(r.json()["patient_data"])
+        c.post(f"{BASE}/report-subscriptions/{r.json()['id']}/send-now/", {"to": "everyone"}, format="json")
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_only_a_report_the_requester_can_see_may_be_scheduled(self):
+        from .models import CustomReport
+
+        other = Organization.objects.create(name="Org B")
+        hidden = CustomReport.objects.create(
+            organization=other, name="Theirs", module="allergies", source="allergies", config={"columns": ["substance"]}, audience="org"
+        )
+        c = client_for(self.admin)
+        self.assertEqual(c.post(f"{BASE}/report-subscriptions/", self.payload(hidden), format="json").status_code, 400)
+        self.assertEqual(c.post(f"{BASE}/report-subscriptions/", self.payload(self.allergies, custom_report=None), format="json").status_code, 400)
+
+    def test_due_custom_subscription_is_sent_by_the_hourly_job(self):
+        c = client_for(self.admin)
+        pk = c.post(f"{BASE}/report-subscriptions/", self.payload(self.allergies), format="json").json()["id"]
+        ReportSubscription.objects.filter(pk=pk).update(next_run_at=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc))
+        self.assertEqual(subs.send_due_subscriptions()["sent"], 1)
+        self.assertEqual(len(mail.outbox), 1)

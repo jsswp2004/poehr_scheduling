@@ -64,10 +64,12 @@ def _patient_name(reg):
 # rules shared with Registration and Scheduling
 # --------------------------------------------------------------------------
 
-def check_location(org, *, facility=None, unit=None, room=None, bed=None, registration_pk=None, require_free_bed=True):
+def check_location(org, *, facility=None, unit=None, room=None, bed=None, registration_pk=None, require_free_bed=True,
+                   allow_surgical=False):
     """
     Returns an error message (str) if the chosen place is not usable for this clinic, else None.
     Picks the most specific place given; a bed or room also carries its parents.
+    Operating-room units belong to Surgery: registration and appointments pass allow_surgical=False.
     """
     chosen = bed or room or unit or facility
     if chosen is None:
@@ -88,6 +90,14 @@ def check_location(org, *, facility=None, unit=None, room=None, bed=None, regist
     for obj, label in parts:
         if not obj.is_active:
             return f"The {label} “{obj.name}” is inactive."
+    if bed is not None:
+        unit_obj = bed.room.unit
+    elif room is not None:
+        unit_obj = room.unit
+    else:
+        unit_obj = unit
+    if not allow_surgical and unit_obj is not None and unit_obj.is_surgical:
+        return f"“{unit_obj.name}” is an operating-room unit and is managed in Surgery."
     # the separate pieces must agree with each other
     if room is not None and bed is not None and bed.room_id != room.id:
         return "That bed is not in the room you chose."
@@ -173,6 +183,7 @@ def build_tree(org, active_only=False, facility_ids=None):
                     "care_type": u.care_type,
                     "care_setting": u.care_setting,
                     "is_active": u.is_active,
+                    "is_surgical": u.is_surgical,
                     "rooms": rooms,
                     "bed_count": total,
                     "occupied_count": busy,
@@ -298,7 +309,10 @@ class LocationItemView(APIView):
                 return Response({"detail": "Type must be outpatient, inpatient or emergency."}, status=400)
             if Unit.objects.filter(facility=parent, name__iexact=name).exists():
                 return Response({"detail": "There is already a unit with that name here."}, status=400)
-            obj = Unit.objects.create(facility=parent, name=name, code=_code(data.get("code")), care_type=care)
+            obj = Unit.objects.create(
+                facility=parent, name=name, code=_code(data.get("code")), care_type=care,
+                is_surgical=bool(data.get("is_surgical", False)),
+            )
             return Response({"id": obj.pk}, status=201)
 
         if kind == "rooms":
@@ -375,6 +389,12 @@ class LocationItemView(APIView):
             sibling = self._siblings(obj, kind).exclude(pk=obj.pk).filter(name__iexact=name)
             if sibling.exists():
                 return Response({"detail": f"There is already a {label} with that name here."}, status=400)
+            if kind == "rooms":
+                surgery_room = getattr(obj, "surgery_room", None)
+                if surgery_room is not None and surgery_room.facility.surgery_rooms.filter(
+                    name__iexact=name
+                ).exclude(pk=surgery_room.pk).exists():
+                    return Response({"detail": f"There is already an operating room named {name} at {surgery_room.facility.name}."}, status=400)
             obj.name = name
         if "code" in data and hasattr(obj, "code"):
             obj.code = _code(data["code"])
@@ -386,6 +406,11 @@ class LocationItemView(APIView):
             if data["care_type"] not in dict(Unit.CARE_TYPE_CHOICES):
                 return Response({"detail": "Type must be outpatient, inpatient or emergency."}, status=400)
             obj.care_type = data["care_type"]
+        if kind == "units" and "is_surgical" in data:
+            want_surgical = bool(data["is_surgical"])
+            if not want_surgical and obj.is_surgical and Room.objects.filter(unit=obj, surgery_room__isnull=False).exists():
+                return Response({"detail": "Surgery is using rooms in this unit. Remove them from Surgery first."}, status=400)
+            obj.is_surgical = want_surgical
         if kind == "beds":
             if "hold" in data:
                 if data["hold"] not in dict(Bed.HOLD_CHOICES):
@@ -409,6 +434,12 @@ class LocationItemView(APIView):
             if self._occupied_below(obj, kind):
                 return Response({"detail": "A patient is in this bed. Move or discharge them before blocking it."}, status=400)
         obj.save()
+        if kind == "rooms":  # an operating room keeps Surgery's copy of the name and on/off in step
+            surgery_room = getattr(obj, "surgery_room", None)
+            if surgery_room is not None:
+                surgery_room.name = obj.name
+                surgery_room.is_active = obj.is_active
+                surgery_room.save(update_fields=["name", "is_active"])
         return Response({"id": obj.pk})
 
     # ---- delete
@@ -420,6 +451,8 @@ class LocationItemView(APIView):
         obj = model.objects.filter(pk=pk).first() if model else None
         if obj is None or not self._mine(request, obj):
             return Response({"detail": "Not found."}, status=404)
+        if kind == "rooms" and getattr(obj, "surgery_room", None) is not None:
+            return Response({"detail": "This room is an operating room in Surgery, so it cannot be deleted. Switch it off instead."}, status=400)
         if self._children(obj, kind):
             return Response({"detail": f"This {self.LABELS[kind]} still has things inside it. Remove those first, or switch it off instead."}, status=400)
         if self._used(obj, kind):

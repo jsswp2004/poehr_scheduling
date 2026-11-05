@@ -1,3 +1,4 @@
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 from rest_framework import generics, filters, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
@@ -39,6 +40,8 @@ from .permissions import HasRight
 from .facility_scope import assigned_facility_ids, visit_facility_q
 from appointments.models import Appointment  # Add this import
 from .stripe_service import StripeService
+from .modules import MODULE_CODES, PLAN_USER_LIMITS, plan_key
+from .dictionaries import resolve_role
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
 from .models import Organization
@@ -69,9 +72,9 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         base = Registration.objects.select_related(
             "patient__user", "attending_provider", "organization"
         )
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             qs = base.all()
-        elif user.role not in ["doctor", "nurse", "registrar", "admin"]:
+        elif user.role not in ["doctor", "nurse", "registrar", "admin", "system_admin"]:
             return Registration.objects.none()
         elif user.role == "doctor":
             qs = base.filter(
@@ -463,7 +466,7 @@ class DoctorListView(APIView):
 
     def get(self, request):
         user = request.user
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             doctors = CustomUser.objects.filter(role="doctor")
         else:
             doctors = CustomUser.objects.filter(
@@ -471,6 +474,39 @@ class DoctorListView(APIView):
             )
         serializer = UserSerializer(doctors, many=True)
         return Response(serializer.data)
+
+
+ROSTER_ROLES = ("staff", "nurse")
+
+
+def add_to_staffing_roster(user, organization, data):
+    """
+    A new Staff or Nurse profile joins the Staffing roster when the organization has Staffing, so the person can
+    be scheduled straight away. Job title and nursing role come from Create Profile (defaults: the role name,
+    'other'). Anyone else is left off; the Roster tab still adds anyone by hand.
+    """
+    from staffing.models import NURSING_ROLE_CHOICES, Staff
+
+    from .modules import has_module
+
+    if user.role not in ROSTER_ROLES or organization is None or not has_module(organization, "staffing"):
+        return None
+    if Staff.objects.filter(user=user).exists():
+        return None
+    nursing = data.get("nursing_role")
+    if nursing not in {c for c, _ in NURSING_ROLE_CHOICES}:
+        nursing = "other"
+    title = (data.get("job_title") or "").strip()[:100] or (user.role_entry.label if user.role_entry_id else user.get_role_display())
+    return Staff.objects.create(
+        organization=organization,
+        first_name=user.first_name or user.username,
+        last_name=user.last_name or "",
+        profession=title,
+        nursing_role=nursing,
+        email=user.email or None,
+        phone_number=(user.phone_number or None),
+        user=user,
+    )
 
 
 class RegisterView(generics.CreateAPIView):
@@ -523,15 +559,28 @@ class RegisterView(generics.CreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             org_type = data.get("organization_type", "personal")
+            # Chosen plan (user limit) and services. No `modules` sent (an older page) keeps everything on.
+            chosen_plan = plan_key(subscription_tier)
+            chosen_modules = data.get("modules")
+            if chosen_modules is not None:
+                if not isinstance(chosen_modules, list) or any(c not in MODULE_CODES for c in chosen_modules):
+                    return Response(
+                        {"modules": ["Choose services from the list."]},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                chosen_modules = list(dict.fromkeys(chosen_modules))
             print(
                 f"🏢 Creating new organization for enrollment: '{org_name}' (type: {org_type})"
             )
             organization = Organization.objects.create(
                 name=org_name,
                 organization_type=org_type,
-                subscription_tier="basic",  # Start with basic tier
+                subscription_tier=chosen_plan,
                 subscription_status="trial",
-                max_users=1,  # Will be updated based on selected tier
+                max_users=PLAN_USER_LIMITS[chosen_plan],
+                enabled_modules=chosen_modules,
+                dictation_enabled=bool(chosen_modules and "dictation" in chosen_modules),
+                lab_interface_enabled=bool(chosen_modules and "lab_interface" in chosen_modules),
                 # Clinic location -- the state selects the staffing rules.
                 address_line1=(data.get("address_line1") or "").strip()[:255],
                 address_line2=(data.get("address_line2") or "").strip()[:255],
@@ -581,8 +630,30 @@ class RegisterView(generics.CreateAPIView):
                 "subscription_tier",
                 "is_enrollment",
                 "organization_name",
+                "modules",
+                "job_title",
+                "nursing_role",
             ]
         }
+
+        # A role added in System Dictionaries is saved as the built-in role it behaves like, plus the entry itself.
+        role_entry = None
+        if serializer_data.get("role") and not is_enrollment:
+            resolved = resolve_role(serializer_data["role"])
+            if resolved is None:
+                return Response({"role": ["Choose a role from the list."]}, status=status.HTTP_400_BAD_REQUEST)
+            serializer_data["role"], role_entry = resolved
+
+        # Staff accounts count against the plan's user limit (patients never do).
+        if request.user.is_authenticated and not is_enrollment:
+            if data.get("role") != "patient" and not organization.can_add_users:
+                return Response(
+                    {
+                        "error": f"Your plan allows {organization.max_users} user(s) and all are in use. Ask a system administrator to raise the limit.",
+                        "code": "user_limit_reached",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         serializer = self.get_serializer(data=serializer_data)
 
@@ -596,12 +667,14 @@ class RegisterView(generics.CreateAPIView):
         try:
             with transaction.atomic():
                 # Create the user (this will be rolled back if Stripe fails)
-                user = serializer.save(organization=organization)
+                user = serializer.save(organization=organization, role_entry=role_entry)
 
                 # Set role to 'admin' for service enrollment
                 if is_enrollment:
                     user.role = "admin"
                     user.save()  # Save the role change
+                else:
+                    add_to_staffing_roster(user, organization, data)
 
                 # Only create Stripe customer for service enrollment, not patient registration
                 if is_enrollment:
@@ -719,7 +792,7 @@ Your account has been successfully created and your 7-day free trial has started
 Your free trial ends on {trial_end_formatted}. After the trial period, your subscription will automatically continue with monthly billing.
 
 🚀 Getting Started:
-1. Log in to your account at: https://powerhealthcareit.com/login
+1. Log in to your account at: https://powerhealthit.com/login
 2. Complete your organization setup
 3. Start scheduling appointments and managing patients
 
@@ -874,7 +947,7 @@ def get_patients(request):
                 .annotate(_attending_now=Exists(attending_now))
                 .filter(Q(user__provider=user) | Q(_attending_now=True))
             )
-        elif user.role == "system_admin":
+        elif sees_all_orgs(user):
             patients = Patient.objects.select_related(
                 "user", "user__provider", "organization"
             ).all()
@@ -897,6 +970,7 @@ def get_patients(request):
                 Q(user__first_name__icontains=search)
                 | Q(user__last_name__icontains=search)
                 | Q(user__email__icontains=search)
+                | Q(user__username__icontains=search)
                 | Q(mrn__icontains=search)
                 | Q(phone_number__icontains=search)
                 | Q(user__phone_number__icontains=search)
@@ -1081,7 +1155,7 @@ def search_users(request):
     )
 
     # For system_admin, allow searching all users across organizations
-    if user.role == "system_admin":
+    if sees_all_orgs(user):
         users = CustomUser.objects.filter(search_filter)
     # For regular admins, restrict to their organization
     else:
@@ -1546,7 +1620,7 @@ class SMSOptOutManagementView(APIView):
             )
 
         # Filter users based on organization
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             users = CustomUser.objects.all()
         else:
             users = CustomUser.objects.filter(organization=user.organization)
@@ -2315,7 +2389,7 @@ def get_team_members(request):
     ]:
         return Response({"detail": "Access denied"}, status=403)
 
-    if user.role == "system_admin":
+    if sees_all_orgs(user):
         members = CustomUser.objects.exclude(role="patient").filter(is_active=True)
     else:
         members = CustomUser.objects.exclude(role="patient").filter(
@@ -2387,7 +2461,7 @@ def send_contact_email(request):
             return Response({"error": "Email and message are required"}, status=400)
 
         # Send email to admin/support team
-        admin_email = "info@powerhealthcareit.com"  # Company support email
+        admin_email = "power@powerhealthit.com"  # Company support email
 
         full_message = f"""
         Contact Form Submission:
@@ -2697,7 +2771,7 @@ To continue using POWER Scheduling without interruption:
 3. 🔄 Your subscription will automatically continue after the trial
 
 🔗 Manage your subscription:
-• Log in at: https://powerhealthcareit.com/login
+• Log in at: https://powerhealthit.com/login
 • Go to Account Settings > Subscription
 • Update payment methods and billing preferences
 

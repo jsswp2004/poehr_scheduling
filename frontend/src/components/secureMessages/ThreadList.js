@@ -40,7 +40,7 @@ export default function ThreadList({ threads, loading, error, selectedId, onSele
   if (!threads.length) {
     return (
       <Typography color="text.secondary" sx={{ p: 2 }} data-testid="thread-list-empty">
-        No conversations yet. Start one with the New button.
+        No conversations yet. Start one with New message.
       </Typography>
     );
   }

@@ -22,7 +22,6 @@ import {
     Table,
     TableBody,
     TableCell,
-    TableContainer,
     TableHead,
     TableRow,
     TextField,
@@ -37,6 +36,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { jwtDecode } from "jwt-decode";
 import { api } from "../../api/client";
+import { BUILDER_STICKY_TOP, BuilderToolbar } from "../builders/BuilderShell";
 import { apiEndpoints } from "../../config/api";
 import { PRIORITIES, authConfig, errorText, listOf } from "./builderCommon";
 
@@ -307,6 +307,8 @@ function OrderSetsManager() {
         );
     }
 
+    const headSx = { position: "sticky", top: BUILDER_STICKY_TOP, zIndex: 2, bgcolor: "background.paper", fontWeight: 700 };
+
     return (
         <Box>
             {error && (
@@ -319,8 +321,10 @@ function OrderSetsManager() {
                     {banner.text}
                 </Alert>
             )}
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+            <BuilderToolbar>
+                <Box sx={{ flexGrow: 1 }} />
                 <Button
+                    size="small"
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={() => setEditing({ items: [], is_active: true })}
@@ -328,21 +332,21 @@ function OrderSetsManager() {
                 >
                     New order set
                 </Button>
-            </Box>
+            </BuilderToolbar>
             {orderables.length === 0 && (
                 <Alert severity="info" sx={{ mb: 2 }}>
                     Add some orderables first, then bundle them here.
                 </Alert>
             )}
-            <TableContainer component={Paper}>
+            <Box sx={{ overflowX: { xs: "auto", md: "clip" } }}>
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Code</TableCell>
-                            <TableCell align="center">Orders</TableCell>
-                            <TableCell align="center">Status</TableCell>
-                            <TableCell align="right">Actions</TableCell>
+                            <TableCell sx={headSx}>Name</TableCell>
+                            <TableCell sx={headSx}>Code</TableCell>
+                            <TableCell align="center" sx={headSx}>Orders</TableCell>
+                            <TableCell align="center" sx={headSx}>Status</TableCell>
+                            <TableCell align="right" sx={headSx}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -397,7 +401,7 @@ function OrderSetsManager() {
                         )}
                     </TableBody>
                 </Table>
-            </TableContainer>
+            </Box>
 
             {editing && (
                 <SetDialog

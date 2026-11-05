@@ -325,6 +325,21 @@ class EndpointTest(AssistantTestBase):
         self.assertEqual(row.user, self.me)
         self.assertEqual(row.tools_used[0]["tool"], "search_contacts")
         self.assertEqual(row.input_tokens, 10)
+        # One answered question is counted for billing.
+        from users.assistant_billing import compute_assistant_usage
+
+        usage = compute_assistant_usage(self.org)
+        self.assertEqual(usage["by_assistant"]["communicator"], 1)
+
+    def test_failed_question_is_not_counted(self, *_):
+        fake = MagicMock()
+        fake.messages.create.side_effect = RuntimeError("boom")
+        with patch.dict(os.environ, FAKE_ENV), patch("anthropic.Anthropic", return_value=fake):
+            res = self.client_for(self.me).post(self.URL, {"message": "Do I have Maria?"}, format="json")
+        self.assertEqual(res.status_code, 502)
+        from users.assistant_billing import compute_assistant_usage
+
+        self.assertEqual(compute_assistant_usage(self.org)["questions"], 0)
 
     def test_prepared_send_returns_card_and_hides_id_from_model(self, *_):
         fake = MagicMock()

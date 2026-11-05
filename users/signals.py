@@ -9,7 +9,9 @@ def create_patient_profile(sender, instance, created, **kwargs):
     Automatically create a Patient profile when a CustomUser with role='patient' is created.
     """
     if created and instance.role == 'patient':
-        Patient.objects.create(user=instance)
+        Patient.objects.get_or_create(
+            user=instance, defaults={"organization": instance.organization}
+        )
 
 
 @receiver(post_save, sender=CustomUser)

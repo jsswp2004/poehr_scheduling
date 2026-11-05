@@ -4,6 +4,8 @@ import { jwtDecode } from "jwt-decode";
 import { api } from "../../api/client";
 import { getValidToken } from "../../utils/auth";
 import { authHeader } from "../patientHeader/headerApi";
+import SettingsToolbarPortal from "../settings/SettingsToolbarSlot";
+import { chooseActingOrg, ownOrgIdFromToken, useActingOrg } from "../../utils/actingOrg";
 import { ALL, chooseFacility, configureFacilityScope, resetFacilityScope, useFacilityScope } from "../../utils/facilityScope";
 
 const roleOf = async () => {
@@ -22,6 +24,8 @@ const roleOf = async () => {
  */
 export default function FacilityPicker({ children }) {
   const scope = useFacilityScope();
+  const acting = useActingOrg();
+  const actingId = acting?.id || "";
   const [role, setRole] = useState(null);
   const [problem, setProblem] = useState("");
   const [loading, setLoading] = useState(true);
@@ -53,6 +57,30 @@ export default function FacilityPicker({ children }) {
     };
   }, []);
 
+  // The header's organization choice drives this picker (and the picker updates the header), so the two never disagree.
+  // "All facilities" is the one choice that exists only here; picking an organization in the header leaves it.
+  useEffect(() => {
+    if (role !== "system_admin" || loading || scope.facilities.length === 0) return;
+    const want = actingId || ownOrgIdFromToken();
+    if (want && scope.choice !== want) chooseFacility(String(want));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, loading, actingId, scope.facilities.length]);
+
+  const onPick = async (value) => {
+    if (value === ALL) {
+      chooseFacility(ALL);
+      return;
+    }
+    const facility = scope.facilities.find((f) => String(f.id) === String(value));
+    if (!facility) return;
+    try {
+      await chooseActingOrg({ id: facility.id, name: facility.name }, "header");
+      chooseFacility(String(value));
+    } catch (err) {
+      setProblem("Could not switch organization.");
+    }
+  };
+
   if (role === null || loading) {
     return (
       <Box sx={{ p: 3, textAlign: "center" }}>
@@ -67,7 +95,9 @@ export default function FacilityPicker({ children }) {
 
   return (
     <Box>
-      <Box sx={{ px: 2, pt: 2, pb: 1, display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+      <SettingsToolbarPortal>
+      <Box sx={{ width: "100%", pb: 0.5, display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
         <FormControl size="small" sx={{ minWidth: 320 }}>
           <InputLabel id="facility-picker-label">Facility</InputLabel>
           <Select
@@ -76,7 +106,7 @@ export default function FacilityPicker({ children }) {
             data-testid="facility-picker"
             value={choice}
             displayEmpty
-            onChange={(e) => chooseFacility(e.target.value)}
+            onChange={(e) => onPick(e.target.value)}
             renderValue={(v) => (v === ALL ? "All facilities (system-wide)" : facilities.find((f) => String(f.id) === String(v))?.name || "Choose a facility")}
           >
             <ListSubheader>Change one facility</ListSubheader>
@@ -93,26 +123,28 @@ export default function FacilityPicker({ children }) {
           </Select>
         </FormControl>
         <Typography variant="body2" color="text.secondary">
-          Settings below apply to the facility you choose here.
+          Settings below apply to the facility you choose here, the same one chosen in the header.
         </Typography>
       </Box>
 
       {problem && (
-        <Alert severity="error" sx={{ mx: 2, mb: 1 }}>
+        <Alert severity="error" sx={{ py: 0 }}>
           {problem}
         </Alert>
       )}
       {choice === ALL && (
-        <Alert severity="warning" sx={{ mx: 2, mb: 1 }} data-testid="all-facilities-note">
+        <Alert severity="warning" sx={{ py: 0 }} data-testid="all-facilities-note">
           System-wide: what you save is copied to all {facilities.length} facilities, replacing what each one has now. The values shown start from {first?.name}.
         </Alert>
       )}
       {!choice && !problem && (
-        <Alert severity="info" sx={{ mx: 2, mb: 2 }} data-testid="choose-facility-note">
+        <Alert severity="info" sx={{ py: 0 }} data-testid="choose-facility-note">
           Choose a facility (or All facilities) to begin.
         </Alert>
       )}
 
+      </Box>
+      </SettingsToolbarPortal>
       {choice && <Box key={choice}>{children}</Box>}
     </Box>
   );

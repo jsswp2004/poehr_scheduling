@@ -883,7 +883,13 @@ class ReportSubscription(models.Model):
         blank=True,
         related_name="staffing_report_subscriptions",
     )
-    report = models.CharField(max_length=40)
+    report = models.CharField(max_length=40)  # a key of report_export.REPORTS, or "custom" for a saved Reports-module report
+    # A saved custom or linked report. Its owner (created_by) must still be able to run it, and the file is built
+    # as that person. hide_phi masks patient names and note/result text in the email.
+    custom_report = models.ForeignKey(
+        "staffing.CustomReport", null=True, blank=True, on_delete=models.CASCADE, related_name="subscriptions"
+    )
+    hide_phi = models.BooleanField(default=True)
     params = models.JSONField(default=dict, blank=True)  # report filters (profession, unit, form, ...)
     frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="weekly")
     # The calendar date of the first send. Weekly repeats on that date's weekday, monthly on its day number.
@@ -930,3 +936,69 @@ def _shift_type_display(self):
 
 for _m in (StaffRecurringPattern, StaffShift, ShiftCoverageRequirement):
     _m.get_shift_type_display = _shift_type_display
+
+
+class CustomReport(models.Model):
+    """
+    A report built in the Reports module. `source` names a curated data source in
+    staffing.custom_reports; `config` holds the columns, grouping, filters, highlight, tiles and sort.
+    Who can run it: only the owner ("me"), everyone allowed to use Staffing reports at the facility
+    ("org"), or people with one of `audience_roles` ("roles").
+    """
+
+    AUDIENCE_CHOICES = [("me", "Only me"), ("roles", "People with a role"), ("org", "Everyone at the facility")]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="staffing_custom_reports"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staffing_custom_reports",
+    )
+    name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True, default="")
+    module = models.CharField(max_length=20, default="staffing")
+    source = models.CharField(max_length=40)
+    config = models.JSONField(default=dict, blank=True)
+    audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES, default="me")
+    audience_roles = models.JSONField(default=list, blank=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return f"{self.name} ({self.source})"
+
+
+class ReportAuditLog(models.Model):
+    """
+    Who ran a report on patient data, and when. One row per run or builder
+    preview of a source that holds patient data. Report contents are never copied here, only counts.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="staffing_report_audit")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    report = models.ForeignKey(CustomReport, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_rows")
+    report_name = models.CharField(max_length=120, blank=True, default="")
+    source = models.CharField(max_length=40)
+    action = models.CharField(max_length=10, default="run")  # run | preview
+    phi_hidden = models.BooleanField(default=False)
+    row_count = models.PositiveIntegerField(default=0)
+    range_start = models.DateField(null=True, blank=True)
+    range_end = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["organization", "-created_at"], name="staff_repaudit_org_idx")]
+
+    def __str__(self):
+        return f"{self.source} {self.action} by {self.user_id}"

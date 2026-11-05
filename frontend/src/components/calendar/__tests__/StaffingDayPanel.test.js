@@ -35,12 +35,12 @@ describe("StaffingDayPanel", () => {
     expect(screen.queryByRole("button", { name: /Assign/ })).toBeNull();
   });
 
-  it("offers + Add shift only to admins and Open day to everyone", () => {
+  it("offers + Add shift only to admins and Coverage Status to everyone", () => {
     const onAdd = jest.fn();
     const onOpenDay = jest.fn();
     const { rerender } = render(<StaffingDayPanel iso="2026-10-22" info={info} onOpenDay={onOpenDay} />);
     expect(screen.queryByText("+ Add shift")).toBeNull();
-    fireEvent.click(screen.getByText("Open day"));
+    fireEvent.click(screen.getByText("Coverage Status"));
     expect(onOpenDay).toHaveBeenCalled();
     rerender(<StaffingDayPanel iso="2026-10-22" info={info} isAdmin onAdd={onAdd} onOpenDay={onOpenDay} />);
     fireEvent.click(screen.getByText("+ Add shift"));

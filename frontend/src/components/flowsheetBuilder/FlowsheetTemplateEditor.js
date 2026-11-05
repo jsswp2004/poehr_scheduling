@@ -26,6 +26,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
+import { BuilderToolbar } from "../builders/BuilderShell";
 import { describeCalc } from "../../utils/calculations";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
 import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
@@ -313,9 +314,19 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
 
     return (
         <Box>
-            <Button startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ mb: 2 }}>
-                Back to flowsheet types
-            </Button>
+            <BuilderToolbar>
+                <Button size="small" startIcon={<ArrowBackIcon />} onClick={onBack}>
+                    Back to flowsheet types
+                </Button>
+                <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>
+                    {name || (templateCode ? templateCode : "New flowsheet type")}
+                </Typography>
+                {version !== null && <Chip size="small" label={`v${version}`} />}
+                <Box sx={{ flexGrow: 1 }} />
+                <Button size="small" variant="contained" startIcon={<SaveIcon />} onClick={save} disabled={saving}>
+                    Save Flowsheet Type
+                </Button>
+            </BuilderToolbar>
 
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
@@ -501,12 +512,6 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
             <Button startIcon={<AddIcon />} onClick={addCalculatedRow} sx={{ mb: 3, ml: 1 }}>
                 Add Calculated Row (total / result)
             </Button>
-
-            <Box sx={{ display: "flex", gap: 2 }}>
-                <Button variant="contained" startIcon={<SaveIcon />} onClick={save} disabled={saving}>
-                    Save Flowsheet Type
-                </Button>
-            </Box>
         </Box>
     );
 }

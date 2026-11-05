@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import SettingsToolbarPortal from "../settings/SettingsToolbarSlot";
 import {
   Box,
   Typography,
@@ -248,21 +249,22 @@ function TabManagementSettings() {
   };
 
   return (
-    <Box sx={{ p: 2, maxWidth: 760 }}>
-      <Typography variant="h6">Tab management</Typography>
+    <Box sx={{ maxWidth: 760 }}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Choose which chart tabs you see, their order, and which one opens first. Each module (Ambulatory, Emergency, Acute) has its own set.
       </Typography>
 
       {problem && <Alert severity="warning" sx={{ mb: 2 }}>{problem}</Alert>}
 
-      <ToggleButtonGroup exclusive size="small" value={care} onChange={(e, v) => v && setCare(v)} aria-label="Module" sx={{ mb: 3 }}>
+      <SettingsToolbarPortal>
+      <ToggleButtonGroup exclusive size="small" value={care} onChange={(e, v) => v && setCare(v)} aria-label="Module">
         {CARE_SETTINGS.map((c) => (
           <ToggleButton key={c.key} value={c.key} data-testid={`tabs-module-${c.key}`}>
             {c.label}
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
+      </SettingsToolbarPortal>
 
       {mineHere && !isAllFacilities() && (
         <TabEditor

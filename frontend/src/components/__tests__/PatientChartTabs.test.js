@@ -10,13 +10,13 @@ jest.mock("../SimpleToast", () => ({ toast: { success: jest.fn(), error: jest.fn
 test("clinical roles see all twelve chart tabs in order", () => {
   expect(visibleChartTabs("doctor").map((t) => t.label)).toEqual([
     "Patient List", "Orders", "Prescriptions", "Results", "Patient Info", "Documents", "Flowsheets",
-    "My Schedule", "Referral List", "Task List", "Clinical Summary", "Messages",
+    "My Schedule", "Referral List", "Task List", "Clinical Summary", "Messages", "Inbox",
   ]);
 });
 
 test("registrars only see the tabs that are not clinical", () => {
   expect(visibleChartTabs("registrar").map((t) => t.label)).toEqual([
-    "Patient List", "Patient Info", "My Schedule", "Referral List", "Messages",
+    "Patient List", "Patient Info", "My Schedule", "Referral List", "Messages", "Inbox",
   ]);
 });
 
@@ -73,8 +73,8 @@ test("the Patient List is always kept, first, when a layout leaves it out", () =
 
 test("unknown keys are ignored and an empty layout means every tab", () => {
   expect(visibleChartTabs("doctor", ["orders", "bogus"]).map((t) => t.value)).toEqual(["patient_list", "orders"]);
-  expect(visibleChartTabs("doctor", []).length).toBe(14);
-  expect(visibleChartTabs("doctor", null).length).toBe(14);
+  expect(visibleChartTabs("doctor", []).length).toBe(15);
+  expect(visibleChartTabs("doctor", null).length).toBe(15);
 });
 
 test("the strip draws only the layout's tabs, in its order", () => {
@@ -97,4 +97,14 @@ test("a count of patients to review shows on the tab, and nothing when it is zer
   expect(screen.getByTestId("chart-tab-badge-ed_follow_up")).toHaveTextContent("3");
   rerender(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" careSetting="emergency" badges={{ ed_follow_up: 0 }} />);
   expect(screen.queryByTestId("chart-tab-badge-ed_follow_up")).toBeNull();
+});
+
+test("the Results tab shows how many lab results wait for review, and says how many are critical", () => {
+  const { rerender } = render(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" badges={{ results: 4 }} badgeOverdue={{ results: 0 }} />);
+  expect(screen.getByTestId("chart-tab-badge-results")).toHaveTextContent("4");
+  expect(screen.getByLabelText("4 need review")).toBeInTheDocument();
+  rerender(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" badges={{ results: 4 }} badgeOverdue={{ results: 2 }} />);
+  expect(screen.getByLabelText("4 need review, 2 critical")).toBeInTheDocument();
+  rerender(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" badges={{ results: 0 }} />);
+  expect(screen.queryByTestId("chart-tab-badge-results")).toBeNull();
 });
