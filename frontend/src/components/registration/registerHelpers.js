@@ -213,3 +213,24 @@ export function stepFilled(step, patientFields = {}, visitFields = {}, extras = 
   if (!need) return false;
   return (need.patient || []).every((k) => has(patientFields[k])) && (need.visit || []).every((k) => has(visitFields[k]));
 }
+
+// A readable message from a failed request: the server's own "detail", or its field errors written out
+// ("Username: A user with that username already exists.") instead of the raw JSON.
+export function apiErrorText(err, fallback) {
+  const data = err?.response?.data;
+  if (data && typeof data === "object" && data.detail) return String(data.detail);
+  if (typeof data === "string" && data.trim() && !data.trim().startsWith("<")) return data.trim();
+  if (data && typeof data === "object") {
+    const parts = Object.entries(data)
+      .map(([field, value]) => {
+        const text = (Array.isArray(value) ? value : [value]).filter((v) => typeof v === "string").join(" ");
+        if (!text) return "";
+        if (field === "non_field_errors" || field === "error") return text;
+        const label = field.replace(/_/g, " ");
+        return `${label.charAt(0).toUpperCase()}${label.slice(1)}: ${text}`;
+      })
+      .filter(Boolean);
+    if (parts.length) return parts.join(" ");
+  }
+  return fallback;
+}
