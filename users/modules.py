@@ -46,6 +46,8 @@ MODULES = [
      "Video visits with a join link for patients.", False),
     ("dictation", "Voice dictation", "Add-ons",
      "Speak into a note; optional AI clean-up.", False),
+    ("surgery", "Surgery", "Operations",
+     "Operating-room cases, Case List, Day Planner, Status Board, charges and case documents.", False),
     ("lab_interface", "Electronic lab interface", "Add-ons",
      "Connect to Quest or Labcorp. Set up by arrangement and quoted separately.", True),
 ]
@@ -83,6 +85,7 @@ MODULE_ROUTES = [
     ("auto-email/", "communicator"),
     ("telehealth/", "telehealth"),
     ("dictation/", "dictation"),
+    ("surgery/", "surgery"),
     ("lab-interface/", "lab_interface"),
     ("clinical-notes/", "clinical_documentation"),
     ("vital-signs-flowsheets/", "clinical_documentation"),

@@ -55,6 +55,7 @@ class PricingTests(TestCase):
         self.assertEqual(module_for_path("/api/staffing/shifts/"), "staffing")
         self.assertIsNone(module_for_path("/api/communicator/announcements/"))
         self.assertEqual(module_for_path("/api/communicator/messages/"), "communicator")
+        self.assertEqual(module_for_path("/api/surgery/cases/"), "surgery")
         self.assertIsNone(module_for_path("/api/users/me/"))
         self.assertIsNone(module_for_path("/static/x"))
 
@@ -160,6 +161,8 @@ class EnforcementTests(TestCase):
         with self.assertRaises(PermissionDenied):
             auth._enforce_module(req, self.doc)
         auth._enforce_module(req, self.sys)  # system admin exempt
+        with self.assertRaises(PermissionDenied):  # Surgery is its own service
+            auth._enforce_module(APIRequestFactory().get("/api/surgery/cases/"), self.doc)
         auth._enforce_module(APIRequestFactory().get("/api/appointments/"), self.doc)
         auth._enforce_module(APIRequestFactory().get("/api/communicator/announcements/"), self.doc)
 

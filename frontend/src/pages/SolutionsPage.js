@@ -8,6 +8,7 @@ import CommunicatorImage from "../assets/communicator.png";
 import PortalImage from "../assets/Portal.png";
 import StaffingImage from "../assets/dashboard_clinician.png";
 import DocumentationImage from "../assets/documentation.png";
+import SurgeryImage from "../assets/surgery.jpg";
 import TelehealthImage from "../assets/telehealth.jpg";
 import DictationImage from "../assets/dictation.jpg";
 import ManagementImage from "../assets/management_portal.jpg";
@@ -21,6 +22,7 @@ const IMAGES = {
   communicator: CommunicatorImage,
   portal: PortalImage,
   staffing: StaffingImage,
+  surgery: SurgeryImage,
   telehealth: TelehealthImage,
   dictate: DictationImage,
 };
