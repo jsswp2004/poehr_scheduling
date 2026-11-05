@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Alert, Box, Typography } from "@mui/material";
+import { getAccessToken } from "../utils/tokenManager";
 
 // POWER MDS runs as its own application (it holds resident assessment data and is deployed separately).
 // This page hosts it in the POWER shell when its address is configured, and says so plainly when it is not.
@@ -9,9 +10,10 @@ import { Alert, Box, Typography } from "@mui/material";
 // (it is refreshed about hourly) or the person signs out, MDS is told again. MDS checks the token with this
 // site's backend (/api/users/mds/session/) before showing anything.
 
+// The sign-in token as the rest of the app stores it (JSON {token} or, for older sign-ins, the bare string).
 const readToken = () => {
   try {
-    return localStorage.getItem("access_token") || null;
+    return getAccessToken() || null;
   } catch (e) {
     return null;
   }
