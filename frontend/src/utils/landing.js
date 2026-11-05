@@ -56,6 +56,8 @@ export const SOLUTIONS = [
   { key: 'surgery', label: 'POWER Surgery', module: 'surgery', path: '/surgery', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar'] },
   { key: 'telehealth', label: 'POWER Telehealth', module: 'telehealth', path: '/telehealth', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar', 'receptionist'] },
   { key: 'dictate', label: 'POWER Dictate', module: 'dictation', path: '/dictate', roles: ['admin', 'system_admin', 'doctor', 'nurse'] },
+  // POWER MDS runs as its own app (own database); sign-in and organization come from this site.
+  { key: 'mds', label: 'POWER MDS', module: 'mds', path: '/mds', roles: ['admin', 'system_admin', 'doctor', 'nurse'] },
 ];
 
 /** The solutions a person may open: their organization has the service and their role may use it. */
