@@ -35,7 +35,7 @@ import DictionaryField from "./DictionaryField";
 import PolicyEditor, { policyProblems } from "./PolicyEditor";
 import useRegistrationTabs from "./useRegistrationTabs";
 import useRegistrationSetup, { fieldFor, missingRequired, optionsFor } from "./useRegistrationSetup";
-import { ageText, showDob, stepFilled } from "./registerHelpers";
+import { ageText, apiErrorText, showDob, stepFilled } from "./registerHelpers";
 import CustomFormsStep from "./CustomFormsStep";
 import NewbornDialog from "./NewbornDialog";
 import PaymentsStep from "./PaymentsStep";
@@ -503,11 +503,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       }
     } catch (err) {
       console.error("Failed to create patient:", err);
-      const detail =
-        err?.response?.data?.detail ||
-        JSON.stringify(err?.response?.data) ||
-        "Failed to create patient.";
-      toast.error(detail);
+      toast.error(apiErrorText(err, "Failed to create patient."));
     } finally {
       setCreatingPatient(false);
     }
@@ -669,11 +665,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       return true;
     } catch (err) {
       console.error("Failed to save registration:", err);
-      const detail =
-        err?.response?.data?.detail ||
-        JSON.stringify(err?.response?.data) ||
-        "Failed to save registration.";
-      toast.error(detail);
+      toast.error(apiErrorText(err, "Failed to save registration."));
       return false;
     } finally {
       setSaving(false);
