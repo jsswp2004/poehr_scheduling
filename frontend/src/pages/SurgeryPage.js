@@ -12,6 +12,7 @@ import CaseListTab from "../components/surgery/CaseListTab";
 import DayPlannerTab from "../components/surgery/DayPlannerTab";
 import StatusBoardTab from "../components/surgery/StatusBoardTab";
 import CaseDetailsTab from "../components/surgery/CaseDetailsTab";
+import BayDialog from "../components/surgery/BayDialog";
 import CaseDialog from "../components/surgery/CaseDialog";
 import RoomsDialog from "../components/surgery/RoomsDialog";
 import SetupDialog from "../components/surgery/SetupDialog";
@@ -93,18 +94,38 @@ function SurgeryPage() {
     setTab("details");
   };
 
+  const [bay, setBay] = useState(null); // {row, next}: a PreOp or PACU move waiting for a bed to be chosen
+  const [movingBay, setMovingBay] = useState(false);
+
+  const send = async (row, next, bed) => {
+    try {
+      const updated = bed === undefined ? await surgeryApi.setStatus(row.id, next) : await surgeryApi.setStatus(row.id, next, "", bed);
+      toast.success(`Case ${updated.case_number}: ${updated.status_label}`);
+      load();
+      return true;
+    } catch (err) {
+      toast.error(errorText(err, "That status change did not work."));
+      return false;
+    }
+  };
+
   const move = async (row, next) => {
     if (next === "cancelled") {
       openCase(row.id); // a reason is needed, which the case dialog asks for
       return;
     }
-    try {
-      const updated = await surgeryApi.setStatus(row.id, next);
-      toast.success(`Case ${updated.case_number}: ${updated.status_label}`);
-      load();
-    } catch (err) {
-      toast.error(errorText(err, "That status change did not work."));
+    if (next === "preop" || next === "pacu") {
+      setBay({ row, next }); // ask which bed first, so the patient's visit moves with the case
+      return;
     }
+    await send(row, next);
+  };
+
+  const confirmBay = async (bed) => {
+    setMovingBay(true);
+    const ok = await send(bay.row, bay.next, bed);
+    setMovingBay(false);
+    if (ok) setBay(null); // on a refusal (bed taken meanwhile) the picker stays open with the message toasted
   };
 
   if (!role) return null;
@@ -192,6 +213,7 @@ function SurgeryPage() {
           }}
         />
       )}
+      {bay && <BayDialog open caseId={bay.row.id} status={bay.next} busy={movingBay} onClose={() => setBay(null)} onConfirm={confirmBay} />}
       {ADMIN_ROLES.includes(role) && <SetupDialog open={setupOpen} onClose={() => setSetupOpen(false)} />}
       {planner && (
         <RoomsDialog open={roomsOpen} facilityId={planner.facility} onClose={() => setRoomsOpen(false)} onChanged={load} />
