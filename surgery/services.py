@@ -254,8 +254,67 @@ def overlapping(case):
     return [c for c in near if c.scheduled_end > case.scheduled_start]
 
 
+def surgeon_conflicts(case):
+    """The surgeon's other live cases and clinic appointments that overlap this case (a warning, never a block)."""
+    if not case.surgeon_id:
+        return [], []
+    window = timedelta(days=1)
+    cases = SurgeryCase.objects.filter(
+        surgeon_id=case.surgeon_id,
+        scheduled_start__lt=case.scheduled_end,
+        scheduled_start__gt=case.scheduled_start - window,
+    ).exclude(pk=case.pk).exclude(status="cancelled")
+    cases = [c for c in cases if c.scheduled_end > case.scheduled_start]
+    from appointments.models import Appointment
+
+    appts = Appointment.all_objects.filter(  # tenant-scoped manager is empty outside a web request
+        organization_id=case.organization_id,
+        provider_id=case.surgeon_id,
+        status__in=["scheduled", "pending", "in_progress"],
+        appointment_datetime__lt=case.scheduled_end,
+        appointment_datetime__gt=case.scheduled_start - window,
+    )
+    appts = [
+        a for a in appts
+        if a.appointment_datetime + timedelta(minutes=a.duration_minutes or 0) > case.scheduled_start
+    ]
+    return cases, appts
+
+
 def overlap_warnings(case):
-    return [f"Overlaps case {c.case_number} in {case.room.name}" for c in overlapping(case)]
+    same_room = overlapping(case)
+    warnings = [f"Overlaps case {c.case_number} in {case.room.name}" for c in same_room]
+    cases, appts = surgeon_conflicts(case)
+    cases = [c for c in cases if c not in same_room]  # already warned about
+    who = person_name(case.surgeon)
+    warnings += [f"{who} is also booked on case {c.case_number} at {local_iso(c.scheduled_start)[11:16]}" for c in cases]
+    warnings += [
+        f"{who} has a clinic appointment at {local_iso(a.appointment_datetime)[11:16]} ({a.title})" for a in appts
+    ]
+    return warnings
+
+
+def create_booking_visit(case, user):
+    """Open the patient's visit in Registration for this case and link it (scheduled, ambulatory)."""
+    from users.models import Registration
+
+    names = ", ".join(p.name for p in case.procedures.all()[:3])
+    visit = Registration.objects.create(
+        patient=case.patient,
+        organization=case.organization,
+        facility=case.facility,
+        admission_type="scheduled",
+        care_setting="ambulatory",
+        reason_for_visit=names or "Surgery",
+        scheduled_procedure=names[:255],
+        service=case.service or "",
+        attending_provider=case.surgeon,
+        registered_by=user,
+        arrival_time=None,
+    )
+    case.visit = visit
+    case.save(update_fields=["visit"])
+    return visit
 
 
 def bay_beds(facility_ids):

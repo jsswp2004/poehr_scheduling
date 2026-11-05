@@ -4,10 +4,12 @@ import {
   Autocomplete,
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Stack,
@@ -26,6 +28,7 @@ import { ACTION_LABELS, CASE_TYPES, LATERALITY, MILESTONES, startValue, toInputV
 const emptyForm = (defaults) => ({
   patient: null,
   visit: "",
+  create_visit: false,
   room: defaults.room ? String(defaults.room) : "",
   date: defaults.date,
   time: defaults.time || "07:30",
@@ -122,6 +125,7 @@ export default function CaseDialog({ open, caseId, defaults, facilityId, rooms, 
     if (locked) return { comments: form.comments };
     const body = {
       visit: form.visit ? Number(form.visit) : null,
+      create_visit: !form.visit && !!form.create_visit,
       room: form.room ? Number(form.room) : null,
       scheduled_start: startValue(form.date, form.time),
       duration_minutes: Number(form.duration) || 60,
@@ -251,6 +255,13 @@ export default function CaseDialog({ open, caseId, defaults, facilityId, rooms, 
               <MenuItem value={String(row.visit.id)}>{row.visit.visit_number}</MenuItem>
             )}
           </TextField>
+          {!locked && !form.visit && !row?.visit && (
+            <FormControlLabel
+              sx={{ mt: -1 }}
+              control={<Checkbox size="small" checked={!!form.create_visit} disabled={!form.patient} onChange={(e) => setForm((f) => ({ ...f, create_visit: e.target.checked }))} />}
+              label="Open a visit in Registration for this case"
+            />
+          )}
 
           <TextField size="small" type="date" label="Date" value={form.date} onChange={set("date")} disabled={locked} InputLabelProps={{ shrink: true }} />
           <Stack direction="row" spacing={2}>

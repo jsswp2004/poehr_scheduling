@@ -56,6 +56,7 @@ from .serializers import (
 )
 from .services import (
     TransitionError,
+    create_booking_visit,
     build_planner,
     card_row,
     case_card_row,
@@ -77,6 +78,7 @@ from .services import (
     participant_row,
     staff_title,
     usage_row,
+    create_booking_visit,
     overlap_warnings,
     person_name,
     record,
@@ -312,8 +314,11 @@ class CaseList(SurgeryView):
         ser.is_valid(raise_exception=True)
         data = dict(ser.validated_data)
         procedures = data.pop("procedures", [])
+        make_visit = data.pop("create_visit", False) and not data.get("visit")
         case = SurgeryCase.objects.create(organization=self.org(), created_by=request.user, **data)
         self.replace_procedures(case, procedures)
+        if make_visit:
+            create_booking_visit(case, request.user)
         record(case, request.user, "created", {}, snapshot(case))
         case = self.get_case(case.pk)
         return Response({**case_row(case), "warnings": overlap_warnings(case)}, status=http.HTTP_201_CREATED)
@@ -348,6 +353,7 @@ class CaseDetail(SurgeryView):
             return _bad(f"A case that is {STATUS_LABELS[case.status]} is closed; only the comments and notes can change.",
                         http.HTTP_409_CONFLICT)
         procedures = data.pop("procedures", None)
+        make_visit = data.pop("create_visit", False) and case.visit_id is None and not data.get("visit")
         before = snapshot(case)
         for field, value in data.items():
             setattr(case, field, value)
@@ -355,6 +361,8 @@ class CaseDetail(SurgeryView):
         if procedures is not None:
             CaseList.replace_procedures(case, procedures)
             before["procedures"] = "changed"
+        if make_visit:
+            create_booking_visit(case, request.user)
         after = snapshot(case)
         if procedures is not None:
             after["procedures"] = "; ".join(p["name"] for p in procedures)

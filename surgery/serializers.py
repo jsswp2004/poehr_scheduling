@@ -34,6 +34,8 @@ class CaseWriteSerializer(serializers.Serializer):
     facility = serializers.PrimaryKeyRelatedField(queryset=Facility.objects.none(), required=False)
     patient = serializers.PrimaryKeyRelatedField(queryset=Patient.objects.none(), required=False)
     visit = serializers.PrimaryKeyRelatedField(queryset=Registration.objects.none(), required=False, allow_null=True)
+    # Booking can open the patient's visit in Registration (a scheduled ambulatory visit) and link it to the case.
+    create_visit = serializers.BooleanField(required=False, default=False)
     room = serializers.PrimaryKeyRelatedField(queryset=SurgeryRoom.objects.none(), required=False, allow_null=True)
     surgeon = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects.none(), required=False, allow_null=True)
     scheduled_start = serializers.DateTimeField(required=False)
