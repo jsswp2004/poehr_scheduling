@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import SettingsToolbarPortal from "../settings/SettingsToolbarSlot";
 import {
   Box,
   Typography,
@@ -18,6 +19,7 @@ import {
   Checkbox,
   CircularProgress,
   Alert,
+  Chip,
 } from "@mui/material";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
@@ -160,8 +162,7 @@ function PatientHeaderSettings() {
   };
 
   return (
-    <Box sx={{ p: 2, maxWidth: 760 }}>
-      <Typography variant="h6">Patient header</Typography>
+    <Box sx={{ maxWidth: 760 }}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         The strip at the top of every patient chart. Switch items on or off and use the arrows to put them in order. The order here is the order on screen.
       </Typography>
@@ -222,20 +223,20 @@ function PatientHeaderSettings() {
       </Stack>
 
       {canEdit && (
-        <Stack direction="row" spacing={1} sx={{ mt: 2 }} alignItems="center">
-          <Button startIcon={<AddIcon />} onClick={() => setAdding(true)} disabled={busy}>
-            Add an item
-          </Button>
-          <Box sx={{ flex: 1 }} />
-          {dirty && (
-            <Typography variant="caption" color="text.secondary">
-              Unsaved changes
-            </Typography>
-          )}
-          <Button variant="contained" onClick={save} disabled={busy || !dirty || shownCount === 0}>
-            Save
-          </Button>
-        </Stack>
+        <SettingsToolbarPortal>
+          <Stack direction="row" spacing={1} sx={{ width: "100%" }} alignItems="center">
+            <Chip size="small" color="success" variant="outlined" label={`${shownCount} shown`} />
+            <Chip size="small" variant="outlined" label={`${items.length - shownCount} hidden`} />
+            <Button size="small" startIcon={<AddIcon />} onClick={() => setAdding(true)} disabled={busy}>
+              Add an item
+            </Button>
+            <Box sx={{ flex: 1 }} />
+            {dirty && <Chip size="small" color="warning" label="Unsaved changes" />}
+            <Button size="small" variant="contained" onClick={save} disabled={busy || !dirty || shownCount === 0}>
+              Save
+            </Button>
+          </Stack>
+        </SettingsToolbarPortal>
       )}
       {canEdit && shownCount === 0 && (
         <Typography variant="caption" color="error">

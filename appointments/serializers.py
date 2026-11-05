@@ -191,7 +191,9 @@ class AvailabilitySerializer(serializers.ModelSerializer):
             "doctor_name",
             "recurrence_end_date",
             "block_type",
+            "series_id",
         ]
+        read_only_fields = ["series_id"]
 
     def get_doctor_name(self, obj):
         return f"{obj.doctor.first_name} {obj.doctor.last_name}"
@@ -746,6 +748,8 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     # already-signed note displays. Only falls back to the live template for
     # legacy notes that predate template_snapshot existing at all.
     template_detail = serializers.SerializerMethodField()
+    # Co-signature status for the note header (none / awaiting / cosigned / returned).
+    cosign = serializers.SerializerMethodField()
 
     class Meta:
         model = ClinicalNote
@@ -773,6 +777,7 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             "template_version",
             "structured_data",
             "amends",
+            "cosign",
             "created_at",
             "updated_at",
             "signed_at",
@@ -788,6 +793,11 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def get_cosign(self, obj):
+        from . import note_cosign
+
+        return note_cosign.summary(obj)
 
     def get_patient_name(self, obj):
         return (

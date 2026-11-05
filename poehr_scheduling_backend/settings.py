@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "appointments",
     "communicator",
     "staffing",
+    "surgery",
     "secure_messaging",
     "telehealth",
     "dictation",
@@ -206,6 +207,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "telehealth_join": "60/min",
         "telehealth_assistant": "30/min",
+        "referral_link": "60/min",
+        "referral_code": "10/min",
         "dictation": "120/min",
         "dictation_cleanup": "20/min",
     },
@@ -251,6 +254,18 @@ TELEHEALTH_CREATE_CHART_DRAFT = os.environ.get("TELEHEALTH_CREATE_CHART_DRAFT", 
 # Staff assistant. Off unless a backend is named, e.g. "telehealth.assistant.anthropic_backend.complete".
 # Read the PHI notes in telehealth/README.md (BAA with the model provider) before turning it on.
 TELEHEALTH_ASSISTANT_BACKEND = os.environ.get("TELEHEALTH_ASSISTANT_BACKEND") or None
+
+# ---- Referral Manager: secure link to the receiving specialist -----------------------
+# The text/email link is <REFERRAL_PUBLIC_URL>#<key>. Unset, it is the site that hosts the telehealth
+# page plus /referral, so setting TELEHEALTH_PUBLIC_URL for the live site is enough.
+from urllib.parse import urlsplit as _urlsplit
+
+_telehealth_site = _urlsplit(TELEHEALTH_PUBLIC_URL)
+REFERRAL_PUBLIC_URL = os.environ.get("REFERRAL_PUBLIC_URL") or f"{_telehealth_site.scheme}://{_telehealth_site.netloc}/referral"
+REFERRAL_LINK_TTL_DAYS = int(os.environ.get("REFERRAL_LINK_TTL_DAYS", "30"))
+# A 6-digit code sent to the specialist's other contact, asked for when the link is opened.
+REFERRAL_LINK_REQUIRE_CODE = os.environ.get("REFERRAL_LINK_REQUIRE_CODE", "true").lower() in ("1", "true", "yes")
+REFERRAL_SESSION_TTL_SECONDS = int(os.environ.get("REFERRAL_SESSION_TTL_SECONDS", "28800"))
 
 from datetime import timedelta
 
@@ -311,9 +326,9 @@ ANYMAIL = {
 #
 # DEFAULT_FROM_EMAIL must be on a domain verified in the Resend dashboard
 # (Domains -> Add Domain -> add the DNS records Resend gives you for
-# powerhealthcareit.com). Until that domain is verified, Resend will only
+# powerhealthit.com). Until that domain is verified, Resend will only
 # deliver mail sent From onboarding@resend.dev.
-DEFAULT_FROM_EMAIL = "info@powerhealthcareit.com"  # Updated from EMAIL_HOST_USER
+DEFAULT_FROM_EMAIL = "power@powerhealthit.com"  # Updated from EMAIL_HOST_USER
 ADMIN_EMAIL = "jsswp2004@outlook.com"  # 👈 where the notification goes
 
 # ✅ Twilio settings
@@ -343,8 +358,14 @@ SCHEDULED_JOBS_SECRET = os.getenv("SCHEDULED_JOBS_SECRET", "")
 # run and the resulting price IDs are set as env vars -- attach_messaging_billing
 # and report_messaging_usage raise a clear error if these are missing rather
 # than silently doing nothing.
+# Module pricing (users/modules.py): a base price item, plus an item whose quantity is the number of paid extra
+# modules. Leave empty until both prices exist in Stripe; enrollment then falls back to the old per-plan prices.
+STRIPE_BASE_PRICE_ID = os.getenv("STRIPE_BASE_PRICE_ID", "")
+STRIPE_CLINIC_BASE_PRICE_ID = os.getenv("STRIPE_CLINIC_BASE_PRICE_ID", "")  # $599, two services included
+STRIPE_MODULE_PRICE_ID = os.getenv("STRIPE_MODULE_PRICE_ID", "")
 STRIPE_EMAIL_OVERAGE_PRICE_ID = os.getenv("STRIPE_EMAIL_OVERAGE_PRICE_ID", "")
 STRIPE_SMS_OVERAGE_PRICE_ID = os.getenv("STRIPE_SMS_OVERAGE_PRICE_ID", "")
+STRIPE_ASSISTANT_OVERAGE_PRICE_ID = os.getenv("STRIPE_ASSISTANT_OVERAGE_PRICE_ID", "")
 
 # Django Cron Settings
 CRON_CLASSES = [

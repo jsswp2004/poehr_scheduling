@@ -168,6 +168,7 @@ urlpatterns = [
     # API routes
     path("api/", include("appointments.urls")),
     path("api/staffing/", include("staffing.urls")),
+    path("api/surgery/", include("surgery.urls")),
     path("api/sms/", include("users.urls")),  # or sms.urls
     path("api/messages/", include("users.urls")),
     path("api/secure-messages/", include("secure_messaging.urls")),

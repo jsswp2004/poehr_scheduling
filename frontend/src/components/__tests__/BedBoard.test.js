@@ -26,6 +26,16 @@ const tree = [
         ],
       },
       { id: 6, name: "Cardiology", care_type: "outpatient", rooms: [] },
+      {
+        id: 8, name: "Operating Rooms", care_type: "outpatient", is_surgical: true, bed_count: 2, occupied_count: 1, rooms: [
+          { id: 20, name: "OR-1", beds: [] },
+          { id: 21, name: "PACU", beds: [
+            { id: 31, name: "1", status: "occupied", occupant: "Lee, Ann", patient: 4, patient_user_id: 40, registration: 91, visit_number: "VN-000091" },
+            { id: 32, name: "2", status: "available" },
+          ] },
+        ],
+      },
+      { id: 9, name: "Old OR suite", care_type: "outpatient", is_surgical: true, rooms: [{ id: 22, name: "OR-7", beds: [] }] },
     ],
   },
 ];
@@ -44,6 +54,14 @@ test("shows inpatient units only, with counts, occupants and statuses", async ()
   expect(screen.getByTestId("board-count-5")).toHaveTextContent("1 of 4 occupied");
   expect(within(screen.getByTestId("board-bed-11")).getByText("Bcs, Test")).toBeInTheDocument();
   expect(within(screen.getByTestId("board-bed-14")).getByText("Broken rail")).toBeInTheDocument();
+});
+
+test("the PreOp and PACU beds of an operating-room unit are on the board, but a unit with only ORs is not", async () => {
+  render(<BedBoard userRole="nurse" />);
+  expect(await screen.findByTestId("board-unit-8")).toBeInTheDocument();
+  expect(screen.queryByTestId("board-unit-9")).toBeNull();
+  expect(within(screen.getByTestId("board-bed-31")).getByText("Lee, Ann")).toBeInTheDocument();
+  expect(screen.getByTestId("board-count-8")).toHaveTextContent("1 of 2 occupied");
 });
 
 test("an occupied bed offers transfer and discharge for that patient", async () => {

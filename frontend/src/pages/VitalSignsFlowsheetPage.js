@@ -1,10 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 import ChartPageShell from "../components/patients/ChartPageShell";
 import DocumentationAssistantDock from "../components/DocumentationAssistantDock";
-import BackButton from "../components/BackButton";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { getValidToken, clearAuthData } from "../utils/auth";
 
@@ -67,20 +66,6 @@ function VitalSignsFlowsheetPage() {
                 p: 3,
             }}
         >
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 2,
-                }}
-            >
-                <Typography variant="h5">
-                    {patient.first_name} {patient.last_name}
-                </Typography>
-                <BackButton to={`/patients/${id}`} />
-            </Box>
-
             <PatientChartHeader patientId={patient.user_id || patient.id} />
 
             <VitalSignsFlowsheetPanel

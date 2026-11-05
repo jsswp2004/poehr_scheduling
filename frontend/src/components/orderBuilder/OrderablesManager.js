@@ -15,6 +15,7 @@ import {
     IconButton,
     InputAdornment,
     InputLabel,
+    Menu,
     MenuItem,
     Paper,
     Select,
@@ -22,7 +23,6 @@ import {
     Table,
     TableBody,
     TableCell,
-    TableContainer,
     TableHead,
     TableRow,
     TextField,
@@ -32,11 +32,11 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import SearchIcon from "@mui/icons-material/Search";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { jwtDecode } from "jwt-decode";
 import { api } from "../../api/client";
+import { BUILDER_STICKY_TOP, BuilderToolbar } from "../builders/BuilderShell";
 import { apiEndpoints } from "../../config/api";
 import { FREQUENCY_OPTIONS } from "../tasks/taskShared";
 import {
@@ -313,6 +313,7 @@ function OrderablesManager() {
     const [limit, setLimit] = useState(PAGE_SIZE);
     const [editing, setEditing] = useState(null);
     const fileRef = useRef(null);
+    const [moreAnchor, setMoreAnchor] = useState(null);
 
     const isSystemAdmin = useMemo(() => {
         try {
@@ -437,6 +438,7 @@ function OrderablesManager() {
     }
 
     const shown = filtered.slice(0, limit);
+    const headSx = { position: "sticky", top: BUILDER_STICKY_TOP, zIndex: 2, bgcolor: "background.paper", fontWeight: 700 };
 
     return (
         <Box>
@@ -473,82 +475,87 @@ function OrderablesManager() {
                 </Paper>
             )}
 
-            <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" sx={{ mb: 2 }}>
-                <Stack direction="row" spacing={1} sx={{ flex: 1 }}>
-                    <TextField
-                        size="small"
-                        placeholder="Search name, code, description..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        sx={{ flex: 1, maxWidth: 420 }}
-                        slotProps={{
-                            input: {
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon fontSize="small" />
-                                    </InputAdornment>
-                                ),
-                            },
+            <BuilderToolbar>
+                <TextField
+                    size="small"
+                    placeholder="Search name, code, description..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    sx={{ flex: 1, minWidth: { xs: "100%", sm: 240 }, maxWidth: 420 }}
+                    slotProps={{
+                        input: {
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon fontSize="small" />
+                                </InputAdornment>
+                            ),
+                        },
+                    }}
+                />
+                <FormControl size="small" sx={{ minWidth: 160 }}>
+                    <InputLabel id="ob-filter-cat">Category</InputLabel>
+                    <Select
+                        labelId="ob-filter-cat"
+                        label="Category"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                    >
+                        <MenuItem value="">All</MenuItem>
+                        {CATEGORIES.map((c) => (
+                            <MenuItem key={c.value} value={c.value}>
+                                {c.label}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                <Box sx={{ flexGrow: 1 }} />
+                <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setEditing({ ...EMPTY })}>
+                    New orderable
+                </Button>
+                <IconButton size="small" aria-label="More actions" onClick={(e) => setMoreAnchor(e.currentTarget)}>
+                    <MoreVertIcon fontSize="small" />
+                </IconButton>
+                <Menu anchorEl={moreAnchor} open={Boolean(moreAnchor)} onClose={() => setMoreAnchor(null)}>
+                    <MenuItem
+                        onClick={() => {
+                            setMoreAnchor(null);
+                            download(apiEndpoints.orderablesSampleCsv, "orderables_upload_template.csv");
                         }}
-                    />
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel id="ob-filter-cat">Category</InputLabel>
-                        <Select
-                            labelId="ob-filter-cat"
-                            label="Category"
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                        >
-                            <MenuItem value="">All</MenuItem>
-                            {CATEGORIES.map((c) => (
-                                <MenuItem key={c.value} value={c.value}>
-                                    {c.label}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Stack>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Button
-                        variant="outlined"
-                        startIcon={<FileDownloadIcon />}
-                        onClick={() => download(apiEndpoints.orderablesSampleCsv, "orderables_upload_template.csv")}
                     >
                         Sample CSV
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={<FileDownloadIcon />}
-                        onClick={() => download(apiEndpoints.orderablesDownloadCsv, "orderables.csv")}
+                    </MenuItem>
+                    <MenuItem
+                        onClick={() => {
+                            setMoreAnchor(null);
+                            download(apiEndpoints.orderablesDownloadCsv, "orderables.csv");
+                        }}
                     >
                         Download mine
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={uploading ? <CircularProgress size={16} /> : <UploadFileIcon />}
-                        onClick={() => fileRef.current && fileRef.current.click()}
+                    </MenuItem>
+                    <MenuItem
                         disabled={uploading}
+                        onClick={() => {
+                            setMoreAnchor(null);
+                            fileRef.current && fileRef.current.click();
+                        }}
                     >
-                        Upload CSV
-                    </Button>
-                    <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={upload} />
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={() => setEditing({ ...EMPTY })}>
-                        New orderable
-                    </Button>
-                </Stack>
-            </Stack>
+                        {uploading ? "Uploading..." : "Upload CSV"}
+                    </MenuItem>
+                </Menu>
+                <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={upload} />
+            </BuilderToolbar>
 
-            <TableContainer component={Paper}>
+            <Box sx={{ overflowX: { xs: "auto", md: "clip" } }}>
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Category</TableCell>
-                            <TableCell>Code</TableCell>
-                            <TableCell>Detail form</TableCell>
-                            <TableCell align="center">Cosign</TableCell>
-                            <TableCell align="center">Status</TableCell>
-                            <TableCell align="right">Actions</TableCell>
+                            <TableCell sx={headSx}>Name</TableCell>
+                            <TableCell sx={headSx}>Category</TableCell>
+                            <TableCell sx={headSx}>Code</TableCell>
+                            <TableCell sx={headSx}>Detail form</TableCell>
+                            <TableCell align="center" sx={headSx}>Cosign</TableCell>
+                            <TableCell align="center" sx={headSx}>Status</TableCell>
+                            <TableCell align="right" sx={headSx}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -607,7 +614,7 @@ function OrderablesManager() {
                         )}
                     </TableBody>
                 </Table>
-            </TableContainer>
+            </Box>
             {filtered.length > shown.length && (
                 <Box sx={{ textAlign: "center", mt: 2 }}>
                     <Button onClick={() => setLimit((l) => l + PAGE_SIZE)}>

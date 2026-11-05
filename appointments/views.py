@@ -1,4 +1,5 @@
 # filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 from rest_framework import viewsets, permissions
 from .models import (
     Appointment,
@@ -42,19 +43,22 @@ from .serializers import (
     OrderSerializer,
     OrderInterfaceUpdateSerializer,
 )
-from . import order_tasks
+from . import note_cosign, order_tasks
 from . import orders_workflow as ow
 from .orders_csv import parse_orderable_csv, export_orderable_csv, sample_orderable_csv
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
 from django.conf import settings  # Import settings to access AUTH_USER_MODEL
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
 import secrets
+import uuid
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from datetime import timedelta
 from django.utils import timezone
 from django.utils.timezone import make_aware
@@ -117,7 +121,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         # select_related that is about four extra queries per appointment, which made the
         # calendar's list request take ~11 seconds for a few dozen rows.
         related = ("patient", "provider", "unit__facility")
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             queryset = (
                 Appointment.all_objects.all()
                 .select_related(*related)
@@ -611,7 +615,7 @@ class ClinicEventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         # System admins can see clinic events from all organizations
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             return ClinicEvent.objects.filter(is_active=True).order_by("name")
 
         # Regular users only see clinic events from their organization
@@ -622,7 +626,7 @@ class ClinicEventViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         # Auto-assign the organization for non-system admins
-        if user.role != "system_admin":
+        if not sees_all_orgs(user):
             serializer.save(organization=user.organization)
         else:
             # System admins can specify organization or it defaults to their own
@@ -636,7 +640,7 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         # doctor_name reads each row's doctor, so fetch it in the same query
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             return Availability.objects.select_related("doctor").order_by("-start_time")
         return (
             Availability.objects.filter(organization=user.organization)
@@ -664,6 +668,7 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
         }
 
         count = recurrence_count.get(recurrence, 0)
+        series_id = uuid.uuid4() if count else None
 
         for i in range(1, count + 1):
             if recurrence == "daily":
@@ -701,9 +706,83 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
                     start_time=next_start,
                     end_time=next_end,
                     is_blocked=is_blocked,
+                    block_type=availability.block_type,
                     recurrence="none",  # avoid chaining
                     organization=organization,
+                    series_id=series_id,
                 )
+
+        # The first occurrence belongs to the same series as the ones made from it
+        if series_id and availability.series_id is None:
+            availability.series_id = series_id
+            availability.save(update_fields=["series_id"])
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete one schedule, or with ?scope=series every schedule created together with it."""
+        instance = self.get_object()
+        if request.query_params.get("scope") == "series" and instance.series_id:
+            qs = self.get_queryset().filter(series_id=instance.series_id)
+            deleted = qs.count()
+            qs.delete()
+            return Response({"deleted": deleted}, status=status.HTTP_200_OK)
+        instance.delete()
+        return Response({"deleted": 1}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="bulk")
+    def bulk(self, request):
+        """Create many schedules at once (the Multiple days form). All of them share one series id.
+
+        Body: {doctor, is_blocked, block_type, items: [{start_time, end_time}, ...]}
+        The caller works out the dates (it knows the time zone, holidays and what is already booked);
+        weekends and exact duplicates are skipped here as well.
+        """
+        doctor_id = request.data.get("doctor")
+        items = request.data.get("items") or []
+        if not doctor_id or not isinstance(items, list) or not items:
+            return Response({"error": "Choose a clinician and at least one day."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(items) > 400:
+            return Response({"error": "That is too many days at once (400 at most)."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        User = get_user_model()
+        doctors = User.objects.filter(id=doctor_id)
+        if not sees_all_orgs(user):
+            doctors = doctors.filter(organization=user.organization)
+        doctor = doctors.first()
+        if doctor is None:
+            return Response({"error": "Clinician not found."}, status=status.HTTP_404_NOT_FOUND)
+        organization = user.organization if not sees_all_orgs(user) else doctor.organization
+
+        is_blocked = bool(request.data.get("is_blocked"))
+        block_type = request.data.get("block_type") if is_blocked else None
+        series_id = uuid.uuid4() if len(items) > 1 else None
+
+        created, skipped = [], 0
+        with transaction.atomic():
+            for item in items:
+                start = parse_datetime(str(item.get("start_time", "")))
+                end = parse_datetime(str(item.get("end_time", "")))
+                if start is None or end is None or end <= start:
+                    return Response({"error": "A day has a start or end time that is not valid."}, status=status.HTTP_400_BAD_REQUEST)
+                if start.weekday() in (5, 6) or Availability.objects.filter(
+                    doctor=doctor, start_time=start, end_time=end, is_blocked=is_blocked, organization=organization
+                ).exists():
+                    skipped += 1
+                    continue
+                created.append(
+                    Availability(
+                        doctor=doctor,
+                        organization=organization,
+                        start_time=start,
+                        end_time=end,
+                        is_blocked=is_blocked,
+                        block_type=block_type,
+                        recurrence="none",
+                        series_id=series_id,
+                    )
+                )
+            Availability.objects.bulk_create(created)
+        return Response({"created": len(created), "skipped": skipped}, status=status.HTTP_201_CREATED)
 
 
 class EnvironmentSettingView(APIView):
@@ -1050,7 +1129,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
             self.ensure_holidays_for_year(year)
 
             # System admins see ALL holidays from ALL organizations
-            if user.role == "system_admin":
+            if sees_all_orgs(user):
                 return Holiday.objects.filter(
                     date__year=year, suppressed=False
                 ).order_by("date")
@@ -1068,7 +1147,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
             self.ensure_holidays_for_year(datetime.now().year)
 
             # System admins see ALL holidays from ALL organizations
-            if user.role == "system_admin":
+            if sees_all_orgs(user):
                 return Holiday.objects.filter(suppressed=False).order_by("date")
             else:
                 # Regular users see global holidays + their organization's holidays
@@ -1700,7 +1779,7 @@ def update_appointment_status(request, appointment_id):
     try:
         user = request.user
         # Get the appointment
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             appointment = Appointment.all_objects.get(id=appointment_id)
         else:
             appointment = Appointment.objects.get(
@@ -1760,7 +1839,7 @@ class CheckInSearchView(APIView):
         print(f"[DEBUG] CheckInSearchView: today={today}")
 
         # Build base queryset for today's appointments
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             queryset = Appointment.all_objects.filter(appointment_datetime__date=today)
         else:
             queryset = Appointment.objects.filter(
@@ -1813,7 +1892,7 @@ class CheckInStatusUpdateView(APIView):
             user = request.user
 
             # Get the appointment
-            if user.role == "system_admin":
+            if sees_all_orgs(user):
                 appointment = Appointment.all_objects.get(id=appointment_id)
             else:
                 appointment = Appointment.objects.get(
@@ -1868,7 +1947,7 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             queryset = ClinicalNote.objects.all()
         else:
             queryset = ClinicalNote.objects.filter(organization=user.organization)
@@ -1881,7 +1960,62 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
         if patient_id:
             queryset = queryset.filter(patient_id=patient_id)
 
-        return queryset.select_related("patient", "author", "appointment")
+        return queryset.select_related("patient", "author", "appointment").prefetch_related(
+            "cosign_requests__cosigner", "cosign_requests__requested_by"
+        )
+
+    # --- co-signature (see note_cosign.py) ----------------------------------
+    @action(detail=False, methods=["get"], url_path="cosigners")
+    def cosigners(self, request):
+        """People who can be asked to co-sign: same clinic, hold the co-sign right, never the asker."""
+        people = note_cosign.eligible_cosigners(request.user.organization, exclude=request.user)
+        return Response(
+            [{"id": u.pk, "name": (f"{u.first_name} {u.last_name}".strip() or u.username), "role": u.role} for u in people]
+        )
+
+    def _cosign_call(self, fn, *args, **kwargs):
+        try:
+            fn(*args, **kwargs)
+        except note_cosign.CosignError as exc:
+            return Response({"detail": str(exc)}, status=exc.status)
+        return None
+
+    def _note_body(self, pk):
+        note = self.get_queryset().get(pk=pk)
+        return Response(ClinicalNoteSerializer(note, context={"request": self.request}).data)
+
+    @action(detail=True, methods=["post"], url_path="request-cosign")
+    def request_cosign(self, request, pk=None):
+        note = self.get_object()
+        due = request.data.get("due_at") or None
+        if due:
+            due = parse_datetime(str(due))
+            if due is None:
+                return Response({"detail": "Needed-by is not a valid date and time."}, status=400)
+            if timezone.is_naive(due):
+                due = timezone.make_aware(due)
+        reminder = request.data.get("reminder_minutes")
+        reminder = int(reminder) if str(reminder or "").isdigit() else None
+        err = self._cosign_call(
+            note_cosign.request_cosign, note, request.user, request.data.get("cosigner"),
+            message=request.data.get("message", ""), due_at=due, reminder_minutes=reminder,
+        )
+        return err or self._note_body(note.pk)
+
+    @action(detail=True, methods=["post"], url_path="cosign")
+    def cosign(self, request, pk=None):
+        note = self.get_object()
+        return self._cosign_call(note_cosign.cosign, note, request.user) or self._note_body(note.pk)
+
+    @action(detail=True, methods=["post"], url_path="return-cosign")
+    def return_cosign(self, request, pk=None):
+        note = self.get_object()
+        return self._cosign_call(note_cosign.return_note, note, request.user, request.data.get("comment", "")) or self._note_body(note.pk)
+
+    @action(detail=True, methods=["post"], url_path="cancel-cosign")
+    def cancel_cosign(self, request, pk=None):
+        note = self.get_object()
+        return self._cosign_call(note_cosign.cancel, note, request.user) or self._note_body(note.pk)
 
     @action(detail=False, methods=["get"], url_path="note-types")
     def note_types(self, request):
@@ -1986,7 +2120,7 @@ class VitalSignsFlowsheetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             queryset = VitalSignsFlowsheet.objects.all()
         else:
             queryset = VitalSignsFlowsheet.objects.filter(organization=user.organization)
@@ -2362,7 +2496,7 @@ class DictionaryAdminViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 def _org_scoped(queryset, user, allow_global=False):
-    if user.role == "system_admin":
+    if sees_all_orgs(user):
         return queryset
     q = Q(organization=user.organization)
     if allow_global:

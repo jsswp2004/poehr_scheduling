@@ -1,0 +1,37 @@
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path("rooms/", views.RoomList.as_view()),
+    path("rooms/<int:pk>/", views.RoomDetail.as_view()),
+    path("room-options/", views.RoomOptions.as_view()),
+    path("cases/", views.CaseList.as_view()),
+    path("cases/<int:pk>/", views.CaseDetail.as_view()),
+    path("cases/<int:pk>/status/", views.CaseStatus.as_view()),
+    path("cases/<int:pk>/bay-options/", views.BayOptions.as_view()),
+    path("cases/<int:pk>/history/", views.CaseHistoryView.as_view()),
+    path("cases/<int:pk>/participants/", views.CaseParticipants.as_view()),
+    path("cases/<int:pk>/participants/<int:participant_id>/", views.CaseParticipantDetail.as_view()),
+    path("cases/<int:pk>/cards/", views.CaseCards.as_view()),
+    path("cases/<int:pk>/cards/<int:link_id>/", views.CaseCardDetail.as_view()),
+    path("cases/<int:pk>/usage/", views.CaseUsage.as_view()),
+    path("cases/<int:pk>/usage/<int:usage_id>/", views.CaseUsageDetail.as_view()),
+    path("preference-cards/", views.PreferenceCardList.as_view()),
+    path("preference-cards/<int:pk>/", views.PreferenceCardDetail.as_view()),
+    path("cases/<int:pk>/charges/", views.CaseCharges.as_view()),
+    path("cases/<int:pk>/charges/generate/", views.CaseChargeGenerate.as_view()),
+    path("cases/<int:pk>/charges/post/", views.CaseChargePost.as_view()),
+    path("cases/<int:pk>/charges/<int:charge_id>/", views.CaseChargeDetail.as_view()),
+    path("charge-policies/", views.ChargePolicies.as_view()),
+    path("charge-policies/<int:pk>/", views.ChargePolicyDetail.as_view()),
+    path("charge-prices/", views.ChargePrices.as_view()),
+    path("charge-prices/<int:pk>/", views.ChargePriceDetail.as_view()),
+    path("cases/<int:pk>/visits/", views.CaseVisits.as_view()),
+    path("cases/<int:pk>/documents/", views.CaseDocuments.as_view()),
+    path("cases/<int:pk>/documents/<int:doc_id>/", views.CaseDocumentDetail.as_view()),
+    path("lookups/", views.Lookups.as_view()),
+    path("staff/", views.StaffSearch.as_view()),
+    path("planner/", views.Planner.as_view()),
+    path("status-counts/", views.StatusCounts.as_view()),
+]

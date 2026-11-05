@@ -14,13 +14,13 @@ const getBaseUrl = () => {
     // Default based on environment
     if (process.env.NODE_ENV === 'production') {
         // Check if we're on the custom domain
-        if (window.location.hostname === 'powerhealthcareit.com' ||
-            window.location.hostname === 'www.powerhealthcareit.com') {
+        if (window.location.hostname === 'powerhealthit.com' ||
+            window.location.hostname === 'www.powerhealthit.com') {
             // Always use www version for SSL certificate compatibility
             // This ensures SSL works regardless of how user accessed the site
             console.log('🔧 SSL Debug - Detected custom domain, using www version');
             console.log('🔧 SSL Debug - Current hostname:', window.location.hostname);
-            return 'https://www.powerhealthcareit.com';
+            return 'https://poehr-scheduling-api.onrender.com';
         }
         // Production URL - use the specific backend Azure Container App URL
         console.log('🔧 SSL Debug - Using Azure Container App URL');
@@ -41,11 +41,11 @@ const getWebSocketUrl = () => {
 
     if (process.env.NODE_ENV === 'production') {
         // Check if we're on the custom domain for WebSocket
-        if (window.location.hostname === 'powerhealthcareit.com' ||
-            window.location.hostname === 'www.powerhealthcareit.com') {
+        if (window.location.hostname === 'powerhealthit.com' ||
+            window.location.hostname === 'www.powerhealthit.com') {
             // Always use www version for SSL certificate compatibility
             // This ensures WebSocket SSL works regardless of how user accessed the site
-            return 'wss://www.powerhealthcareit.com';
+            return 'wss://poehr-scheduling-api.onrender.com';
         }
 
         // Production WebSocket URL - use same domain but wss protocol
@@ -116,6 +116,14 @@ export const apiEndpoints = {
     clinicalNote: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/`,
     clinicalNoteSign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/sign/`,
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
+    clinicalNoteCosigners: `${API_BASE_URL}/api/clinical-notes/cosigners/`,
+    clinicalNoteRequestCosign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/request-cosign/`,
+    clinicalNoteCosign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/cosign/`,
+    clinicalNoteReturnCosign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/return-cosign/`,
+    clinicalNoteCancelCosign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/cancel-cosign/`,
+    inbox: `${API_BASE_URL}/api/inbox/`,
+    globalSearch: `${API_BASE_URL}/api/search/`,
+    globalSearchOpened: `${API_BASE_URL}/api/search/opened/`,
     noteTemplates: `${API_BASE_URL}/api/note-templates/`,
 
     // Dictation (speech-to-text for notes)
@@ -170,6 +178,9 @@ export const apiEndpoints = {
     referralQueues: `${API_BASE_URL}/api/referrals/queues/`,
     referral: (id) => `${API_BASE_URL}/api/referrals/${id}/`,
     referralAction: (id) => `${API_BASE_URL}/api/referrals/${id}/action/`,
+    referralSendLink: (id) => `${API_BASE_URL}/api/referrals/${id}/send-link/`,
+    referralRevokeLink: (id) => `${API_BASE_URL}/api/referrals/${id}/revoke-link/`,
+    referralAttachmentFile: (id, attachmentId) => `${API_BASE_URL}/api/referrals/${id}/attachments/${attachmentId}/file/`,
     referralMeta: `${API_BASE_URL}/api/referral-meta/`,
     referralDestinations: `${API_BASE_URL}/api/referral-destinations/`,
     referralDestination: (id) => `${API_BASE_URL}/api/referral-destinations/${id}/`,
@@ -220,6 +231,7 @@ export const apiEndpoints = {
     orderTaskSettings: `${API_BASE_URL}/api/order-task-settings/`,
     orderTaskColumns: `${API_BASE_URL}/api/order-task-columns/`,
     patientHeader: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/`,
+    patientVisits: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/visits/`,
     patientHeaderValues: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/values/`,
     patientAllergies: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergies/`,
     patientAllergy: (patientId, allergyId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergies/${allergyId}/`,
@@ -229,6 +241,20 @@ export const apiEndpoints = {
     allergyReactions: `${API_BASE_URL}/api/allergy-reactions/`,
     allergyCheck: `${API_BASE_URL}/api/allergy-check/`,
     patientHeaderConfig: `${API_BASE_URL}/api/patient-header-config/`,
+    registrationTabs: `${API_BASE_URL}/api/registration-tabs/`,
+  registrationDictionaries: `${API_BASE_URL}/api/registration-dictionaries/`,
+  registrationFields: `${API_BASE_URL}/api/registration-fields/`,
+  registrationExtras: (userId) => `${API_BASE_URL}/api/registration-extras/${userId}/`,
+  insuranceSetup: `${API_BASE_URL}/api/insurance-setup/`,
+  patientPolicies: (userId) => `${API_BASE_URL}/api/patient-policies/${userId}/`,
+  newbornRegistration: `${API_BASE_URL}/api/newborn-registration/`,
+  visitTransport: (visitId) => `${API_BASE_URL}/api/visit-transport/${visitId}/`,
+  payments: (userId) => `${API_BASE_URL}/api/payments/${userId}/`,
+  paymentVoid: (receiptId) => `${API_BASE_URL}/api/payment-void/${receiptId}/`,
+  zipCodes: `${API_BASE_URL}/api/zip-codes/`,
+  registrationSettings: `${API_BASE_URL}/api/registration-settings/`,
+  customForms: `${API_BASE_URL}/api/custom-forms/`,
+  customFormAnswers: (userId) => `${API_BASE_URL}/api/custom-form-answers/${userId}/`,
     mySchedule: `${API_BASE_URL}/api/my-schedule/`,
     chartTabs: `${API_BASE_URL}/api/chart-tabs/`,
     chartTabsMine: `${API_BASE_URL}/api/chart-tabs/mine/`,
@@ -285,6 +311,38 @@ export const apiEndpoints = {
     registrations: `${API_BASE_URL}/api/users/registrations/`,
     registration: (id) => `${API_BASE_URL}/api/users/registrations/${id}/`,
 
+    // Surgery module (Case List, Day Planner)
+    surgeryPlanner: `${API_BASE_URL}/api/surgery/planner/`,
+    surgeryCases: `${API_BASE_URL}/api/surgery/cases/`,
+    surgeryCase: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/`,
+    surgeryCaseStatus: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/status/`,
+    surgeryCaseBayOptions: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/bay-options/`,
+    surgeryCaseHistory: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/history/`,
+    surgeryRooms: `${API_BASE_URL}/api/surgery/rooms/`,
+    surgeryRoomOptions: `${API_BASE_URL}/api/surgery/room-options/`,
+    surgeryRoom: (id) => `${API_BASE_URL}/api/surgery/rooms/${id}/`,
+    surgeryLookups: `${API_BASE_URL}/api/surgery/lookups/`,
+    surgeryStaff: `${API_BASE_URL}/api/surgery/staff/`,
+    surgeryPreferenceCards: `${API_BASE_URL}/api/surgery/preference-cards/`,
+    surgeryCaseCards: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/cards/`,
+    surgeryCaseCard: (id, linkId) => `${API_BASE_URL}/api/surgery/cases/${id}/cards/${linkId}/`,
+    surgeryCharges: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/charges/`,
+    surgeryChargesGenerate: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/charges/generate/`,
+    surgeryChargesPost: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/charges/post/`,
+    surgeryCharge: (id, chargeId) => `${API_BASE_URL}/api/surgery/cases/${id}/charges/${chargeId}/`,
+    surgeryPreferenceCard: (id) => `${API_BASE_URL}/api/surgery/preference-cards/${id}/`,
+    surgeryChargePolicies: `${API_BASE_URL}/api/surgery/charge-policies/`,
+    surgeryChargePolicy: (id) => `${API_BASE_URL}/api/surgery/charge-policies/${id}/`,
+    surgeryChargePrices: `${API_BASE_URL}/api/surgery/charge-prices/`,
+    surgeryChargePrice: (id) => `${API_BASE_URL}/api/surgery/charge-prices/${id}/`,
+    surgeryCaseVisits: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/visits/`,
+    surgeryDocuments: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/documents/`,
+    surgeryDocument: (id, docId) => `${API_BASE_URL}/api/surgery/cases/${id}/documents/${docId}/`,
+    surgeryUsage: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/usage/`,
+    surgeryUsageItem: (id, usageId) => `${API_BASE_URL}/api/surgery/cases/${id}/usage/${usageId}/`,
+    surgeryParticipants: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/participants/`,
+    surgeryParticipant: (id, participantId) => `${API_BASE_URL}/api/surgery/cases/${id}/participants/${participantId}/`,
+
     // Authentication endpoints
     changePassword: `${API_BASE_URL}/api/auth/change-password/`,
     adminChangePassword: `${API_BASE_URL}/api/users/admin-change-password/`,
@@ -338,6 +396,7 @@ export const apiEndpoints = {
     staffingMyTimeOff: `${API_BASE_URL}/api/staffing/me/time-off/`,
     staffingAssistant: `${API_BASE_URL}/api/staffing/assistant/message/`,
     staffingAssistantAction: (id, verb) => `${API_BASE_URL}/api/staffing/assistant/actions/${id}/${verb}/`,
+    communicatorAnnouncements: `${API_BASE_URL}/api/communicator/announcements/`,
     communicatorAssistant: `${API_BASE_URL}/api/communicator/assistant/message/`,
     communicatorAssistantAction: (id, verb) => `${API_BASE_URL}/api/communicator/assistant/actions/${id}/${verb}/`,
     schedulerAssistant: `${API_BASE_URL}/api/scheduler-assistant/message/`,
@@ -355,6 +414,15 @@ export const apiEndpoints = {
     staffingReportSubscriptions: `${API_BASE_URL}/api/staffing/report-subscriptions/`,
     staffingReportSubscription: (id) => `${API_BASE_URL}/api/staffing/report-subscriptions/${id}/`,
     staffingReportSubscriptionSendNow: (id) => `${API_BASE_URL}/api/staffing/report-subscriptions/${id}/send-now/`,
+    staffingCustomReports: `${API_BASE_URL}/api/staffing/custom-reports/`,
+    staffingCustomReport: (id) => `${API_BASE_URL}/api/staffing/custom-reports/${id}/`,
+    staffingCustomReportRun: (id) => `${API_BASE_URL}/api/staffing/custom-reports/${id}/run/`,
+    staffingCustomReportPreview: `${API_BASE_URL}/api/staffing/custom-reports/preview/`,
+    staffingCustomReportSources: `${API_BASE_URL}/api/staffing/custom-reports/sources/`,
+    staffingCustomReportLinkedCatalog: `${API_BASE_URL}/api/staffing/custom-reports/linked-catalog/`,
+    staffingCustomReportDocumentationCatalog: `${API_BASE_URL}/api/staffing/custom-reports/documentation-catalog/`,
+    staffingCustomReportDocumentationDocument: `${API_BASE_URL}/api/staffing/custom-reports/documentation-document/`,
+    staffingCustomReportAudit: `${API_BASE_URL}/api/staffing/custom-reports/audit/`,
     staffingReportSubscriptionTest: `${API_BASE_URL}/api/staffing/report-subscriptions/send-test/`,
 
     // Media endpoints

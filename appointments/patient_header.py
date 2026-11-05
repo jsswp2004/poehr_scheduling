@@ -12,6 +12,7 @@ The server works out the text for every visible item, so adding or removing an
 item in Settings changes the header everywhere without a code change.
 """
 
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 import re
 from datetime import date
 
@@ -249,7 +250,7 @@ def _patient_for(request, patient_id):
     if user.role not in STAFF_ROLES:
         return None, Response({"detail": "Not allowed."}, status=403)
     patient = CustomUser.objects.filter(pk=patient_id, role="patient").select_related("organization", "provider").first()
-    if patient is None or (user.role != "system_admin" and patient.organization_id != user.organization_id):
+    if patient is None or (not sees_all_orgs(user) and patient.organization_id != user.organization_id):
         return None, Response({"detail": "Patient not found."}, status=404)
     return patient, None
 
@@ -315,7 +316,15 @@ def build_header(patient, visit_id=None):
     org = patient.organization
     profile = getattr(patient, "patient_profile", None)
     visits = Registration.objects.filter(patient__user=patient).select_related("attending_provider").order_by("-created_at", "-pk")
-    visit = visits.filter(pk=visit_id).first() if visit_id else visits.first()
+    visit = None
+    if visit_id:
+        try:
+            visit = visits.filter(pk=int(visit_id)).first()
+        except (TypeError, ValueError):
+            visit = None
+    # An unknown or foreign visit id falls back to the latest visit
+    if visit is None:
+        visit = visits.first()
 
     provider = (visit.attending_provider if visit and visit.attending_provider else None) or patient.provider
     attending = f"Dr. {provider.first_name} {provider.last_name}".strip() if provider else ""
@@ -406,6 +415,9 @@ class PatientHeaderView(APIView):
             return error
         data = build_header(patient, request.query_params.get("visit"))
         data["can_edit"] = True
+        # The photo at the left of the banner: the patient's profile picture when there is one.
+        picture = getattr(patient, "profile_picture", None)
+        data["photo_url"] = request.build_absolute_uri(picture.url) if picture else ""
         # Drives the "Growth chart" button: only for patients under 20 years, and only for staff who may view flowsheets.
         from users.rights import user_has_right
         from .immunization_engine import age_in_months
@@ -414,6 +426,45 @@ class PatientHeaderView(APIView):
         data["age_months"] = age_in_months(dob, today) if dob and dob <= today else None
         data["can_growth_chart"] = user_has_right(request.user, "flowsheets.chart")
         return Response(data)
+
+
+def _visit_row(v, latest_id):
+    fac = v.facility.name if v.facility_id else ""
+    provider = v.attending_provider
+    return {
+        "id": v.pk,
+        "visit_number": v.visit_number or "",
+        "admit": v.arrival_time or v.created_at,
+        "discharge": v.discharge_datetime,
+        "care_setting": v.care_setting or "ambulatory",
+        "care_setting_label": CARE_SETTING_LABELS.get(v.care_setting or "ambulatory", ""),
+        "admission_type": v.get_admission_type_display() if v.admission_type else "",
+        "facility": fac,
+        "location": v.location_path() or v.assigned_location or "",
+        "provider": f"Dr. {provider.first_name} {provider.last_name}".strip() if provider else "",
+        "reason": v.reason_for_visit or "",
+        "diagnoses": v.current_diagnoses or "",
+        "is_current": v.pk == latest_id,
+        "is_open": v.discharge_datetime is None,
+    }
+
+
+class PatientVisitsView(APIView):
+    """GET /api/patient-header/<patient user id>/visits/ -> every visit, newest first (Visit History)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, patient_id):
+        patient, error = _patient_for(request, patient_id)
+        if error:
+            return error
+        visits = list(
+            Registration.objects.filter(patient__user=patient)
+            .select_related("attending_provider", "facility", "unit", "room", "bed")
+            .order_by("-created_at", "-pk")
+        )
+        latest = visits[0].pk if visits else None
+        return Response({"current_id": latest, "visits": [_visit_row(v, latest) for v in visits]})
 
 
 class PatientHeaderValuesView(APIView):

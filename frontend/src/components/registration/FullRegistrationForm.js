@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import Select from "react-select";
 import {
@@ -30,7 +30,16 @@ import { API_BASE_URL, apiEndpoints } from "../../config/api";
 import LocationPicker, { useLocationTree } from "../locations/LocationPicker";
 import VisitSearchDialog from "./VisitSearchDialog";
 import RegistrationSteps from "./RegistrationSteps";
-import { ageText, showDob, stepFilled } from "./registerHelpers";
+import ContactsEditor from "./ContactsEditor";
+import DictionaryField from "./DictionaryField";
+import PolicyEditor, { policyProblems } from "./PolicyEditor";
+import useRegistrationTabs from "./useRegistrationTabs";
+import useRegistrationSetup, { fieldFor, missingRequired, optionsFor } from "./useRegistrationSetup";
+import { ageText, apiErrorText, showDob, stepFilled } from "./registerHelpers";
+import CustomFormsStep from "./CustomFormsStep";
+import NewbornDialog from "./NewbornDialog";
+import PaymentsStep from "./PaymentsStep";
+import { answersToSend, formsComplete, missingCustom } from "./customFormHelpers";
 
 // Only these roles may edit a visit that has already been closed (discharged).
 const CLOSED_VISIT_EDIT_ROLES = ["admin", "registrar", "system_admin"];
@@ -39,14 +48,6 @@ const CLOSED_VISIT_EDIT_ROLES = ["admin", "registrar", "system_admin"];
 // the user asked for. Patient Identity/Emergency Contact/Financial/Legal
 // Documents live on the Patient record itself (persist visit to visit);
 // Reason for Visit/Logistics live on a new per-visit Registration record.
-const SUB_TABS = [
-  { value: "identity", label: "Patient Identity" },
-  { value: "emergency", label: "Emergency Contact" },
-  { value: "financial", label: "Financial Information" },
-  { value: "reason", label: "Reason for Visit" },
-  { value: "legal", label: "Legal Documents" },
-  { value: "logistics", label: "Logistics" },
-];
 
 const LEGAL_DOCS = [
   { key: "consent_to_treat", label: "Consent to Treat" },
@@ -60,6 +61,20 @@ const LEGAL_DOCS = [
 ];
 
 const BIRTH_FIELDS = ["gestational_age_weeks", "gestational_age_days", "birth_weight_g"];
+
+// Demographics and advance directive live on the patient. Blank is a real answer here (a cleared field),
+// so these are sent even when empty.
+const DEMOGRAPHIC_KEYS = [
+  "title", "middle_name", "suffix", "marital_status", "race", "ethnicity", "religion", "veteran_status",
+  "secondary_phone", "address2", "city", "state", "zip_code", "address_type", "directive_type", "directive_received_date",
+];
+
+// Contacts, guarantor and employer are separate records, saved with one call.
+const EMPTY_EXTRAS = {
+  contacts: [],
+  guarantor: { is_self: true, name: "", relationship: "", phone: "", address: "" },
+  employer: { employer_name: "", employment_status: "", occupation: "", phone: "", from_date: "" },
+};
 
 // "Born 4 weeks early" for the Birth details hint; "" when term or not entered.
 export function birthHint(weeks, days, dob) {
@@ -89,6 +104,7 @@ const EMPTY_PATIENT_FIELDS = {
   date_of_birth: "",
   address: "",
   phone_number: "",
+  ...Object.fromEntries(DEMOGRAPHIC_KEYS.map((k) => [k, ""])),
   emergency_contact_name: "",
   emergency_contact_relationship: "",
   emergency_contact_phone: "",
@@ -108,12 +124,27 @@ const EMPTY_PATIENT_FIELDS = {
   release_of_information: false,
 };
 
+const EMPTY_TRANSPORT = {
+  needed: "",
+  reason: "",
+  provider: "",
+  location_type: "",
+  trip_indicator: "",
+  pickup_location: "",
+  destination: "",
+  pickup_time: "",
+  notes: "",
+};
+
 const EMPTY_VISIT_FIELDS = {
   reason_for_visit: "",
   presenting_problem: "",
   scheduled_procedure: "",
   referring_physician: "",
   current_diagnoses: "",
+  visit_policy: "",
+  authorization_number: "",
+  copay_due: "",
   admission_type: "",
   care_setting: "",
   arrival_time: "",
@@ -123,6 +154,14 @@ const EMPTY_VISIT_FIELDS = {
   room: "",
   bed: "",
   attending_provider: "",
+  admit_source: "",
+  admit_via: "",
+  mode_of_arrival: "",
+  id_source: "",
+  accident_type: "",
+  special_program: "",
+  service: "",
+  expected_los_days: "",
 };
 
 // "2026-10-06T14:30:00Z" -> "2026-10-06T10:30" (what <input type="datetime-local"> wants, in local time)
@@ -183,7 +222,78 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
   const [patientFields, setPatientFields] = useState(EMPTY_PATIENT_FIELDS);
   const [visitFields, setVisitFields] = useState(EMPTY_VISIT_FIELDS);
+  // The steps this clinic shows for this care setting, in its order (Configuration > Tab sequences).
+  const allSteps = useRegistrationTabs(visitFields.care_setting || "");
+  // The clinic's custom forms this user may fill, and the answers for the patient and visit on screen
+  const [customForms, setCustomForms] = useState([]);
+  const [formAnswers, setFormAnswers] = useState({});
+  const [answersLoaded, setAnswersLoaded] = useState(false);
+  const [answersDirty, setAnswersDirty] = useState(false);
+  // Transportation for the visit on screen (saved with the visit), payments taken so far, ZIP hint, newborn dialog
+  const [transport, setTransport] = useState(EMPTY_TRANSPORT);
+  const [transportLoaded, setTransportLoaded] = useState(true);
+  const [transportDirty, setTransportDirty] = useState(false);
+  const [paymentCount, setPaymentCount] = useState(0);
+  const ownSaveTransport = useRef(null);
+  const ownSaveAnswers = useRef(null);
+  const [zipNote, setZipNote] = useState("");
+  const [newbornOpen, setNewbornOpen] = useState(false);
+  // The Forms step only appears when there is a form to fill
+  const subTabs = useMemo(() => allSteps.filter((t) => t.value !== "forms" || customForms.length > 0), [allSteps, customForms]);
+  const setup = useRegistrationSetup();
+  const show = (win, key, label = key) => !fieldFor(setup, win, key, label).hidden;
+  // Props for a text field: the clinic's label, a required mark, and view-only when set.
+  const fp = (win, key, label) => {
+    const f = fieldFor(setup, win, key, label);
+    return { label: f.label, required: f.required, ...(f.readOnly ? { InputProps: { readOnly: true } } : {}) };
+  };
+  // A text field or dictionary field bound to a patient field, so the new steps stay short.
+  const patientText = (win, key, label, extra = {}) =>
+    show(win, key) && (
+      <TextField key={key} {...fp(win, key, label)} size="small" fullWidth value={patientFields[key] || ""} onChange={(e) => handlePatientFieldChange(key, e.target.value)} {...extra} />
+    );
+  const patientDict = (win, key, label, code) =>
+    show(win, key) && (
+      <DictionaryField key={key} {...fpd(win, key, label)} options={optionsFor(setup, code)} value={patientFields[key] || ""} onChange={(v) => handlePatientFieldChange(key, v)} />
+    );
+  const extraText = (part, win, key, label, extra = {}) =>
+    show(win, key) && (
+      <TextField key={key} {...fp(win, key, label)} size="small" fullWidth value={extras[part][key] || ""} onChange={(e) => changeExtras(part, { ...extras[part], [key]: e.target.value })} {...extra} />
+    );
+  const extraDict = (part, win, key, label, code) =>
+    show(win, key) && (
+      <DictionaryField key={key} {...fpd(win, key, label)} options={optionsFor(setup, code)} value={extras[part][key] || ""} onChange={(v) => changeExtras(part, { ...extras[part], [key]: v })} />
+    );
+  const visitDict = (key, label) =>
+    show("visitdetails", key) && (
+      <DictionaryField key={key} {...fpd("visitdetails", key, label)} options={optionsFor(setup, key)} value={visitFields[key] || ""} onChange={(v) => handleVisitFieldChange(key, v)} />
+    );
+  const transportText = (key, label, extra = {}) =>
+    show("transportation", key) && (
+      <TextField key={key} {...fp("transportation", key, label)} size="small" fullWidth value={transport[key] || ""} onChange={(e) => changeTransport(key, e.target.value)} {...extra} />
+    );
+  const transportDict = (key, label, code) =>
+    show("transportation", key) && (
+      <DictionaryField key={key} {...fpd("transportation", key, label)} options={optionsFor(setup, code)} value={transport[key] || ""} onChange={(v) => changeTransport(key, v)} />
+    );
+  const row = (...kids) => <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>{kids}</Stack>;
+  const fpd = (win, key, label) => {
+    const f = fieldFor(setup, win, key, label);
+    return { label: f.label, required: f.required, readOnly: f.readOnly };
+  };
+  // Steps opened since this patient was chosen; a step the clinic marks "require review" must be opened before the last save.
+  const [opened, setOpened] = useState({ identity: true });
+  const [completeness, setCompleteness] = useState(null);
   const [legalFiles, setLegalFiles] = useState({});
+  const [extras, setExtras] = useState(EMPTY_EXTRAS);
+  const [extrasLoaded, setExtrasLoaded] = useState(false);
+  const [extrasDirty, setExtrasDirty] = useState(false);
+  // The patient's insurance policies (their own records, saved with one call) and the plans a clinic offers
+  const [policies, setPolicies] = useState([]);
+  const [policiesLoaded, setPoliciesLoaded] = useState(false);
+  const [policiesDirty, setPoliciesDirty] = useState(false);
+  const [policyWarnings, setPolicyWarnings] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [saving, setSaving] = useState(false);
   const locationTree = useLocationTree();
   const hasLocations = !!locationTree && locationTree.length > 0;
@@ -211,6 +321,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       date_of_birth: patient.date_of_birth || "",
       address: patient.address || "",
       phone_number: patient.phone_number || "",
+      ...Object.fromEntries(DEMOGRAPHIC_KEYS.map((k) => [k, patient[k] || ""])),
       emergency_contact_name: patient.emergency_contact_name || "",
       emergency_contact_relationship: patient.emergency_contact_relationship || "",
       emergency_contact_phone: patient.emergency_contact_phone || "",
@@ -285,7 +396,37 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setClosedVisit(null);
   };
 
-  // Loads a patient passed in from the right-pane patients table's Edit
+  // A clean slate: no patient, no visit, nothing typed. Used when New Patient is chosen and by Change Patient.
+  const clearForm = () => {
+    visitLoadToken.current += 1;
+    setActivePatient(null);
+    setPatientFields(EMPTY_PATIENT_FIELDS);
+    setVisitFields(EMPTY_VISIT_FIELDS);
+    setRegistrationId(null);
+    setVisitNumber(null);
+    setEditingOpenVisit(false);
+    setClosedVisit(null);
+    setOpenVisits([]);
+    setMrn(null);
+    setLegalFiles({});
+    setNewPatient({ first_name: "", last_name: "", username: "", email: "", password: "" });
+    setPatientOptions([]);
+    setActiveSubTab("identity");
+    setDirty(false);
+  };
+
+  // New Patient always starts blank, even when it is already selected (a patient just created stays on screen).
+  const chooseMode = (e, val) => {
+    const target = val || (mode === "new" ? "new" : null);
+    if (!target) return;
+    if (target === "new") {
+      if (dirty && typeof window !== "undefined" && window.confirm && !window.confirm("Discard the changes that have not been saved?")) return;
+      clearForm();
+    }
+    setMode(target);
+  };
+
+  // Loads a patient passed in from the patients table's Open/Start visit
   // icon (see RegisterPage.js) into this form's "Existing Patient" flow.
   // Keyed off the nonce (not just the patient) so clicking Edit again on
   // the same patient still re-syncs the form if it was changed in between.
@@ -362,11 +503,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       }
     } catch (err) {
       console.error("Failed to create patient:", err);
-      const detail =
-        err?.response?.data?.detail ||
-        JSON.stringify(err?.response?.data) ||
-        "Failed to create patient.";
-      toast.error(detail);
+      toast.error(apiErrorText(err, "Failed to create patient."));
     } finally {
       setCreatingPatient(false);
     }
@@ -397,6 +534,24 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       const token = await getValidToken();
       const headers = { Authorization: `Bearer ${token}` };
 
+      // Insurance that cannot be saved is stopped here, before anything else is written
+      if (policiesDirty) {
+        const problems = policyProblems(policies, plans);
+        if (problems.length) {
+          toast.error(problems[0]);
+          return false;
+        }
+      }
+
+      // A ZIP / postal code the clinic does not know is stopped here, when the clinic asks for that
+      if (setup.settings && setup.settings.validate_zip && patientFields.zip_code) {
+        const found = await lookupZip(patientFields.zip_code);
+        if (found && found.total > 0 && !found.match) {
+          toast.error(`${fieldFor(setup, "demographics", "zip_code", "ZIP Code").label} ${patientFields.zip_code} is not in this clinic's table.`);
+          return false;
+        }
+      }
+
       // 1. Patient-level fields (Identity/Emergency Contact/Financial/Legal
       // Documents) -- multipart so any attached legal-document scans ride
       // along in the same request.
@@ -408,7 +563,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         // blank field just leaves the patient's existing value alone.
         // Birth details are the exception: blank is a real answer (term baby, or
         // an entry that was cleared), so it is sent and stored as empty.
-        if (BIRTH_FIELDS.includes(key)) {
+        if (BIRTH_FIELDS.includes(key) || DEMOGRAPHIC_KEYS.includes(key)) {
           patientForm.append(key, value === null || value === undefined ? "" : value);
           return;
         }
@@ -433,12 +588,38 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       );
       setMrn(patientRes.data.mrn || mrn);
 
+      // 1b. Contacts, guarantor and employer, only if they loaded and were changed
+      if (extrasLoaded && extrasDirty && apiEndpoints.registrationExtras) {
+        const blank = (c) => !Object.entries(c).some(([k, v]) => k !== "receives_communication" && String(v || "").trim());
+        await axios.put(
+          apiEndpoints.registrationExtras(activePatient.user_id),
+          { contacts: extras.contacts.filter((c) => !blank(c)), guarantor: extras.guarantor, employer: extras.employer },
+          { headers }
+        );
+        setExtrasDirty(false);
+      }
+
+      // 1c. Insurance policies, only if they loaded and were changed
+      if (policiesLoaded && policiesDirty && apiEndpoints.patientPolicies) {
+        const res = await axios.put(
+          apiEndpoints.patientPolicies(activePatient.user_id),
+          { policies: policies.map((p) => ({ ...p, plan: Number(p.plan) || null })) },
+          { headers }
+        );
+        setPolicies(res.data.policies || []);
+        setPolicyWarnings(res.data.warnings || []);
+        setPoliciesDirty(false);
+      }
+
       // 2. Visit-level fields (Reason for Visit/Logistics)
       const visitPayload = {
         ...visitFields,
         patient: activePatient.id,
         arrival_time: visitFields.arrival_time || null,
         attending_provider: visitFields.attending_provider || null,
+        visit_policy: visitFields.visit_policy || null,
+        copay_due: visitFields.copay_due === "" ? null : visitFields.copay_due,
+        expected_los_days: visitFields.expected_los_days === "" ? null : visitFields.expected_los_days,
         facility: visitFields.facility || null,
         unit: visitFields.unit || null,
         room: visitFields.room || null,
@@ -453,21 +634,38 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         );
       } else {
         regRes = await axios.post(apiEndpoints.registrations, visitPayload, { headers });
+        // What is on screen for this new visit is already current; its effects need not reload it
+        ownSaveTransport.current = regRes.data.id;
+        ownSaveAnswers.current = regRes.data.id;
         setRegistrationId(regRes.data.id);
         setEditingOpenVisit(true);
       }
       setVisitNumber(regRes.data.visit_number || visitNumber);
+
+      // 3. Custom form answers, only if they loaded and were changed (visit forms need the saved visit)
+      if (answersLoaded && answersDirty && customForms.length && apiEndpoints.customFormAnswers) {
+        const res = await axios.put(
+          apiEndpoints.customFormAnswers(activePatient.user_id || activePatient.id),
+          { visit: regRes.data.id, answers: answersToSend(customForms, formAnswers) },
+          { headers }
+        );
+        setFormAnswers(res.data.answers || {});
+        setAnswersDirty(false);
+      }
+
+      // 4. Transportation for this visit, only if it loaded and was changed
+      if (transportLoaded && transportDirty && apiEndpoints.visitTransport) {
+        const res = await axios.put(apiEndpoints.visitTransport(regRes.data.id), transport, { headers });
+        setTransport({ ...EMPTY_TRANSPORT, ...res.data });
+        setTransportDirty(false);
+      }
 
       toast.success("Registration saved.");
       setDirty(false);
       return true;
     } catch (err) {
       console.error("Failed to save registration:", err);
-      const detail =
-        err?.response?.data?.detail ||
-        JSON.stringify(err?.response?.data) ||
-        "Failed to save registration.";
-      toast.error(detail);
+      toast.error(apiErrorText(err, "Failed to save registration."));
       return false;
     } finally {
       setSaving(false);
@@ -475,10 +673,252 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   };
 
   // Saves, then moves to the next step (the last step just saves).
-  const stepIndex = SUB_TABS.findIndex((t) => t.value === activeSubTab);
+  const stepIndex = subTabs.findIndex((t) => t.value === activeSubTab);
+  // A step that is no longer in the sequence (a different care setting was picked) falls back to the first one.
+  useEffect(() => {
+    if (stepIndex < 0 && subTabs.length) setActiveSubTab(subTabs[0].value);
+  }, [stepIndex, subTabs]);
+  useEffect(() => {
+    setOpened((prev) => (prev[activeSubTab] ? prev : { ...prev, [activeSubTab]: true }));
+  }, [activeSubTab]);
+  const patientKey = activePatient ? activePatient.user_id || activePatient.id : null;
+  // Contacts, guarantor and employer for the patient on screen. Saving them waits until they have loaded,
+  // so a failed load can never wipe what is on file.
+  useEffect(() => {
+    setExtras(EMPTY_EXTRAS);
+    setExtrasLoaded(false);
+    setExtrasDirty(false);
+    if (!patientKey || !apiEndpoints.registrationExtras) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.registrationExtras(patientKey), { headers: { Authorization: `Bearer ${token}` } });
+        if (!live) return;
+        const d = (res && res.data) || {};
+        setExtras({
+          contacts: d.contacts || [],
+          guarantor: d.guarantor || EMPTY_EXTRAS.guarantor,
+          employer: d.employer ? { ...EMPTY_EXTRAS.employer, ...d.employer } : EMPTY_EXTRAS.employer,
+        });
+        setExtrasLoaded(true);
+      } catch (err) {
+        // leave the empty form; extras are not saved unless they loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [patientKey]);
+  useEffect(() => {
+    if (!apiEndpoints.insuranceSetup) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.insuranceSetup, { headers: { Authorization: `Bearer ${token}` } });
+        const d = (res && res.data) || {};
+        const typeById = Object.fromEntries((d.types || []).map((t) => [t.id, t]));
+        if (live) {
+          setPlans(
+            (d.plans || [])
+              .filter((pl) => pl.active)
+              .map((pl) => ({ ...pl, carrier_name: pl.carrier_name, type_name: pl.type_name, policy_format: (typeById[pl.insurance_type] || {}).policy_format || "", required_primary: !!(typeById[pl.insurance_type] || {}).required_primary }))
+          );
+        }
+      } catch (err) {
+        // no plans to pick from; the insurance step says so
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+  useEffect(() => {
+    setPolicies([]);
+    setPoliciesLoaded(false);
+    setPoliciesDirty(false);
+    setPolicyWarnings([]);
+    if (!patientKey || !apiEndpoints.patientPolicies) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.patientPolicies(patientKey), { headers: { Authorization: `Bearer ${token}` } });
+        if (!live) return;
+        setPolicies((res && res.data && res.data.policies) || []);
+        setPolicyWarnings((res && res.data && res.data.warnings) || []);
+        setPoliciesLoaded(true);
+      } catch (err) {
+        // policies are only saved if they loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [patientKey]);
+  // The clinic's custom forms for this role
+  useEffect(() => {
+    if (!apiEndpoints.customForms) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.customForms, { headers: { Authorization: `Bearer ${token}` } });
+        if (live) setCustomForms(((res && res.data && res.data.forms) || []).filter((f) => f.active));
+      } catch (err) {
+        // no forms step if they cannot be loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+  // Answers for the patient (and visit, once saved). They are only saved if they loaded.
+  useEffect(() => {
+    if (registrationId && ownSaveAnswers.current === registrationId) {
+      ownSaveAnswers.current = null;
+      return undefined;
+    }
+    setFormAnswers({});
+    setAnswersLoaded(false);
+    setAnswersDirty(false);
+    if (!patientKey || !apiEndpoints.customFormAnswers) return undefined;
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.customFormAnswers(patientKey), {
+          headers: { Authorization: `Bearer ${token}` },
+          params: registrationId ? { visit: registrationId } : {},
+        });
+        if (!live) return;
+        setFormAnswers((res && res.data && res.data.answers) || {});
+        setAnswersLoaded(true);
+      } catch (err) {
+        // answers are only saved if they loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [patientKey, registrationId]);
+  // Transportation belongs to the saved visit; a visit not yet saved starts blank and is saved with it
+  useEffect(() => {
+    if (registrationId && ownSaveTransport.current === registrationId) {
+      ownSaveTransport.current = null;
+      return undefined;
+    }
+    setTransport(EMPTY_TRANSPORT);
+    setTransportDirty(false);
+    if (!registrationId || !apiEndpoints.visitTransport) {
+      setTransportLoaded(true);
+      return undefined;
+    }
+    setTransportLoaded(false);
+    let live = true;
+    (async () => {
+      try {
+        const token = await getValidToken();
+        const res = await axios.get(apiEndpoints.visitTransport(registrationId), { headers: { Authorization: `Bearer ${token}` } });
+        if (!live) return;
+        setTransport({ ...EMPTY_TRANSPORT, ...((res && res.data) || {}) });
+        setTransportLoaded(true);
+      } catch (err) {
+        // transportation is only saved if it loaded
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [registrationId]);
+  const changeTransport = (key, value) => {
+    setTransport((prev) => ({ ...prev, [key]: value }));
+    setTransportDirty(true);
+    setDirty(true);
+  };
+  const lookupZip = async (code) => {
+    if (!code || !apiEndpoints.zipCodes) return null;
+    try {
+      const token = await getValidToken();
+      const res = await axios.get(apiEndpoints.zipCodes, { headers: { Authorization: `Bearer ${token}` }, params: { zip: code } });
+      return (res && res.data) || null;
+    } catch (err) {
+      return null;
+    }
+  };
+  // Typing a ZIP / postal code fills the city and state the clinic has on file for it
+  const fillFromZip = async () => {
+    const found = await lookupZip(patientFields.zip_code);
+    if (found && found.match) {
+      setPatientFields((prev) => ({ ...prev, city: found.match.city, state: found.match.state }));
+      setDirty(true);
+      setZipNote("");
+    } else if (found && found.total > 0 && patientFields.zip_code && setup.settings && setup.settings.validate_zip) {
+      setZipNote("Not in this clinic's table.");
+    } else {
+      setZipNote("");
+    }
+  };
+  const handleNewbornCreated = async (created) => {
+    setNewbornOpen(false);
+    try {
+      const token = await getValidToken();
+      const res = await axios.get(apiEndpoints.patients, { headers: { Authorization: `Bearer ${token}` }, params: { search: created.patient.username } });
+      const results = res.data.results || res.data || [];
+      if (results.length > 0) {
+        setMode("existing");
+        setActiveSubTab("identity");
+        resetForActivePatient(results[0]);
+        toast.success(`${created.patient.first_name} was registered under the mother. Continue with the tabs below.`);
+        return;
+      }
+    } catch (err) {
+      // fall through
+    }
+    toast.error("The baby was registered, but could not be opened. Search for them under Existing Patient.");
+  };
+  const changeAnswer = (itemId, value) => {
+    setFormAnswers((prev) => ({ ...prev, [itemId]: value }));
+    setAnswersDirty(true);
+    setDirty(true);
+  };
+  const changePolicies = (next) => {
+    setPolicies(next);
+    setPoliciesDirty(true);
+    setDirty(true);
+  };
+  const changeExtras = (part, value) => {
+    setExtras((prev) => ({ ...prev, [part]: value }));
+    setExtrasDirty(true);
+    setDirty(true);
+  };
+  useEffect(() => {
+    setOpened({ [activeSubTab]: true });
+    setCompleteness(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientKey]);
+  const stepExtras = { ...extras, policies, formsComplete: formsComplete(customForms, formAnswers), transport, paymentCount };
+  const notOpened = subTabs.filter((t) => t.requireReview && !opened[t.value]);
+  const incomplete = subTabs.filter((t) => !stepFilled(t.value, patientFields, visitFields, stepExtras));
+  const missing = [...missingRequired(setup, subTabs.map((t) => t.value), patientFields, visitFields, { ...extras, transport }), ...(subTabs.some((t) => t.value === "forms") ? missingCustom(customForms, formAnswers) : [])];
+  const runCompleteness = () => {
+    setCompleteness({ notOpened, incomplete, missing });
+    return notOpened.length === 0 && missing.length === 0;
+  };
   const handleSaveAndContinue = async () => {
+    const last = stepIndex >= subTabs.length - 1;
+    // The last save also closes the registration, so every step marked "require review" has to have been opened.
+    if (last && !runCompleteness()) {
+      const parts = [];
+      if (notOpened.length) parts.push(`Open ${notOpened.map((t) => t.label).join(", ")}`);
+      if (missing.length) parts.push(`fill in ${missing.map((m) => m.label).join(", ")}`);
+      const text = parts.join(" and ");
+      toast.error(`${text.charAt(0).toUpperCase()}${text.slice(1)} before saving.`);
+      return;
+    }
     const ok = await handleSave();
-    if (ok && stepIndex < SUB_TABS.length - 1) setActiveSubTab(SUB_TABS[stepIndex + 1].value);
+    if (ok && !last) setActiveSubTab(subTabs[stepIndex + 1].value);
   };
 
   // Opens a print-friendly summary of everything captured for this patient's
@@ -543,12 +983,29 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             <tr><td class="label">Email</td><td>${esc(patientFields.email)}</td></tr>
           </table>
 
+          <h2>Demographics</h2>
+          <table>
+            <tr><td class="label">Name</td><td>${esc([patientFields.title, activePatient.first_name, patientFields.middle_name, activePatient.last_name, patientFields.suffix].filter(Boolean).join(" "))}</td></tr>
+            <tr><td class="label">Marital Status</td><td>${esc(patientFields.marital_status)}</td></tr>
+            <tr><td class="label">Race / Ethnicity</td><td>${esc([patientFields.race, patientFields.ethnicity].filter(Boolean).join(" / "))}</td></tr>
+            <tr><td class="label">Religion</td><td>${esc(patientFields.religion)}</td></tr>
+            <tr><td class="label">Veteran</td><td>${esc(patientFields.veteran_status)}</td></tr>
+            <tr><td class="label">City / State / ZIP</td><td>${esc([patientFields.city, patientFields.state, patientFields.zip_code].filter(Boolean).join(", "))}</td></tr>
+            <tr><td class="label">Secondary Phone</td><td>${esc(patientFields.secondary_phone)}</td></tr>
+          </table>
+
           <h2>Emergency Contact</h2>
           <table>
             <tr><td class="label">Contact Name</td><td>${esc(patientFields.emergency_contact_name)}</td></tr>
             <tr><td class="label">Relationship</td><td>${esc(patientFields.emergency_contact_relationship)}</td></tr>
             <tr><td class="label">Phone Number</td><td>${esc(patientFields.emergency_contact_phone)}</td></tr>
             <tr><td class="label">Address</td><td>${esc(patientFields.emergency_contact_address)}</td></tr>
+          </table>
+
+          <h2>Other Contacts</h2>
+          <table>
+            ${extras.contacts.map((c) => `<tr><td class="label">${esc(c.contact_type || "Contact")}</td><td>${esc(c.name)}${c.relationship ? ` (${esc(c.relationship)})` : ""} ${esc(c.phone)}</td></tr>`).join("") || '<tr><td class="label">None</td><td></td></tr>'}
+            <tr><td class="label">Advance Directive</td><td>${esc(patientFields.directive_type)} ${esc(patientFields.directive_received_date)}</td></tr>
           </table>
 
           <h2>Financial Information</h2>
@@ -561,6 +1018,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             <tr><td class="label">Copay / Deductible Status</td><td>${esc(patientFields.copay_deductible_status)}</td></tr>
             <tr><td class="label">Authorization Requirements</td><td>${esc(patientFields.authorization_requirements)}</td></tr>
             <tr><td class="label">Secondary Insurance</td><td>${esc(patientFields.secondary_insurance)}</td></tr>
+          </table>
+
+          <h2>Guarantor</h2>
+          <table>
+            <tr><td class="label">Guarantor</td><td>${extras.guarantor.is_self ? "Patient" : `${esc(extras.guarantor.name)} (${esc(extras.guarantor.relationship)}) ${esc(extras.guarantor.phone)}`}</td></tr>
+          </table>
+
+          <h2>Employer</h2>
+          <table>
+            <tr><td class="label">Employer</td><td>${esc(extras.employer.employer_name)}</td></tr>
+            <tr><td class="label">Status / Occupation</td><td>${esc([extras.employer.employment_status, extras.employer.occupation].filter(Boolean).join(" / "))}</td></tr>
           </table>
 
           <h2>Reason for Visit</h2>
@@ -602,16 +1070,16 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <ToggleButtonGroup
-        value={mode}
-        exclusive
-        size="small"
-        onChange={(e, val) => val && setMode(val)}
-        sx={{ mb: 2 }}
-      >
-        <ToggleButton value="new">New Patient</ToggleButton>
-        <ToggleButton value="existing">Existing Patient</ToggleButton>
-      </ToggleButtonGroup>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", mb: 1 }}>
+        <ToggleButtonGroup value={mode} exclusive size="small" onChange={chooseMode}>
+          <ToggleButton value="new">New Patient</ToggleButton>
+          <ToggleButton value="existing">Existing Patient</ToggleButton>
+        </ToggleButtonGroup>
+        <Button size="small" variant="outlined" onClick={() => setNewbornOpen(true)} data-testid="newborn-open">
+          Newborn
+        </Button>
+      </Box>
+      <NewbornDialog open={newbornOpen} onClose={() => setNewbornOpen(false)} onCreated={handleNewbornCreated} />
 
       {mode === "new" && !activePatient && (
         <Stack spacing={1.5} sx={{ mb: 2 }}>
@@ -713,8 +1181,8 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               gap: 1,
               alignItems: "center",
               justifyContent: "space-between",
-              mb: 1,
-              p: 1,
+              mb: 0.5,
+              p: 0.75,
               borderRadius: 1,
               bgcolor: "#f0f6ff",
             }}
@@ -735,91 +1203,53 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                 </Typography>
               )}
             </Box>
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 0.5 }}>
               {mrn && <Chip size="small" label={`MRN: ${mrn}`} />}
               {visitNumber && <Chip size="small" color="primary" label={`Visit: ${visitNumber}`} />}
+              {editingOpenVisit && (
+                <Button size="small" variant="outlined" sx={{ textTransform: "none", whiteSpace: "nowrap" }} onClick={startNewVisit}>
+                  Start a new visit instead
+                </Button>
+              )}
               <Button
                 size="small"
-                onClick={() => {
-                  setActivePatient(null);
-                  setPatientFields(EMPTY_PATIENT_FIELDS);
-                  startNewVisit();
-                  setMrn(null);
-                }}
+                onClick={clearForm}
               >
                 Change Patient
+              </Button>
+              <Button size="small" variant="outlined" sx={{ textTransform: "none", whiteSpace: "nowrap" }} onClick={() => setVisitSearchOpen(true)}>
+                Search for Visit
               </Button>
             </Stack>
           </Box>
 
-          {editingOpenVisit && (
-            <Alert
-              severity={closedVisit ? "warning" : "info"}
-              sx={{ mb: 2, alignItems: "flex-start", "& .MuiAlert-message": { flex: 1, minWidth: 0 } }}
-            >
-              <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
-                <Box>
-                  <Typography variant="body2" fontWeight={600}>
-                    {closedVisit
-                      ? `${readOnlyVisit ? "Viewing" : "Editing"} the closed visit${visitNumber ? ` ${visitNumber}` : ""}`
-                      : `Editing the open visit${visitNumber ? ` ${visitNumber}` : ""}`}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {closedVisit
-                      ? readOnlyVisit
-                        ? "This visit is discharged. Only admins and registrars can change it."
-                        : "This visit is discharged. Saving updates this closed visit."
-                      : "Saving updates this visit."}
-                  </Typography>
-                </Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  sx={{ textTransform: "none", whiteSpace: "nowrap", flexShrink: 0 }}
-                  onClick={() => setVisitSearchOpen(true)}
-                >
-                  Search for Visit
-                </Button>
-              </Stack>
-              {openVisits.length > 1 && (
-                <FormControl size="small" fullWidth sx={{ mt: 1.5 }}>
-                  <InputLabel id="open-visit-label">Open visits</InputLabel>
-                  <MUISelect
-                    labelId="open-visit-label"
-                    label="Open visits"
-                    value={openVisits.some((v) => v.id === registrationId) ? registrationId : ""}
-                    onChange={(e) => {
-                      const pick = openVisits.find((v) => v.id === e.target.value);
-                      if (pick) applyVisit(pick);
-                    }}
-                  >
-                    {openVisits.map((v) => (
-                      <MenuItem key={v.id} value={v.id}>
-                        {[v.visit_number, v.location_path || v.care_setting || "no location", v.reason_for_visit]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </MenuItem>
-                    ))}
-                  </MUISelect>
-                </FormControl>
-              )}
-              <Button size="small" variant="outlined" sx={{ mt: 1.5, textTransform: "none" }} onClick={startNewVisit}>
-                Start a new visit instead
-              </Button>
+          {editingOpenVisit && closedVisit && (
+            <Alert severity="warning" sx={{ mb: 1, py: 0 }}>
+              {`${readOnlyVisit ? "Viewing" : "Editing"} the closed visit${visitNumber ? ` ${visitNumber}` : ""}. ${
+                readOnlyVisit ? "It is discharged; only admins and registrars can change it." : "It is discharged; saving updates this closed visit."
+              }`}
             </Alert>
           )}
 
-          {!editingOpenVisit && (
-            <Box sx={{ mb: 1.5 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                sx={{ textTransform: "none" }}
-                onClick={() => setVisitSearchOpen(true)}
+          {editingOpenVisit && openVisits.length > 1 && (
+            <FormControl size="small" fullWidth sx={{ mb: 1 }}>
+              <InputLabel id="open-visit-label">Open visits</InputLabel>
+              <MUISelect
+                labelId="open-visit-label"
+                label="Open visits"
+                value={openVisits.some((v) => v.id === registrationId) ? registrationId : ""}
+                onChange={(e) => {
+                  const pick = openVisits.find((v) => v.id === e.target.value);
+                  if (pick) applyVisit(pick);
+                }}
               >
-                Search for Visit
-              </Button>
-            </Box>
+                {openVisits.map((v) => (
+                  <MenuItem key={v.id} value={v.id}>
+                    {[v.visit_number, v.location_path || v.care_setting || "no location", v.reason_for_visit].filter(Boolean).join(" · ")}
+                  </MenuItem>
+                ))}
+              </MUISelect>
+            </FormControl>
           )}
 
           <VisitSearchDialog
@@ -832,9 +1262,10 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
           />
 
           <RegistrationSteps
-            steps={SUB_TABS}
+            steps={subTabs}
             current={activeSubTab}
-            filled={Object.fromEntries(SUB_TABS.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields)]))}
+            filled={Object.fromEntries(subTabs.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields, stepExtras)]))}
+            needsReview={Object.fromEntries(notOpened.map((t) => [t.value, true]))}
             onSelect={setActiveSubTab}
           />
 
@@ -847,6 +1278,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               pr: 1,
               border: 0,
               p: 0,
+              pt: 1, // room for the floating field labels, which the scroll area would otherwise clip
               m: 0,
               minWidth: 0,
               ...(readOnlyVisit ? { pointerEvents: "none", opacity: 0.8 } : {}),
@@ -862,34 +1294,40 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                   disabled
                   helperText="Edit from the patient's account record (Quick Register / Patients tab)"
                 />
-                <TextField
-                  label="Date of Birth"
-                  type="date"
-                  size="small"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  value={patientFields.date_of_birth || ""}
-                  onChange={(e) => handlePatientFieldChange("date_of_birth", e.target.value)}
-                />
-                <TextField
-                  label="Address"
-                  size="small"
-                  fullWidth
-                  value={patientFields.address}
-                  onChange={(e) => handlePatientFieldChange("address", e.target.value)}
-                />
-                <TextField
-                  label="Phone Number"
-                  size="small"
-                  fullWidth
-                  value={patientFields.phone_number}
-                  onChange={(e) => handlePatientFieldChange("phone_number", e.target.value)}
-                />
-                <FormControl size="small" fullWidth>
-                  <InputLabel id="legal-sex-label">Legal Sex</InputLabel>
+                {show("identity", "date_of_birth") && (
+                  <TextField
+                    {...fp("identity", "date_of_birth", "Date of Birth")}
+                    type="date"
+                    size="small"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    value={patientFields.date_of_birth || ""}
+                    onChange={(e) => handlePatientFieldChange("date_of_birth", e.target.value)}
+                  />
+                )}
+                {show("identity", "address") && (
+                  <TextField
+                    {...fp("identity", "address", "Address")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.address}
+                    onChange={(e) => handlePatientFieldChange("address", e.target.value)}
+                  />
+                )}
+                {show("identity", "phone_number") && (
+                  <TextField
+                    {...fp("identity", "phone_number", "Phone Number")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.phone_number}
+                    onChange={(e) => handlePatientFieldChange("phone_number", e.target.value)}
+                  />
+                )}
+                <FormControl size="small" fullWidth required={fieldFor(setup, "identity", "legal_sex", "Legal Sex").required}>
+                  <InputLabel id="legal-sex-label">{fieldFor(setup, "identity", "legal_sex", "Legal Sex").label}</InputLabel>
                   <MUISelect
                     labelId="legal-sex-label"
-                    label="Legal Sex"
+                    label={fieldFor(setup, "identity", "legal_sex", "Legal Sex").label}
                     value={patientFields.legal_sex}
                     onChange={(e) => handlePatientFieldChange("legal_sex", e.target.value)}
                   >
@@ -899,30 +1337,35 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     <MenuItem value="X">Unspecified/Other</MenuItem>
                   </MUISelect>
                 </FormControl>
-                <TextField
-                  label="Social Security Number (last 4 digits)"
-                  size="small"
-                  fullWidth
-                  inputProps={{ maxLength: 4 }}
-                  value={patientFields.ssn_last4}
-                  onChange={(e) =>
-                    handlePatientFieldChange("ssn_last4", e.target.value.replace(/\D/g, "").slice(0, 4))
-                  }
-                />
-                <TextField
-                  label="Preferred Language"
-                  size="small"
-                  fullWidth
-                  value={patientFields.preferred_language}
-                  onChange={(e) => handlePatientFieldChange("preferred_language", e.target.value)}
-                />
-                <TextField
-                  label="Email"
-                  size="small"
-                  fullWidth
-                  value={patientFields.email}
-                  onChange={(e) => handlePatientFieldChange("email", e.target.value)}
-                />
+                {show("identity", "ssn_last4") && (
+                  <TextField
+                    {...fp("identity", "ssn_last4", "Social Security Number (last 4 digits)")}
+                    size="small"
+                    fullWidth
+                    inputProps={{ maxLength: 4 }}
+                    value={patientFields.ssn_last4}
+                    onChange={(e) =>
+                      handlePatientFieldChange("ssn_last4", e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                  />
+                )}
+                {show("identity", "preferred_language") && (
+                  <DictionaryField
+                    {...fpd("identity", "preferred_language", "Preferred Language")}
+                    options={optionsFor(setup, "language")}
+                    value={patientFields.preferred_language}
+                    onChange={(v) => handlePatientFieldChange("preferred_language", v)}
+                  />
+                )}
+                {show("identity", "email") && (
+                  <TextField
+                    {...fp("identity", "email", "Email")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.email}
+                    onChange={(e) => handlePatientFieldChange("email", e.target.value)}
+                  />
+                )}
                 <Typography variant="subtitle2" sx={{ pt: 1 }}>Birth details</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Used to plot premature babies at corrected age on the growth charts. Leave blank for babies born at term.
@@ -963,146 +1406,379 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
             {activeSubTab === "emergency" && (
               <Stack spacing={2}>
-                <TextField
-                  label="Contact Name"
-                  size="small"
-                  fullWidth
-                  value={patientFields.emergency_contact_name}
-                  onChange={(e) => handlePatientFieldChange("emergency_contact_name", e.target.value)}
-                />
-                <TextField
-                  label="Relationship"
-                  size="small"
-                  fullWidth
-                  value={patientFields.emergency_contact_relationship}
-                  onChange={(e) =>
-                    handlePatientFieldChange("emergency_contact_relationship", e.target.value)
-                  }
-                />
-                <TextField
-                  label="Phone Number"
-                  size="small"
-                  fullWidth
-                  value={patientFields.emergency_contact_phone}
-                  onChange={(e) => handlePatientFieldChange("emergency_contact_phone", e.target.value)}
-                />
-                <TextField
-                  label="Address"
-                  size="small"
-                  fullWidth
-                  value={patientFields.emergency_contact_address}
-                  onChange={(e) =>
-                    handlePatientFieldChange("emergency_contact_address", e.target.value)
-                  }
-                />
+                {show("emergency", "emergency_contact_name") && (
+                  <TextField
+                    {...fp("emergency", "emergency_contact_name", "Contact Name")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.emergency_contact_name}
+                    onChange={(e) => handlePatientFieldChange("emergency_contact_name", e.target.value)}
+                  />
+                )}
+                {show("emergency", "emergency_contact_relationship") && (
+                  <DictionaryField
+                    {...fpd("emergency", "emergency_contact_relationship", "Relationship")}
+                    options={optionsFor(setup, "relationship")}
+                    value={patientFields.emergency_contact_relationship}
+                    onChange={(v) => handlePatientFieldChange("emergency_contact_relationship", v)}
+                  />
+                )}
+                {show("emergency", "emergency_contact_phone") && (
+                  <TextField
+                    {...fp("emergency", "emergency_contact_phone", "Phone Number")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.emergency_contact_phone}
+                    onChange={(e) => handlePatientFieldChange("emergency_contact_phone", e.target.value)}
+                  />
+                )}
+                {show("emergency", "emergency_contact_address") && (
+                  <TextField
+                    {...fp("emergency", "emergency_contact_address", "Address")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.emergency_contact_address}
+                    onChange={(e) =>
+                      handlePatientFieldChange("emergency_contact_address", e.target.value)
+                    }
+                  />
+                )}
               </Stack>
             )}
 
             {activeSubTab === "financial" && (
               <Stack spacing={2}>
-                <TextField
-                  label="Insurance Payer Name"
-                  size="small"
-                  fullWidth
-                  value={patientFields.insurance_payer_name}
-                  onChange={(e) => handlePatientFieldChange("insurance_payer_name", e.target.value)}
-                />
-                <TextField
-                  label="Member ID"
-                  size="small"
-                  fullWidth
-                  value={patientFields.insurance_member_id}
-                  onChange={(e) => handlePatientFieldChange("insurance_member_id", e.target.value)}
-                />
-                <TextField
-                  label="Group Number"
-                  size="small"
-                  fullWidth
-                  value={patientFields.insurance_group_number}
-                  onChange={(e) => handlePatientFieldChange("insurance_group_number", e.target.value)}
-                />
-                <TextField
-                  label="Policyholder Name"
-                  size="small"
-                  fullWidth
-                  value={patientFields.policyholder_name}
-                  onChange={(e) => handlePatientFieldChange("policyholder_name", e.target.value)}
-                />
-                <TextField
-                  label="Policyholder Date of Birth"
-                  type="date"
-                  size="small"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  value={patientFields.policyholder_dob || ""}
-                  onChange={(e) => handlePatientFieldChange("policyholder_dob", e.target.value)}
-                />
-                <TextField
-                  label="Copay / Deductible Status"
-                  size="small"
-                  fullWidth
-                  value={patientFields.copay_deductible_status}
-                  onChange={(e) =>
-                    handlePatientFieldChange("copay_deductible_status", e.target.value)
-                  }
-                />
-                <TextField
-                  label="Authorization Requirements"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={patientFields.authorization_requirements}
-                  onChange={(e) =>
-                    handlePatientFieldChange("authorization_requirements", e.target.value)
-                  }
-                />
-                <TextField
-                  label="Secondary Insurance"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={patientFields.secondary_insurance}
-                  onChange={(e) => handlePatientFieldChange("secondary_insurance", e.target.value)}
-                />
+                {show("financial", "insurance_payer_name") && (
+                  <DictionaryField
+                    {...fpd("financial", "insurance_payer_name", "Insurance Payer Name")}
+                    options={optionsFor(setup, "payer")}
+                    value={patientFields.insurance_payer_name}
+                    onChange={(v) => handlePatientFieldChange("insurance_payer_name", v)}
+                  />
+                )}
+                {show("financial", "insurance_member_id") && (
+                  <TextField
+                    {...fp("financial", "insurance_member_id", "Member ID")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.insurance_member_id}
+                    onChange={(e) => handlePatientFieldChange("insurance_member_id", e.target.value)}
+                  />
+                )}
+                {show("financial", "insurance_group_number") && (
+                  <TextField
+                    {...fp("financial", "insurance_group_number", "Group Number")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.insurance_group_number}
+                    onChange={(e) => handlePatientFieldChange("insurance_group_number", e.target.value)}
+                  />
+                )}
+                {show("financial", "policyholder_name") && (
+                  <TextField
+                    {...fp("financial", "policyholder_name", "Policyholder Name")}
+                    size="small"
+                    fullWidth
+                    value={patientFields.policyholder_name}
+                    onChange={(e) => handlePatientFieldChange("policyholder_name", e.target.value)}
+                  />
+                )}
+                {show("financial", "policyholder_dob") && (
+                  <TextField
+                    {...fp("financial", "policyholder_dob", "Policyholder Date of Birth")}
+                    type="date"
+                    size="small"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    value={patientFields.policyholder_dob || ""}
+                    onChange={(e) => handlePatientFieldChange("policyholder_dob", e.target.value)}
+                  />
+                )}
+                {show("financial", "copay_deductible_status") && (
+                  <DictionaryField
+                    {...fpd("financial", "copay_deductible_status", "Copay / Deductible Status")}
+                    options={optionsFor(setup, "copay_status")}
+                    value={patientFields.copay_deductible_status}
+                    onChange={(v) => handlePatientFieldChange("copay_deductible_status", v)}
+                  />
+                )}
+                {show("financial", "authorization_requirements") && (
+                  <TextField
+                    {...fp("financial", "authorization_requirements", "Authorization Requirements")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={patientFields.authorization_requirements}
+                    onChange={(e) =>
+                      handlePatientFieldChange("authorization_requirements", e.target.value)
+                    }
+                  />
+                )}
+                {show("financial", "secondary_insurance") && (
+                  <TextField
+                    {...fp("financial", "secondary_insurance", "Secondary Insurance")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={patientFields.secondary_insurance}
+                    onChange={(e) => handlePatientFieldChange("secondary_insurance", e.target.value)}
+                  />
+                )}
               </Stack>
             )}
 
+            {activeSubTab === "demographics" && (
+              <Stack spacing={2} data-testid="step-demographics">
+                {row(
+                  patientDict("demographics", "title", "Title", "title"),
+                  patientText("demographics", "middle_name", "Middle Name"),
+                  patientDict("demographics", "suffix", "Suffix", "suffix")
+                )}
+                {row(
+                  patientDict("demographics", "marital_status", "Marital Status", "marital_status"),
+                  patientDict("demographics", "veteran_status", "Veteran Status", "veteran_status")
+                )}
+                {row(
+                  patientDict("demographics", "race", "Race", "race"),
+                  patientDict("demographics", "ethnicity", "Ethnicity", "ethnicity"),
+                  patientDict("demographics", "religion", "Religion", "religion")
+                )}
+                <Typography variant="subtitle2" sx={{ pt: 1 }}>Address and phone</Typography>
+                {patientText("demographics", "address2", "Address 2")}
+                {row(
+                  patientText("demographics", "city", "City"),
+                  patientText("demographics", "state", "State", { inputProps: { maxLength: 50 } }),
+                  patientText("demographics", "zip_code", "ZIP Code", { inputProps: { maxLength: 20 }, onBlur: fillFromZip, helperText: zipNote || undefined, error: !!zipNote })
+                )}
+                {row(
+                  patientDict("demographics", "address_type", "Address Type", "address_type"),
+                  patientText("demographics", "secondary_phone", "Secondary Phone", { inputProps: { maxLength: 20 } })
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "contacts" && (
+              <Stack spacing={2} data-testid="step-contacts">
+                <ContactsEditor
+                  contacts={extras.contacts}
+                  onChange={(c) => changeExtras("contacts", c)}
+                  typeOptions={optionsFor(setup, "contact_type")}
+                  relationshipOptions={optionsFor(setup, "relationship")}
+                />
+                <Typography variant="subtitle2" sx={{ pt: 1 }}>Advance directive</Typography>
+                {row(
+                  patientDict("contacts", "directive_type", "Advance Directive on File", "directive_type"),
+                  show("contacts", "directive_received_date") && (
+                    <TextField
+                      key="directive_received_date"
+                      {...fp("contacts", "directive_received_date", "Directive Date Received")}
+                      type="date"
+                      size="small"
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      value={patientFields.directive_received_date || ""}
+                      onChange={(e) => handlePatientFieldChange("directive_received_date", e.target.value)}
+                    />
+                  )
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "insurance" && (
+              <Stack spacing={2} data-testid="step-insurance">
+                {plans.length === 0 && (
+                  <Alert severity="info">No insurance plans are set up yet. An administrator adds them under Configuration, Insurance setup.</Alert>
+                )}
+                <PolicyEditor policies={policies} onChange={changePolicies} plans={plans} warnings={policyWarnings} readOnly={plans.length === 0} />
+                <Typography variant="subtitle2" sx={{ pt: 1 }}>Insurance for this visit</Typography>
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="visit-policy-label">Primary insurance for this visit</InputLabel>
+                  <MUISelect
+                    labelId="visit-policy-label"
+                    label="Primary insurance for this visit"
+                    value={String(visitFields.visit_policy || "")}
+                    onChange={(e) => handleVisitFieldChange("visit_policy", e.target.value)}
+                    inputProps={{ "data-testid": "visit-policy" }}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {policies
+                      .filter((p) => p.id && p.active && !p.end_date)
+                      .map((p) => (
+                        <MenuItem key={p.id} value={String(p.id)}>
+                          {p.cob_order}. {p.plan_name}
+                        </MenuItem>
+                      ))}
+                  </MUISelect>
+                </FormControl>
+                {policies.some((p) => !p.id) && (
+                  <Typography variant="caption" color="text.secondary">
+                    Save to add the new insurance to this list.
+                  </Typography>
+                )}
+                {row(
+                  show("insurance", "authorization_number") && (
+                    <TextField key="auth" {...fp("insurance", "authorization_number", "Authorization Number")} size="small" fullWidth value={visitFields.authorization_number || ""} onChange={(e) => handleVisitFieldChange("authorization_number", e.target.value)} />
+                  ),
+                  show("insurance", "copay_due") && (
+                    <TextField key="copay" {...fp("insurance", "copay_due", "Copay Due Today")} size="small" fullWidth type="number" inputProps={{ min: 0, step: "0.01" }} value={visitFields.copay_due || ""} onChange={(e) => handleVisitFieldChange("copay_due", e.target.value)} />
+                  )
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "guarantor" && (
+              <Stack spacing={2} data-testid="step-guarantor">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!extras.guarantor.is_self}
+                      onChange={(e) => changeExtras("guarantor", { ...extras.guarantor, is_self: e.target.checked })}
+                      inputProps={{ "data-testid": "guarantor-self" }}
+                    />
+                  }
+                  label="Patient is the guarantor"
+                />
+                {!extras.guarantor.is_self && (
+                  <>
+                    {extraText("guarantor", "guarantor", "name", "Name")}
+                    {extraDict("guarantor", "guarantor", "relationship", "Relationship", "relationship")}
+                    {extraText("guarantor", "guarantor", "phone", "Phone", { inputProps: { maxLength: 20 } })}
+                    {extraText("guarantor", "guarantor", "address", "Address")}
+                  </>
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "employer" && (
+              <Stack spacing={2} data-testid="step-employer">
+                {extraText("employer", "employer", "employer_name", "Employer")}
+                {row(
+                  extraDict("employer", "employer", "employment_status", "Employment Status", "employment_status"),
+                  extraText("employer", "employer", "occupation", "Occupation")
+                )}
+                {row(
+                  extraText("employer", "employer", "phone", "Phone", { inputProps: { maxLength: 20 } }),
+                  extraText("employer", "employer", "from_date", "From Date", { type: "date", InputLabelProps: { shrink: true } })
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "payments" && activePatient && (
+              <PaymentsStep
+                userId={activePatient.user_id || activePatient.id}
+                visitId={registrationId}
+                setup={setup}
+                role={userRole}
+                onCount={setPaymentCount}
+              />
+            )}
+
+            {activeSubTab === "transportation" && (
+              <Stack spacing={2} data-testid="step-transportation">
+                {show("transportation", "needed") && (
+                  <TextField
+                    {...fp("transportation", "needed", "Transportation Needed")}
+                    select
+                    size="small"
+                    fullWidth
+                    value={transport.needed}
+                    onChange={(e) => changeTransport("needed", e.target.value)}
+                    inputProps={{ "data-testid": "transport-needed" }}
+                    SelectProps={{ displayEmpty: true }}
+                  >
+                    <MenuItem value="">
+                      <em>Not asked</em>
+                    </MenuItem>
+                    <MenuItem value="yes">Yes</MenuItem>
+                    <MenuItem value="no">No</MenuItem>
+                  </TextField>
+                )}
+                {transport.needed !== "no" && (
+                  <>
+                    {row(transportDict("reason", "Reason", "transport_reason"), transportDict("provider", "Provider", "transport_provider"))}
+                    {row(transportDict("location_type", "Location Type", "location_type"), transportDict("trip_indicator", "Trip Indicator", "trip_indicator"))}
+                    {row(transportText("pickup_location", "Pickup Location"), transportText("destination", "Destination"))}
+                    {transportText("pickup_time", "Pickup Time", { type: "datetime-local", InputLabelProps: { shrink: true } })}
+                    {transportText("notes", "Notes", { multiline: true, rows: 2, inputProps: { maxLength: 500 } })}
+                  </>
+                )}
+                {!registrationId && (
+                  <Typography variant="caption" color="text.secondary">
+                    Saved together with the visit.
+                  </Typography>
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "visitdetails" && (
+              <Stack spacing={2} data-testid="step-visitdetails">
+                {row(visitDict("admit_source", "Admit Source"), visitDict("admit_via", "Admit Via"))}
+                {row(visitDict("mode_of_arrival", "Mode of Arrival"), visitDict("id_source", "ID Source"))}
+                {row(visitDict("accident_type", "Accident Type"), visitDict("special_program", "Special Program"))}
+                {row(
+                  visitDict("service", "Service"),
+                  show("visitdetails", "expected_los_days") && (
+                    <TextField
+                      key="expected_los_days"
+                      {...fp("visitdetails", "expected_los_days", "Expected Length of Stay (days)")}
+                      size="small"
+                      fullWidth
+                      type="number"
+                      inputProps={{ min: 0, max: 999 }}
+                      value={visitFields.expected_los_days}
+                      onChange={(e) => handleVisitFieldChange("expected_los_days", e.target.value)}
+                    />
+                  )
+                )}
+              </Stack>
+            )}
+
+            {activeSubTab === "forms" && <CustomFormsStep forms={customForms} answers={formAnswers} onChange={changeAnswer} visitSaved={!!registrationId} />}
+
             {activeSubTab === "reason" && (
               <Stack spacing={2}>
-                <TextField
-                  label="Reason for Visit"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={visitFields.reason_for_visit}
-                  onChange={(e) => handleVisitFieldChange("reason_for_visit", e.target.value)}
-                />
-                <TextField
-                  label="Chief Complaint"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={visitFields.presenting_problem}
-                  onChange={(e) => handleVisitFieldChange("presenting_problem", e.target.value)}
-                />
-                <TextField
-                  label="Scheduled Procedure"
-                  size="small"
-                  fullWidth
-                  value={visitFields.scheduled_procedure}
-                  onChange={(e) => handleVisitFieldChange("scheduled_procedure", e.target.value)}
-                />
-                <TextField
-                  label="Referring Physician"
-                  size="small"
-                  fullWidth
-                  value={visitFields.referring_physician}
-                  onChange={(e) => handleVisitFieldChange("referring_physician", e.target.value)}
-                />
+                {show("reason", "reason_for_visit") && (
+                  <TextField
+                    {...fp("reason", "reason_for_visit", "Reason for Visit")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={visitFields.reason_for_visit}
+                    onChange={(e) => handleVisitFieldChange("reason_for_visit", e.target.value)}
+                  />
+                )}
+                {show("reason", "presenting_problem") && (
+                  <TextField
+                    {...fp("reason", "presenting_problem", "Chief Complaint")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={visitFields.presenting_problem}
+                    onChange={(e) => handleVisitFieldChange("presenting_problem", e.target.value)}
+                  />
+                )}
+                {show("reason", "scheduled_procedure") && (
+                  <TextField
+                    {...fp("reason", "scheduled_procedure", "Scheduled Procedure")}
+                    size="small"
+                    fullWidth
+                    value={visitFields.scheduled_procedure}
+                    onChange={(e) => handleVisitFieldChange("scheduled_procedure", e.target.value)}
+                  />
+                )}
+                {show("reason", "referring_physician") && (
+                  <TextField
+                    {...fp("reason", "referring_physician", "Referring Physician")}
+                    size="small"
+                    fullWidth
+                    value={visitFields.referring_physician}
+                    onChange={(e) => handleVisitFieldChange("referring_physician", e.target.value)}
+                  />
+                )}
                 <TextField
                   label="Medical History"
                   size="small"
@@ -1113,15 +1789,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                   disabled
                   helperText="Edit from the patient's record on the Patients tab"
                 />
-                <TextField
-                  label="Current Diagnoses"
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={visitFields.current_diagnoses}
-                  onChange={(e) => handleVisitFieldChange("current_diagnoses", e.target.value)}
-                />
+                {show("reason", "current_diagnoses") && (
+                  <TextField
+                    {...fp("reason", "current_diagnoses", "Current Diagnoses")}
+                    size="small"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={visitFields.current_diagnoses}
+                    onChange={(e) => handleVisitFieldChange("current_diagnoses", e.target.value)}
+                  />
+                )}
               </Stack>
             )}
 
@@ -1215,15 +1893,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     <MenuItem value="acute">Acute Care</MenuItem>
                   </MUISelect>
                 </FormControl>
-                <TextField
-                  label="Arrival Time"
-                  type="datetime-local"
-                  size="small"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  value={visitFields.arrival_time}
-                  onChange={(e) => handleVisitFieldChange("arrival_time", e.target.value)}
-                />
+                {show("logistics", "arrival_time") && (
+                  <TextField
+                    {...fp("logistics", "arrival_time", "Arrival Time")}
+                    type="datetime-local"
+                    size="small"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    value={visitFields.arrival_time}
+                    onChange={(e) => handleVisitFieldChange("arrival_time", e.target.value)}
+                  />
+                )}
                 {hasLocations ? (
                   <LocationPicker
                     tree={locationTree}
@@ -1288,6 +1968,41 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             )}
           </Box>
 
+          {completeness && (
+            <Alert
+              severity={completeness.notOpened.length || (completeness.missing || []).length ? "warning" : "success"}
+              sx={{ mt: 2 }}
+              onClose={() => setCompleteness(null)}
+              data-testid="completeness-result"
+            >
+              {completeness.notOpened.length === 0 && completeness.incomplete.length === 0 && (completeness.missing || []).length === 0 && "Every step is reviewed and its key details are filled in."}
+              {completeness.notOpened.length > 0 && (
+                <Box>
+                  Open these steps before saving:{" "}
+                  {completeness.notOpened.map((t) => (
+                    <Chip key={t.value} size="small" label={t.label} onClick={() => setActiveSubTab(t.value)} sx={{ mr: 0.5 }} />
+                  ))}
+                </Box>
+              )}
+              {(completeness.missing || []).length > 0 && (
+                <Box sx={{ mt: completeness.notOpened.length ? 0.5 : 0 }} data-testid="missing-required">
+                  Required fields still empty:{" "}
+                  {completeness.missing.map((m) => (
+                    <Chip key={`${m.step}-${m.key}`} size="small" color="warning" label={m.label} onClick={() => setActiveSubTab(m.step)} sx={{ mr: 0.5 }} />
+                  ))}
+                </Box>
+              )}
+              {completeness.incomplete.length > 0 && (
+                <Box sx={{ mt: completeness.notOpened.length || (completeness.missing || []).length ? 0.5 : 0 }}>
+                  Key details still empty in:{" "}
+                  {completeness.incomplete.map((t) => (
+                    <Chip key={t.value} size="small" variant="outlined" label={t.label} onClick={() => setActiveSubTab(t.value)} sx={{ mr: 0.5 }} />
+                  ))}
+                </Box>
+              )}
+            </Alert>
+          )}
+
           <Box
             sx={{ mt: 2, pt: 1.5, display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", borderTop: "1px solid", borderColor: "divider" }}
           >
@@ -1295,14 +2010,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               {saving ? "Saving..." : dirty ? "Unsaved changes" : "All changes saved"}
             </Typography>
             <Box sx={{ flex: 1 }} />
+            <Button variant="outlined" onClick={runCompleteness} data-testid="completeness-check">
+              Completeness check
+            </Button>
             <Button variant="outlined" startIcon={<PrintIcon />} onClick={handlePrint}>
               Print
             </Button>
-            <Button variant="outlined" disabled={stepIndex <= 0} onClick={() => setActiveSubTab(SUB_TABS[stepIndex - 1].value)}>
+            <Button variant="outlined" disabled={stepIndex <= 0} onClick={() => setActiveSubTab(subTabs[stepIndex - 1].value)}>
               Back
             </Button>
             <Button variant="contained" onClick={handleSaveAndContinue} disabled={saving || readOnlyVisit}>
-              {saving ? "Saving..." : stepIndex < SUB_TABS.length - 1 ? "Save and continue" : "Save Registration"}
+              {saving ? "Saving..." : stepIndex < subTabs.length - 1 ? "Save and continue" : "Save Registration"}
             </Button>
           </Box>
         </>

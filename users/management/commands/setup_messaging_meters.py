@@ -6,7 +6,7 @@ from users.messaging_stripe import create_messaging_meters_and_prices
 class Command(BaseCommand):
     help = (
         "One-time setup: create the Stripe Billing Meters and metered Prices "
-        "for email/SMS overage billing. Safe to re-run -- it reuses existing "
+        "for email/SMS and AI assistant overage billing. Safe to re-run -- it reuses existing "
         "meters/prices instead of duplicating them. Run this against Stripe "
         "TEST MODE keys first."
     )
@@ -18,9 +18,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("\nDone. Add these to your environment:\n"))
         self.stdout.write(f"STRIPE_EMAIL_OVERAGE_PRICE_ID={result['email_price_id']}")
         self.stdout.write(f"STRIPE_SMS_OVERAGE_PRICE_ID={result['sms_price_id']}")
+        self.stdout.write(f"STRIPE_ASSISTANT_OVERAGE_PRICE_ID={result['assistant_price_id']}")
         self.stdout.write(
             "\n(Meter IDs, for reference -- not needed as env vars: "
-            f"email={result['email_meter_id']}, sms={result['sms_meter_id']})"
+            f"email={result['email_meter_id']}, sms={result['sms_meter_id']}, assistant={result['assistant_meter_id']})"
         )
         self.stdout.write(
             self.style.WARNING(

@@ -1,3 +1,4 @@
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
@@ -53,7 +54,7 @@ class AnalyticsReportView(APIView):
 
         # Filter by organization
         user = request.user
-        if user.role == "system_admin":
+        if sees_all_orgs(user):
             appointments = Appointment.all_objects.all()
             availabilities = Availability.objects.all()
         else:

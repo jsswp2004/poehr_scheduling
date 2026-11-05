@@ -6,7 +6,7 @@ from users.models import Organization
 
 class Command(BaseCommand):
     help = (
-        "Attach the email/SMS overage metered prices as extra subscription "
+        "Attach the email/SMS and AI assistant overage metered prices as extra subscription "
         "items on an organization's existing Stripe subscription. Run this "
         "once per organization (or --all) after setup_messaging_meters has "
         "been run and the resulting price IDs are set as env vars. Adding "
@@ -59,5 +59,5 @@ class Command(BaseCommand):
                 )
             else:
                 self.stdout.write(
-                    f"{organization.name} (id={organization.id}): already had both overage items attached"
+                    f"{organization.name} (id={organization.id}): already had all overage items attached"
                 )

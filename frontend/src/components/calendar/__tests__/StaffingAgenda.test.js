@@ -68,7 +68,7 @@ describe("StaffingAgenda", () => {
   it("opens the day in Day view", () => {
     const onDrillDown = jest.fn();
     renderAgenda({}, { onDrillDown });
-    fireEvent.click(screen.getByRole("button", { name: /Open day Thursday, October 22/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Coverage status Thursday, October 22/ }));
     expect(onDrillDown.mock.calls[0][0].getDate()).toBe(22);
     expect(onDrillDown.mock.calls[0][1]).toBe("day");
   });

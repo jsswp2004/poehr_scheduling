@@ -7,7 +7,7 @@ jest.mock("../../utils/auth", () => ({ getValidToken: async () => ({ access_toke
 import { api } from "../../api/client";
 import useChartTabs from "../../hooks/useChartTabs";
 
-const EVERY = ["patient_list", "orders", "prescriptions", "results", "patient_info", "documents", "flowsheets", "my_schedule", "referral_list", "task_list", "clinical_summary", "vaccines", "messages"];
+const EVERY = ["patient_list", "orders", "prescriptions", "results", "patient_info", "documents", "flowsheets", "my_schedule", "referral_list", "task_list", "clinical_summary", "vaccines", "messages", "inbox"];
 // Emergency also has the ED Follow-up tab, right after the patient list; the other modules do not.
 const EMERGENCY_EVERY = ["patient_list", "ed_follow_up", ...EVERY.slice(1)];
 const reply = {

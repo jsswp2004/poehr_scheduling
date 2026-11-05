@@ -189,8 +189,8 @@ export default function StaffingAgenda({ date, onDrillDown }) {
                 </Typography>
               )}
               <Box sx={{ flex: 1 }} />
-              <Button size="small" onClick={() => onDrillDown && onDrillDown(d, "day")} sx={{ minHeight: 36 }} aria-label={`Open day ${moment(d).format("dddd, MMMM D")}`}>
-                Open day
+              <Button size="small" onClick={() => onDrillDown && onDrillDown(d, "day")} sx={{ minHeight: 36 }} aria-label={`Coverage status ${moment(d).format("dddd, MMMM D")}`}>
+                Coverage Status
               </Button>
             </Box>
             {empty ? (

@@ -1,60 +1,47 @@
 import React from "react";
-import { Box, ButtonBase, Typography } from "@mui/material";
+import { Box, Tab, Tabs } from "@mui/material";
 
-// The numbered step bar at the top of Full Registration. A step shows a check once its key details are
-// filled in. It is a tab list, so the keyboard and screen readers treat it like the tabs it replaced.
-function RegistrationSteps({ steps, current, filled, onSelect }) {
+// The step tabs at the top of Full Registration, styled like the page's own tabs. A step shows a green check once
+// its key details are filled in, and "review" when it has not been opened yet. Wide lists scroll sideways.
+function RegistrationSteps({ steps, current, filled, onSelect, needsReview = {} }) {
+  const value = steps.some((s) => s.value === current) ? current : false;
   return (
-    <Box role="tablist" aria-label="Registration steps" sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 2 }}>
-      {steps.map((s, i) => {
-        const active = s.value === current;
+    <Tabs
+      value={value}
+      onChange={(e, v) => onSelect(v)}
+      variant="scrollable"
+      scrollButtons="auto"
+      allowScrollButtonsMobile
+      aria-label="Registration steps"
+      sx={{ mb: 1, flexShrink: 0, minHeight: 36, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, textTransform: "none", px: 1.5, py: 0.5 } }}
+    >
+      {steps.map((s) => {
         const done = !!filled[s.value];
+        const review = needsReview[s.value] && s.value !== current;
         return (
-          <ButtonBase
+          <Tab
             key={s.value}
-            role="tab"
-            aria-selected={active}
-            onClick={() => onSelect(s.value)}
+            value={s.value}
             title={done ? "Key details entered" : undefined}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              px: 1,
-              py: 0.5,
-              borderRadius: 2,
-              bgcolor: active ? "#e8efff" : "transparent",
-              border: "1px solid",
-              borderColor: active ? "#bfd0ff" : "transparent",
-              "&:hover": { bgcolor: active ? "#e8efff" : "action.hover" },
-            }}
-          >
-            <Box
-              aria-hidden="true"
-              sx={{
-                width: 22,
-                height: 22,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 600,
-                boxSizing: "border-box",
-                color: done || active ? "#fff" : "text.secondary",
-                bgcolor: done ? "#16a34a" : active ? "primary.main" : "transparent",
-                border: done || active ? "none" : "1px solid #c9d1dd",
-              }}
-            >
-              {done ? "✓" : i + 1}
-            </Box>
-            <Typography variant="body2" sx={{ fontWeight: active ? 600 : 500, color: active ? "#1e40af" : "text.primary", whiteSpace: "nowrap" }}>
-              {s.label}
-            </Typography>
-          </ButtonBase>
+            label={
+              <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                {done && (
+                  <Box component="span" aria-hidden="true" sx={{ color: "#16a34a", fontWeight: 700, fontSize: 14, lineHeight: 1 }}>
+                    {"\u2713"}
+                  </Box>
+                )}
+                {s.label}
+                {review && (
+                  <Box component="span" sx={{ color: "warning.main", fontSize: 11 }} data-testid={`needs-review-${s.value}`}>
+                    review
+                  </Box>
+                )}
+              </Box>
+            }
+          />
         );
       })}
-    </Box>
+    </Tabs>
   );
 }
 

@@ -36,7 +36,22 @@ from .views import (
 )  # ⬅️ import the new SMS view and check-in views
 from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
+from .custom_forms import CustomFormAnswersView, CustomFormsView
+from .registration_more import (
+    NewbornView,
+    PaymentsView,
+    PaymentVoidView,
+    RegistrationSettingsView,
+    VisitTransportView,
+    ZipCodesView,
+)
+from .registration_insurance import InsuranceSetupView, PatientPoliciesView
+from .registration_extras import RegistrationExtrasView
+from .registration_config import RegistrationDictionariesView, RegistrationFieldsView
+from .registration_tabs import RegistrationTabsView
 from .lab_views import LabReportViewSet
+from . import inbox_views
+from . import search_views
 from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .my_schedule import MyScheduleView
@@ -81,7 +96,11 @@ from .prescription_views import (
     PrescriptionMetaView,
     PrescriptionPdfView,
 )
+from . import referral_public_views
 from .referral_views import (
+    ReferralAttachmentFileView,
+    ReferralRevokeLinkView,
+    ReferralSendLinkView,
     DestinationDetailView,
     DestinationListCreateView,
     ReferralActionView,
@@ -99,6 +118,7 @@ from .patient_header import (
     PatientAllergyStatusView,
     PatientHeaderValuesView,
     PatientHeaderView,
+    PatientVisitsView,
 )
 from .lab_interface_views import LabInboundMessageViewSet, LabUsageView, fhir_intake, hl7_intake, orders_ack, orders_pull
 
@@ -260,6 +280,17 @@ router.register(r"admin/order-sets", OrderSetAdminViewSet, basename="ordersetadm
 
 urlpatterns = router.urls + [
     # lab interface engines post results here (key-authenticated, no login)
+    path("search/", search_views.SearchView.as_view(), name="global-search"),
+    path("search/opened/", search_views.SearchOpenedView.as_view(), name="global-search-opened"),
+    path("inbox/", inbox_views.InboxListView.as_view(), name="inbox"),
+    path("inbox/counts/", inbox_views.InboxCountsView.as_view(), name="inbox-counts"),
+    path("inbox/people/", inbox_views.InboxPeopleView.as_view(), name="inbox-people"),
+    path("inbox/item/", inbox_views.InboxItemView.as_view(), name="inbox-item"),
+    path("inbox/read/", inbox_views.InboxReadView.as_view(), name="inbox-read"),
+    path("inbox/done/", inbox_views.InboxDoneView.as_view(), name="inbox-done"),
+    path("inbox/messages/", inbox_views.InboxMessagesView.as_view(), name="inbox-messages"),
+    path("inbox/messages/<int:pk>/reply/", inbox_views.InboxReplyView.as_view(), name="inbox-reply"),
+    path("inbox/messages/<int:pk>/forward/", inbox_views.InboxForwardView.as_view(), name="inbox-forward"),
     path("lab-interface/hl7/", hl7_intake, name="lab-interface-hl7"),
     path("lab-interface/fhir/", fhir_intake, name="lab-interface-fhir"),
     path("lab-usage/", LabUsageView.as_view(), name="lab-usage"),
@@ -269,6 +300,20 @@ urlpatterns = router.urls + [
     path("locations/<str:kind>/", LocationItemView.as_view(), name="location-item-create"),
     path("locations/<str:kind>/<int:pk>/", LocationItemView.as_view(), name="location-item"),
     path("patient-header-config/", HeaderConfigView.as_view(), name="patient-header-config"),
+    path("registration-tabs/", RegistrationTabsView.as_view(), name="registration-tabs"),
+    path("registration-dictionaries/", RegistrationDictionariesView.as_view(), name="registration-dictionaries"),
+    path("registration-fields/", RegistrationFieldsView.as_view(), name="registration-fields"),
+    path("registration-extras/<int:user_id>/", RegistrationExtrasView.as_view(), name="registration-extras"),
+    path("insurance-setup/", InsuranceSetupView.as_view(), name="insurance-setup"),
+    path("patient-policies/<int:user_id>/", PatientPoliciesView.as_view(), name="patient-policies"),
+    path("custom-forms/", CustomFormsView.as_view(), name="custom-forms"),
+    path("custom-form-answers/<int:user_id>/", CustomFormAnswersView.as_view(), name="custom-form-answers"),
+    path("newborn-registration/", NewbornView.as_view(), name="newborn-registration"),
+    path("visit-transport/<int:visit_id>/", VisitTransportView.as_view(), name="visit-transport"),
+    path("payments/<int:user_id>/", PaymentsView.as_view(), name="payments"),
+    path("payment-void/<int:receipt_id>/", PaymentVoidView.as_view(), name="payment-void"),
+    path("zip-codes/", ZipCodesView.as_view(), name="zip-codes"),
+    path("registration-settings/", RegistrationSettingsView.as_view(), name="registration-settings"),
     path("my-schedule/", MyScheduleView.as_view(), name="my-schedule"),
     # in-app Scheduler assistant (read tools + confirm-before-act cards)
     path("scheduler-assistant/message/", SchedulerAssistantMessageView.as_view(), name="scheduler-assistant-message"),
@@ -282,6 +327,19 @@ urlpatterns = router.urls + [
     path("referrals/queues/", ReferralQueuesView.as_view(), name="referral-queues"),
     path("referrals/<int:pk>/", ReferralDetailView.as_view(), name="referral-detail"),
     path("referrals/<int:pk>/action/", ReferralActionView.as_view(), name="referral-action"),
+    path("referrals/<int:pk>/send-link/", ReferralSendLinkView.as_view(), name="referral-send-link"),
+    path("referrals/<int:pk>/revoke-link/", ReferralRevokeLinkView.as_view(), name="referral-revoke-link"),
+    path(
+        "referrals/<int:pk>/attachments/<int:attachment_id>/file/",
+        ReferralAttachmentFileView.as_view(),
+        name="referral-attachment-file",
+    ),
+    # what the specialist's secure link talks to (no login)
+    path("referral-link/open/", referral_public_views.open_link, name="referral-link-open"),
+    path("referral-link/code/", referral_public_views.resend_code, name="referral-link-code"),
+    path("referral-link/verify/", referral_public_views.verify_code, name="referral-link-verify"),
+    path("referral-link/packet/", referral_public_views.get_packet, name="referral-link-packet"),
+    path("referral-link/reply/", referral_public_views.post_reply, name="referral-link-reply"),
     path("referral-meta/", ReferralMetaView.as_view(), name="referral-meta"),
     path("referral-destinations/", DestinationListCreateView.as_view(), name="referral-destinations"),
     path("referral-destinations/<int:pk>/", DestinationDetailView.as_view(), name="referral-destination"),
@@ -324,6 +382,7 @@ urlpatterns = router.urls + [
     path("chart-tabs/mine/", MyChartTabsView.as_view(), name="chart-tabs-mine"),
     path("chart-tabs/defaults/", OrgChartTabsView.as_view(), name="chart-tabs-defaults"),
     path("patient-header/<int:patient_id>/", PatientHeaderView.as_view(), name="patient-header"),
+    path("patient-header/<int:patient_id>/visits/", PatientVisitsView.as_view(), name="patient-visits"),
     path("patient-header/<int:patient_id>/values/", PatientHeaderValuesView.as_view(), name="patient-header-values"),
     path("growth-charts/patient/<int:patient_id>/", growth_views.GrowthChartView.as_view(), name="growth-chart-patient"),
     path("triage/patient/<int:patient_id>/context/", triage_views.TriageContextView.as_view(), name="triage-context"),

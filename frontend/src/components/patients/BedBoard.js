@@ -37,7 +37,7 @@ const COLORS = {
 const FRONT_LINE = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 
 /**
- * Who is in which bed on the inpatient units, with the actions staff need on the spot:
+ * Who is in which bed on the inpatient units (and in the PreOp/PACU beds of the operating-room units), with the actions staff need on the spot:
  * move or discharge the patient, change the attending, mark the bed for cleaning, block it, or free it again.
  * `refreshKey` reloads the board after something changes elsewhere on the page.
  */
@@ -82,8 +82,10 @@ export default function BedBoard({ userRole, refreshKey = 0, onOpenPatient, onTr
 
   if (!data && !problem) return <CircularProgress aria-label="Loading beds" sx={{ m: 3 }} />;
 
-  // inpatient units only
-  const units = (data || []).flatMap((f) => f.units.filter((u) => u.care_type === "inpatient").map((u) => ({ ...u, facility: f })));
+  // inpatient units, and the operating-room units whose PreOp and PACU beds Surgery fills (an OR itself has no beds)
+  const units = (data || []).flatMap((f) =>
+    f.units.filter((u) => u.care_type === "inpatient" || (u.is_surgical && (u.rooms || []).some((r) => (r.beds || []).length > 0))).map((u) => ({ ...u, facility: f }))
+  );
 
   const patientFor = (bed, unit, room) => ({
     id: bed.patient,

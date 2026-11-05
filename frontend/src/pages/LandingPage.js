@@ -41,7 +41,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
 
   // Handler for pricing page navigation
   const handlePricingClick = (planType = null) => {
-    if (planType) {
+    if (typeof planType === "string" && planType) {
       navigate(`/pricing?plan=${planType}`);
     } else {
       navigate("/pricing");
@@ -323,8 +323,8 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               Access your schedules and patient information from your computer,
               phone, or tablet—anytime, anywhere. POWER keeps everything in
               sync, so your appointments and clinic data are always up to date,
-              whether you're at the office, at home, or on the go. Available on
-              Windows, macOS, Android, and iOS.
+              whether you're at the office, at home, or on the go. Works in any
+              modern web browser on Windows, macOS, Android, and iOS.
             </p>
             <div className="efficient-scheduling-cta">
               <div
@@ -354,11 +354,10 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <span className="highlight-yellow">100% your data</span>
             </h2>
             <p className="data-security-description">
-              Your data stays secure with end-to-end encryption and local
-              storage options. POWER ensures complete data ownership and
-              privacy, giving you full control over your patient information and
-              clinic data. HIPAA compliant and trusted by healthcare
-              professionals worldwide.
+              Your data is encrypted in transit and at rest, and each
+              organization's data is kept separate. You own your data: export
+              it or close your account yourself, and we do not sell your
+              patient information. Built with HIPAA safeguards in mind.
             </p>
             <div className="data-security-cta">
               <div
@@ -382,9 +381,10 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           SECTION 7: PRICING PLANS
           - "Choose Your Plan" headline and description
           - Three pricing tiers side-by-side:
-            1. Personal ($49.99/month) - Basic features
-            2. Clinic ($299.99/month) - MOST POPULAR with blue badge
-            3. Group (Contact Sales) - Enterprise features
+            1. Professional ($299/month, 1 user)
+            2. Clinic ($599/month, up to 10 users, 2 services included) - MOST POPULAR with blue badge
+            3. Group (Contact Sales, unlimited users)
+          - Professional includes 1 service, Clinic includes 2, $150 for each additional one; texts and emails billed by volume
           - Feature lists for each plan
           - Action buttons for each tier
           ================================================================= */}
@@ -398,56 +398,53 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
         </div>
 
         <div className="pricing-cards">
-          {/* Personal Plan - Free */}
+          {/* Professional - 1 user */}
           <div className="pricing-card">
             <div className="plan-header">
               <div className="plan-name">Professional</div>
               <div className="plan-price">
-                <span className="price-amount">$49.99</span>
+                <span className="price-amount">$299</span>
                 <span className="price-period">per month</span>
               </div>
             </div>
             <div className="plan-description">
-              For individuals getting started with healthcare scheduling
+              For a solo provider or manager. Your first service is included.
             </div>
             <div className="plan-features">
-              <div className="feature">Basic scheduling</div>
-              <div className="feature">Basic calendar view</div>
-              <div className="feature">Email notifications</div>
-              {/* <div className="feature">Mobile app access</div> */}
-              <div className="feature">Basic reporting</div>
+              <div className="feature">1 user</div>
+              <div className="feature">First service included</div>
+              <div className="feature">Each additional service $150</div>
+              <div className="feature">Reports free</div>
+              <div className="feature">AI assistants included; texts, emails and extra AI questions billed by volume</div>
+              <div className="feature">7-day free trial</div>
             </div>
             <div className="plan-button">
               <div
                 className="btn-plan"
-                onClick={handlePricingClick}
+                onClick={() => handlePricingClick()}
                 style={{ cursor: "pointer" }}
               >
                 Start Free Trial
               </div>
             </div>
           </div>{" "}
-          {/* Clinic Plan - Most Popular */}
+          {/* Clinic - up to 10 users */}
           <div className="pricing-card popular">
             <div className="plan-header">
               <div className="plan-name">Clinic</div>
               <div className="plan-price">
-                <span className="price-amount">$299.99</span>
+                <span className="price-amount">$599</span>
                 <span className="price-period">per month</span>
               </div>
             </div>
-            <div className="plan-description">Keep your Clinic on track</div>
+            <div className="plan-description">Keep your clinic or unit on track</div>
             <div className="plan-features">
-              <div className="feature">Everything in Professional</div>
-              <div className="feature">Up to 10 providers</div>
-              <div className="feature">Unlimited appointments</div>
-              <div className="feature">Advanced calendar features</div>
-              <div className="feature">Team collaboration tools</div>
-              <div className="feature">SMS + Email notifications</div>
-              <div className="feature">Bulk SMS notifications</div>
-              <div className="feature">Patient management system</div>
-              <div className="feature">Automated reminders</div>{" "}
-              <div className="feature">Advanced reporting & analytics</div>
+              <div className="feature">Up to 10 users</div>
+              <div className="feature">2 services included</div>
+              <div className="feature">Each additional service $150</div>
+              <div className="feature">Reports free</div>
+              <div className="feature">AI assistants included; texts, emails and extra AI questions billed by volume</div>
+              <div className="feature">7-day free trial</div>
             </div>
             <div className="plan-button">
               <div
@@ -459,33 +456,20 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               </div>
             </div>
           </div>
-          {/* Group Plan - Enterprise */}
+          {/* Group - quoted */}
           <div className="pricing-card">
             <div className="plan-header">
               <div className="plan-name">Group</div>
-              {/*<div className="plan-price">
-                <span className="price-amount">$129.99</span>
-                <span className="price-period">per month</span>
-              </div>*/}
             </div>
-            <div className="plan-description">For larger teams, contact sales for a custom quote.</div>
+            <div className="plan-description">
+              For larger organizations and multiple sites. Priced by a quote based on your size.
+            </div>
             <div className="plan-features">
-              <div className="feature">Everything in Clinic</div>
               <div className="feature">Unlimited users</div>
-              <div className="feature">Advanced analytics</div>
-              <div className="feature">Priority support</div>
-              <div className="feature">Custom integrations</div>
-              <div className="feature">Multi-organization support</div>
-              <div className="feature">Advanced analytics & reporting</div>
-              <div className="feature">Custom branding</div>
-              <div className="feature">24/7 dedicated support</div>
-              <div className="feature">On-premise deployment option</div>
-              <div className="feature">Custom feature development</div>
-              <div className="feature">White-label solutions</div>
-              <div className="feature">Custom integrations</div>
-              <div className="feature">Dedicated account manager</div>
-              <div className="feature">SLA guarantees</div>
-              <div className="feature">Professional services</div>
+              <div className="feature">All services available</div>
+              <div className="feature">Reports free</div>
+              <div className="feature">AI assistants included; texts, emails and extra AI questions billed by volume</div>
+              <div className="feature">Quote based on your size</div>
             </div>
             <div className="plan-button">
               <div
@@ -539,7 +523,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               onClick={handleAppStoreClick}
               style={{ cursor: "pointer" }}
             >
-              <div className="platform-icon">App Store</div>
+              <div className="platform-icon">Apps in beta</div>
             </div>
             {/* Platform download icons 
             <div className="windows-logo-1">
@@ -601,7 +585,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               fontSize: '24px',
               fontWeight: 'bold'
             }}>
-              📱 App Coming Very Soon!
+              📱 Mobile apps in beta
             </h2>
             <p style={{ 
               marginBottom: '30px', 
@@ -609,7 +593,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               fontSize: '16px',
               lineHeight: '1.5'
             }}>
-              We're working hard to bring POWER to the App Store. Stay tuned for updates!
+              Our mobile apps are in beta testing. Contact power@powerhealthit.com to ask about them.
             </p>
             <button
               onClick={closeModal}

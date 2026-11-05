@@ -8,8 +8,11 @@ import { getAccessToken } from './utils/tokenManager';
 import { autoMigrateTokens } from './utils/authMigration';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import RegistrationWorkspacePage from './pages/RegistrationWorkspacePage';
 import DashboardPage from './pages/DashboardPage';
 import { LandingPageV1Desktop1920Px as LandingPage } from './pages/LandingPage';
+import OrganizationPrompt from './components/OrganizationPrompt';
+import { useActingOrg } from './utils/actingOrg';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
@@ -54,25 +57,35 @@ import DataSecurityPage from './pages/DataSecurityPage';
 import SupportPage from './pages/SupportPage';
 import ToastTestPage from './pages/ToastTestPage';
 import MessagesPage from './pages/MessagesPage';
+import OrganizationAccessPage from './pages/OrganizationAccessPage';
+import SystemDictionariesPage from './pages/SystemDictionariesPage';
 import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
 import WebSocketTest from './components/WebSocketTest';
 import WebSocketDirectTest from './components/WebSocketDirectTest';
 import DebugAvailability from './components/DebugAvailability';
-import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import PrivacyAndTermsPage from './pages/PrivacyAndTermsPage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import SimpleFooter from './components/SimpleFooter';
 import CheckInPage from './pages/CheckInPage';
 import StaffingPage from './pages/StaffingPage';
+import ReportsHomePage from './pages/ReportsHomePage';
+import ReportBuilderPage from './pages/ReportBuilderPage';
+import ReportCanvasPage from './pages/ReportCanvasPage';
+import ReportDocumentationPage from './pages/ReportDocumentationPage';
+import ReportViewerPage from './pages/ReportViewerPage';
+import SurgeryPage from './pages/SurgeryPage';
 import TelehealthPage from './pages/TelehealthPage';
 import TelehealthJoinPage from './pages/TelehealthJoinPage';
+import ReferralLinkPage from './pages/ReferralLinkPage';
 import DictatePage from './pages/DictatePage';
 import MdsPage from './pages/MdsPage';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/privacy', '/telehealth/join'].includes(location.pathname);
+  // Pages remount when a system administrator switches organization, so nothing from the old one stays on screen.
+  const actingOrg = useActingOrg();
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/privacy', '/terms', '/telehealth/join', '/referral'].includes(location.pathname);
 
   // Run token migration on app startup
   useEffect(() => {
@@ -187,7 +200,7 @@ function AppContent() {
       body.classList.remove('bg-gray-100');
     }
   }, [location.pathname]); return (
-    <>      {showNavbar && <Navbar />}      <ToastContainer
+    <>      {showNavbar && <Navbar />}{showNavbar && <OrganizationPrompt />}      <ToastContainer
       position="top-center"
       autoClose={2000}
       hideProgressBar={false}
@@ -198,7 +211,7 @@ function AppContent() {
       draggable
       pauseOnHover
     />
-      <Routes>        <Route path="/" element={<LandingPage />} />
+      <Routes key={actingOrg?.id || 'own'}>        <Route path="/" element={<LandingPage />} />
         <Route path="/solutions" element={<SolutionsPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/enroll" element={<EnrollmentPage />} />
@@ -234,6 +247,8 @@ function AppContent() {
         <Route path="/holidays" element={<PrivateRoute><HolidaysTab /></PrivateRoute>} />
         <Route path="/environment" element={<PrivateRoute><FacilityPicker><EnvironmentProfilePage /></FacilityPicker></PrivateRoute>} />        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
         <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
+        <Route path="/organization-access" element={<PrivateRoute><OrganizationAccessPage /></PrivateRoute>} />
+        <Route path="/system-dictionaries" element={<PrivateRoute><SystemDictionariesPage /></PrivateRoute>} />
         <Route path="/note-builder" element={<PrivateRoute><NoteTemplateBuilderPage /></PrivateRoute>} />
         <Route path="/flowsheet-builder" element={<PrivateRoute><FlowsheetBuilderPage /></PrivateRoute>} />
         <Route path="/status-board-builder" element={<PrivateRoute><StatusBoardBuilderPage /></PrivateRoute>} />
@@ -247,8 +262,19 @@ function AppContent() {
         <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
         <Route path="/check-in" element={<PrivateRoute><CheckInPage /></PrivateRoute>} />
         <Route path="/staffing" element={<PrivateRoute><StaffingPage /></PrivateRoute>} />
+        <Route path="/reports" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportsHomePage /></PrivateRoute>} />
+        <Route path="/reports/new" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportBuilderPage /></PrivateRoute>} />
+        <Route path="/reports/documentation/new" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportDocumentationPage /></PrivateRoute>} />
+        <Route path="/reports/:id/documentation" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportDocumentationPage /></PrivateRoute>} />
+        <Route path="/reports/canvas/new" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportCanvasPage /></PrivateRoute>} />
+        <Route path="/reports/:id/canvas" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportCanvasPage /></PrivateRoute>} />
+        <Route path="/reports/:id/edit" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportBuilderPage /></PrivateRoute>} />
+        <Route path="/reports/:id" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportViewerPage /></PrivateRoute>} />
+        <Route path="/surgery" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><SurgeryPage /></PrivateRoute>} />
         <Route path="/telehealth" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><TelehealthPage /></PrivateRoute>} />
         <Route path="/telehealth/join" element={<TelehealthJoinPage />} />
+        <Route path="/referral" element={<ReferralLinkPage />} />
+        <Route path="/registration" element={<PrivateRoute blockRoles={["patient", "staff", "doctor", "nurse", "receptionist"]} blockedTo="/solutions"><RegistrationWorkspacePage /></PrivateRoute>} />
         <Route path="/dictate" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><DictatePage /></PrivateRoute>} />
         <Route path="/mds" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><MdsPage /></PrivateRoute>} />
       </Routes>
@@ -259,11 +285,9 @@ function AppContent() {
 
 function App() {
   return (
-    <AnnouncementProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AnnouncementProvider>
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 

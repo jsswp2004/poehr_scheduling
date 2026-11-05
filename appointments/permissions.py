@@ -65,7 +65,7 @@ class CanAccessClinicalNotes(permissions.BasePermission):
         # exemption, DRF's automatic check_object_permissions() (triggered
         # by get_object() inside those actions) blocks every addend call
         # with a 403 before the view code ever runs.
-        if getattr(view, "action", None) in ("sign", "addend"):
+        if getattr(view, "action", None) in ("sign", "addend", "request_cosign", "cosign", "return_cosign", "cancel_cosign"):
             return True
         # Otherwise: signed notes are read-only for everyone from this
         # point forward (plain update/partial_update/destroy).

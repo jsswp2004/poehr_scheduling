@@ -13,3 +13,13 @@ test("the footer links to the Privacy Policy page, labelled just Privacy", () =>
   expect(link.getAttribute("href")).toBe("/privacy");
   expect(screen.queryByText(/Terms\s*&\s*Privacy/)).toBeNull();
 });
+
+test("the footer also links to the Terms and Security pages", () => {
+  render(
+    <MemoryRouter>
+      <Footer pricingLink="/pricing" featuresLink="/features" />
+    </MemoryRouter>
+  );
+  expect(screen.getByRole("link", { name: "Terms" }).getAttribute("href")).toBe("/terms");
+  expect(screen.getByRole("link", { name: "Security" }).getAttribute("href")).toBe("/security");
+});

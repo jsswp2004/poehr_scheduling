@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Box, Typography, CircularProgress } from "@mui/material";
+import { Box, Typography, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
 import { getAccessToken } from "../utils/tokenManager";
@@ -16,7 +16,6 @@ import {
   PatientsTable,
   TeamTable,
   AppointmentsSection,
-  AnalyticsSection,
   EmailModal,
 } from "../components/patients";
 import RegisterPage from "./RegisterPage";
@@ -29,6 +28,7 @@ import PrescriptionsPanel from "../components/prescriptions/PrescriptionsPanel";
 import ClinicalSummary from "../components/clinicalSummary/ClinicalSummary";
 import VaccineManager from "../components/vaccines/VaccineManager";
 import PatientMessages from "../components/secureMessages/PatientMessages";
+import InboxPanel from "../components/inbox/InboxPanel";
 import TasksPanel from "../components/tasks/TasksPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog, AttendingDialog } from "../components/patients/AdmissionDialogs";
@@ -48,7 +48,8 @@ import {
 } from "../components/patients/PatientChartTabs";
 import OrdersPanel from "../components/OrdersPanel";
 import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
-import { PatientRecord } from "./PatientDetailPage";
+import PatientInfoPanel from "../components/patients/PatientInfoPanel";
+import PastVisitStrip from "../components/patients/PastVisitStrip";
 import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 
 // Hooks
@@ -58,12 +59,13 @@ import { useTeam } from "../hooks/useTeam";
 import { secure, errorText } from "../components/secureMessages/secureApi";
 import { usePatientsAppointments } from "../hooks/usePatientsAppointments";
 import { useAnalytics } from "../hooks/useAnalytics";
-import { useSubscriptionAccess, SubscriptionGate } from "../hooks/useSubscriptionAccess";
 // import { useAuth } from "../hooks/useAuth"; // Commented out since not used
 
 // Utils
 import { getValidToken, clearAuthData } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
+import { hasUnsaved } from "../utils/unsavedWork";
+import useChartParam from "../hooks/useChartParam";
 
 // Team, Appointments, Analytics and Register are opened from the icons in the top header (?tab=...).
 // Chart tab content sits right under the tab strip: panels bring their own top margin
@@ -77,12 +79,12 @@ const SIDE_GAP = { pl: 2, pr: 2 };
 const VIEW_TITLES = {
   team: "Team",
   appointments: "Appointments",
-  analytics: "Analytics",
   register: "Register",
 };
 
 function PatientsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Main tab state -- honors ?tab=appointments (etc.) on initial load, e.g.
   // from the Scheduler solutions-page button, which sends users straight to
@@ -94,6 +96,11 @@ function PatientsPage() {
 
   // Header module links (Documentation / Scheduler) change ?tab= while this
   // page is already mounted, so follow the URL after the first render.
+  // Analytics now lives on the Reports page ("Appointments and patients"); old links land there.
+  useEffect(() => {
+    if (tabParam === "analytics") navigate("/reports?tab=analytics", { replace: true });
+  }, [tabParam, navigate]);
+
   const lastTabParam = useRef(tabParam);
   useEffect(() => {
     if (lastTabParam.current === tabParam) return;
@@ -117,9 +124,21 @@ function PatientsPage() {
   // It is remembered for this browser tab only, and per user, so a shared computer never shows
   // the previous user's patient.
   const [selectedPatient, setSelectedPatient] = useState(null); // { id, name }
-  const [chartTab, setChartTab] = useState("patient_list");
+  // The open chart tab follows ?chart= (Documentation icon opens Documents, Patients icon the Patient List).
+  const [chartTab, setChartTab] = useChartParam(tab);
   // What the patient header is showing: the visit that Orders, Documents and Flowsheets chart on.
   const [headerData, setHeaderData] = useState(null);
+  // A visit opened from Patient Info > Visit History becomes the context of the whole chart.
+  // null means the patient's current visit. It only lasts while this patient stays selected.
+  const [openVisit, setOpenVisit] = useState(null);
+  const selectedPatientId = selectedPatient ? selectedPatient.id : null;
+  // A visit chosen in the header search is applied once the patient it belongs to has been selected.
+  const pendingVisit = useRef(null);
+  useEffect(() => {
+    setOpenVisit(pendingVisit.current);
+    pendingVisit.current = null;
+  }, [selectedPatientId]);
+  const openVisitContext = useCallback((v) => setOpenVisit(v && !v.is_current ? v : null), []);
   const showPatientContext = tab === "patients" || !!selectedPatient;
   const selectionKey = currentUser ? `powerSelectedPatient:${currentUser.id}` : null;
   useEffect(() => {
@@ -150,6 +169,34 @@ function PatientsPage() {
       selectPatient(patient);
       setChartTab(nextTab);
     },
+    [selectPatient, setChartTab]
+  );
+
+  // The list the chart was opened from (My schedule, the Patient list, the ED Board), in the order it shows.
+  // The banner's arrows walk it. It stays after the list itself is closed, until another list reports.
+  const [navList, setNavList] = useState(null); // { label, patients: [{ user_id, full_name }] }
+  const reportList = useCallback((label, patients) => {
+    const seen = new Set();
+    const next = [];
+    (patients || []).forEach((p) => {
+      if (p && p.user_id && !seen.has(String(p.user_id))) {
+        seen.add(String(p.user_id));
+        next.push({ user_id: p.user_id, full_name: p.full_name || "" });
+      }
+    });
+    setNavList((prev) =>
+      prev && prev.label === label && prev.patients.length === next.length && prev.patients.every((p, i) => String(p.user_id) === String(next[i].user_id))
+        ? prev
+        : { label, patients: next }
+    );
+  }, []);
+  const [pendingMove, setPendingMove] = useState(null); // the patient to go to once the user agrees to leave unsaved work
+  const moveTo = useCallback(
+    (target) => {
+      if (!target) return;
+      if (hasUnsaved()) setPendingMove(target);
+      else selectPatient(target);
+    },
     [selectPatient]
   );
 
@@ -161,6 +208,35 @@ function PatientsPage() {
 
   // Custom hooks for each section
   const patients = usePatients(navigate, userRole);
+
+  // The banner's arrows. They walk the list the chart was opened from; when the patient is not in
+  // it (the chart was opened another way, or the page was reloaded) they walk the Patient list, so
+  // the arrows stay on every tab.
+  const nav = React.useMemo(() => {
+    if (!selectedPatient) return null;
+    const fallback = {
+      label: patients.careSetting === "emergency" ? "ED Board" : "Patient list",
+      patients: (patients.patients || [])
+        .filter((p) => p && p.user_id)
+        .map((p) => ({ user_id: p.user_id, full_name: p.full_name || "" })),
+    };
+    const has = (l) => l && l.patients.length > 1 && l.patients.some((p) => String(p.user_id) === String(selectedPatient.id));
+    const source = has(navList) ? navList : has(fallback) ? fallback : null;
+    if (!source) return null;
+    const list = source.patients;
+    const index = list.findIndex((p) => String(p.user_id) === String(selectedPatient.id));
+    return {
+      label: source.label,
+      index,
+      total: list.length,
+      patients: list,
+      prev: list[index - 1] || null,
+      next: list[index + 1] || null,
+      onPrev: () => moveTo(list[index - 1]),
+      onNext: () => moveTo(list[index + 1]),
+      onJump: (i) => moveTo(list[i]),
+    };
+  }, [navList, selectedPatient, moveTo, patients.patients, patients.careSetting]);
   // Units for the Unit column filter on the Acute Care list (inpatient units; the open list adds the facility when there are several, the closed filter does not)
   const locationTree = useLocationTree();
   const unitOptions = React.useMemo(() => unitOptionsFrom(locationTree), [locationTree]);
@@ -172,6 +248,8 @@ function PatientsPage() {
   // Referrals and tasks waiting for action: shown on their chart tabs (they used to sit on the header icons).
   const worklists = useWorklistCounts(userRole, !!currentUser);
   const landedFor = useRef(null);
+  // The Documentation icon opened this page on Documents: the module settling after load must not move it.
+  const openedOnChart = useRef(searchParams.get("chart") === "documents");
   useEffect(() => {
     if (!chartLayout.loaded) return;
     if (landedFor.current === null) {
@@ -181,14 +259,33 @@ function PatientsPage() {
     } else if (landedFor.current !== careKey) {
       // moved to another module: start on that module's tab
       landedFor.current = careKey;
-      setChartTab(chartLayout.defaultTab);
+      if (openedOnChart.current) openedOnChart.current = false;
+      else setChartTab(chartLayout.defaultTab);
     }
-  }, [chartLayout.loaded, chartLayout.defaultTab, careKey, chartTab]);
+  }, [chartLayout.loaded, chartLayout.defaultTab, careKey, chartTab, setChartTab]);
   const followUpTabOn = tab === "patients" && careKey === "emergency" && visibleChartTabs(userRole, chartLayout.tabs, "emergency").some((t) => t.value === "ed_follow_up");
   const [followUpCount, setFollowUpCount] = useFollowUpCount(followUpTabOn, 0);
   const team = useTeam(navigate);
   const appointments = usePatientsAppointments();
   const analytics = useAnalytics();
+
+  // A chart opened from the header search arrives as location.state.searchOpen: select the patient,
+  // go to the module the visit belongs to, land on the tab asked for, and open a past visit as such.
+  const searchOpen = location.state && location.state.searchOpen;
+  const handledSearch = useRef(null);
+  useEffect(() => {
+    if (!searchOpen || handledSearch.current === searchOpen.nonce) return;
+    handledSearch.current = searchOpen.nonce;
+    if (["ambulatory", "emergency", "acute"].includes(searchOpen.care) && searchOpen.care !== patients.careSetting) {
+      openedOnChart.current = true; // the module change must not move the tab we are about to open
+      patients.setCareSetting(searchOpen.care);
+    }
+    const visit = searchOpen.visit && !searchOpen.visit.is_current ? searchOpen.visit : null;
+    if (String(selectedPatientId) === String(searchOpen.user_id)) setOpenVisit(visit);
+    else pendingVisit.current = visit;
+    openChart({ user_id: searchOpen.user_id, full_name: searchOpen.full_name }, searchOpen.tab);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [searchOpen, patients, selectedPatientId, openChart, navigate, location.pathname, location.search]);
   // Admit / transfer / discharge dialog: { mode: "admit" | "transfer" | "discharge", patient }
   const [admission, setAdmission] = useState(null);
   // Acute Care shows the patient list or the bed board; the board reloads when `boardKey` changes
@@ -199,9 +296,6 @@ function PatientsPage() {
     setBoardKey((k) => k + 1);
     await patients.fetchPatients();
   }, [patients]);
-
-  // Subscription access control
-  const { userTier, permissions } = useSubscriptionAccess();
 
   // Get current user from token
   useEffect(() => {
@@ -301,8 +395,6 @@ function PatientsPage() {
       patients.fetchPatients();
     } else if (tab === "team") {
       team.fetchTeam();
-    } else if (tab === "analytics") {
-      analytics.fetchProviders(token);
     } else if (tab === "appointments") {
       analytics.fetchProviders(token);
       appointments.fetchTodaysAppointments(token);
@@ -445,11 +537,6 @@ function PatientsPage() {
     [token, appointments]
   );
 
-  // Analytics handlers
-  const handleDownloadReport = (reportName) => {
-    analytics.downloadCSVReport(reportName, token);
-  };
-
   if (!token || !currentUser) {
     return (
       <Box
@@ -513,7 +600,7 @@ function PatientsPage() {
         {/* Patient header: only on the Patient List view, where it follows the selected patient
             (and reads "No patient selected" until one is chosen). */}
         {tab === "patients" && (
-          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} onLoaded={setHeaderData} />
+          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} visitId={openVisit ? openVisit.id : null} onLoaded={setHeaderData} nav={nav} />
         )}
 
         {/* Chart tabs for the selected patient */}
@@ -524,9 +611,10 @@ function PatientsPage() {
             role={userRole}
             keys={chartLayout.tabs}
             careSetting={careKey}
-            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count }}
-            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue }}
+            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count, inbox: worklists.inbox.count }}
+            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue, results: worklists.results.overdue }}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
+            visitMarker={selectedPatient && openVisit ? `Visit ${openVisit.visit_number || `#${openVisit.id}`}` : null}
           />
         ) : tab === "team" ? null : (
           // Same title row as the Team tab: same top gap, same compact Back button.
@@ -537,6 +625,10 @@ function PatientsPage() {
             {/* With a patient selected the sidebar's Back button is the only one. */}
             {!selectedPatient && <BackButton sx={{ mb: 0, py: 0.75 }} />}
           </Box>
+        )}
+
+        {tab === "patients" && selectedPatient && openVisit && (
+          <PastVisitStrip visit={openVisit} onBack={() => setOpenVisit(null)} />
         )}
 
         {/* Tab Content */}
@@ -555,6 +647,7 @@ function PatientsPage() {
                     refreshKey={boardKey}
                     selectedUserId={selectedPatient ? selectedPatient.id : null}
                     onSelectPatient={selectPatient}
+                    onListChange={reportList}
                     onOpenPatient={(p) => openChart(p, "orders")}
                     onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
                     onDischarge={(p) => setAdmission({ mode: "discharge", patient: p })}
@@ -596,6 +689,7 @@ function PatientsPage() {
               selectedId={selectedPatient ? selectedPatient.id : null}
               onSelect={selectPatient}
               onOpenChart={openChart}
+              onListChange={reportList}
               careSetting={patients.careSetting}
               onAdmit={(p) => setAdmission({ mode: "admit", patient: p })}
               onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
@@ -626,6 +720,7 @@ function PatientsPage() {
                   selectedId={selectedPatient ? selectedPatient.id : null}
                   onSelect={selectPatient}
                   onOpenChart={openChart}
+                  onListChange={reportList}
                   onSendText={handleSendText}
                   onOpenEmailModal={handleOpenEmailModal}
                 />
@@ -642,6 +737,9 @@ function PatientsPage() {
             if (current === "prescriptions") {
               if (!selectedPatient) return <SelectPatientPrompt />;
               return <PrescriptionsPanel key={selectedPatient.id} patient={selectedPatient} />;
+            }
+            if (current === "inbox") {
+              return <InboxPanel careSetting={careKey} selectedPatient={selectedPatient} onOpenChart={openChart} />;
             }
             if (current === "messages") {
               if (!selectedPatient) return <SelectPatientPrompt />;
@@ -673,10 +771,11 @@ function PatientsPage() {
             if (current === "patient_info") {
               return (
                 <Box sx={TIGHT_PANEL}>
-                  <PatientRecord
+                  <PatientInfoPanel
                     key={selectedPatient.id}
-                    id={selectedPatient.id}
-                    embedded
+                    patient={selectedPatient}
+                    openVisitId={openVisit ? openVisit.id : null}
+                    onOpenVisit={openVisitContext}
                     onOpenNotes={() => setChartTab("documents")}
                   />
                 </Box>
@@ -770,31 +869,6 @@ function PatientsPage() {
             />
           )}
 
-          {tab === "analytics" && (
-            <SubscriptionGate
-              feature="analyticsSection"
-              userTier={userTier}
-              permissions={permissions}
-              showUpgradePrompt={true}
-            >
-              <AnalyticsSection
-                analyticsTab={analytics.analyticsTab}
-                setAnalyticsTab={analytics.setAnalyticsTab}
-                reportStartDate={analytics.reportStartDate}
-                setReportStartDate={analytics.setReportStartDate}
-                reportEndDate={analytics.reportEndDate}
-                setReportEndDate={analytics.setReportEndDate}
-                reportProvider={analytics.reportProvider}
-                setReportProvider={analytics.setReportProvider}
-                providers={analytics.providers}
-                analyticsReports={analytics.analyticsReports}
-                advancedAnalyticsReports={analytics.advancedAnalyticsReports}
-                onDownloadReport={handleDownloadReport}
-                organizationData={analytics.organizationData}
-                organizationLogo={analytics.organizationLogo}
-              />
-            </SubscriptionGate>
-          )}
 
           {tab === "register" && (
             // RegisterPage pads its own sides by 16px; pull it out by the same amount so it lines up with Team.
@@ -862,6 +936,31 @@ function PatientsPage() {
           patientName={selectedPatient ? selectedPatient.name : ""}
         />
       )}
+      {/* Moving to another patient while a note or flowsheet is half done */}
+      <Dialog open={!!pendingMove} onClose={() => setPendingMove(null)} maxWidth="xs" fullWidth data-testid="leave-unsaved-dialog">
+        <DialogTitle>Leave without saving?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            {selectedPatient?.name ? `${selectedPatient.name} has` : "This chart has"} work that is not saved yet (a note or flowsheet entry). Moving to{" "}
+            {pendingMove?.full_name || "the next patient"} will discard it.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingMove(null)} data-testid="leave-unsaved-stay">Stay here</Button>
+          <Button
+            color="warning"
+            variant="contained"
+            data-testid="leave-unsaved-go"
+            onClick={() => {
+              const target = pendingMove;
+              setPendingMove(null);
+              selectPatient(target);
+            }}
+          >
+            Leave without saving
+          </Button>
+        </DialogActions>
+      </Dialog>
     </LocalizationProvider>
   );
 }

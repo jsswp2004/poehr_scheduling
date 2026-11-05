@@ -15,6 +15,8 @@ import {
   DialogActions,
   TextField,
   MenuItem,
+  Checkbox,
+  FormControlLabel,
   CircularProgress,
   Alert,
 } from "@mui/material";
@@ -237,6 +239,7 @@ function LocationManager() {
                           <>
                             <Chip size="small" color="primary" variant="outlined" label={CARE_TYPES.find((c) => c.value === u.care_type)?.label || u.care_type} />
                             {u.bed_count > 0 && <Chip size="small" label={`${u.occupied_count}/${u.bed_count} beds in use`} />}
+                            {u.is_surgical && <Chip size="small" color="secondary" variant="outlined" label="Operating rooms" />}
                             {u.code && <Chip size="small" variant="outlined" label={u.code} />}
                             {!u.is_active && <Chip size="small" label="Off" />}
                           </>
@@ -329,6 +332,7 @@ function NodeDialog({ dialog, busy, onClose, onSave }) {
   const [code, setCode] = useState(node?.code || "");
   const [facilityKind, setFacilityKind] = useState(node?.kind || "hospital");
   const [careType, setCareType] = useState(node?.care_type || "outpatient");
+  const [isSurgical, setIsSurgical] = useState(!!node?.is_surgical);
   const [roomNames, setRoomNames] = useState("");
   const [bedNames, setBedNames] = useState("");
   const [hold, setHold] = useState(node?.hold || "");
@@ -354,6 +358,7 @@ function NodeDialog({ dialog, busy, onClose, onSave }) {
     if (kind === "units") {
       body.care_type = careType;
       body.code = code;
+      body.is_surgical = isSurgical;
     }
     if (kind === "beds" && editing) {
       body.hold = hold;
@@ -415,6 +420,13 @@ function NodeDialog({ dialog, busy, onClose, onSave }) {
                   </MenuItem>
                 ))}
               </TextField>
+              <FormControlLabel
+                control={<Checkbox checked={isSurgical} onChange={(e) => setIsSurgical(e.target.checked)} inputProps={{ "data-testid": "unit-surgical" }} />}
+                label="Operating rooms (used by Surgery)"
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+                Surgery builds its operating rooms here. Registration and appointments do not offer these rooms.
+              </Typography>
               <TextField label="Code (optional)" value={code} onChange={(e) => setCode(e.target.value)} fullWidth inputProps={{ maxLength: 20 }} />
             </>
           )}

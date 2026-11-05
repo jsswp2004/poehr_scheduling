@@ -1,3 +1,4 @@
+from poehr_scheduling_backend.tenancy import sees_all_orgs
 import csv
 import datetime
 import logging
@@ -122,7 +123,8 @@ def _org_queryset(model, request):
         oid = org_scope.requested_org_id(request)
         if oid is not None:
             return model.objects.filter(organization_id=oid)
-        return model.objects.all()
+        if sees_all_orgs(user):
+            return model.objects.all()
     return model.objects.filter(organization=user.organization)
 
 
@@ -631,6 +633,8 @@ def _org_queryset_for_census(request):
         oid = org_scope.requested_org_id(request)
         if oid is not None:
             qs = qs.filter(unit__organization_id=oid)
+        elif not sees_all_orgs(user):
+            qs = qs.filter(unit__organization=user.organization)
     else:
         qs = qs.filter(unit__organization=user.organization)
     return qs
@@ -1128,7 +1132,12 @@ class MessageDeliveryLogReportView(APIView):
 
         if request.user.role == "system_admin":
             oid = org_scope.requested_org_id(request)
-            org_filter = {"organization_id": oid} if oid is not None else {}
+            if oid is not None:
+                org_filter = {"organization_id": oid}
+            elif sees_all_orgs(request.user):
+                org_filter = {}
+            else:
+                org_filter = {"organization": request.user.organization}
         else:
             org_filter = {"organization": request.user.organization}
 

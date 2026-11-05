@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import SettingsToolbarPortal from "../settings/SettingsToolbarSlot";
 import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   FormControlLabel,
   MenuItem,
@@ -91,7 +93,6 @@ export default function DictationSettings() {
   return (
     <Stack spacing={3} sx={{ maxWidth: 720 }}>
       <Box>
-        <Typography variant="h6">Dictation</Typography>
         <Typography variant="body2" color="text.secondary">
           Let providers speak into clinical note fields instead of typing. Applies to everyone in your organization who can author notes.
         </Typography>
@@ -168,14 +169,16 @@ export default function DictationSettings() {
         </Alert>
       </Stack>
 
-      <Stack direction="row" spacing={2} justifyContent="flex-end">
-        <Button onClick={() => setForm(saved)} disabled={!dirty || saving}>
+      <SettingsToolbarPortal>
+        <Box sx={{ flex: 1 }} />
+        {dirty && <Chip size="small" color="warning" label="Unsaved changes" />}
+        <Button size="small" onClick={() => setForm(saved)} disabled={!dirty || saving}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={save} disabled={!dirty || saving}>
+        <Button size="small" variant="contained" onClick={save} disabled={!dirty || saving}>
           {saving ? "Saving..." : "Save changes"}
         </Button>
-      </Stack>
+      </SettingsToolbarPortal>
     </Stack>
   );
 }

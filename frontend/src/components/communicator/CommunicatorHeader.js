@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Tabs, Tab } from '@mui/material';
+import { Box, Chip, Typography, Tabs, Tab } from '@mui/material';
 import BackButton from '../BackButton';
 
 /**
@@ -14,12 +14,17 @@ const CommunicatorHeader = ({
     // tabs here (same settings as the Messages page) -- registrars still see
     // just Contacts/Send Message.
     isAdmin = false,
+    // Count chips next to the title, e.g. [{ label: '128 contacts' }, { label: '4 opted out', color: 'error' }]
+    chips = [],
     backTo = '/login?redirect=communicator'
 }) => {
     return (
         <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mb: 0.5 }}>
                 <Typography variant="h5">Communicator</Typography>
+                {chips.map((c) => (
+                    <Chip key={c.label} size="small" color={c.color || 'primary'} label={c.label} />
+                ))}
                 <Box sx={{ flex: 1 }} />
                 <BackButton to={backTo} sx={{ mb: 0 }} />
             </Box>

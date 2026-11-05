@@ -61,9 +61,10 @@ class Command(BaseCommand):
 
             email_units = result["results"]["email"]["reported_units"]
             sms_units = result["results"]["sms"]["reported_units"]
+            ai_units = result["results"]["assistant"]["reported_units"]
             total_cost = result["total_cost"]
 
-            if email_units == 0 and sms_units == 0:
+            if email_units == 0 and sms_units == 0 and ai_units == 0:
                 self.stdout.write(
                     f"{organization.name} (id={organization.id}): no overage this period"
                 )
@@ -72,6 +73,7 @@ class Command(BaseCommand):
                     self.style.SUCCESS(
                         f"{organization.name} (id={organization.id}): "
                         f"email overage={email_units}, sms overage={sms_units}, "
+                        f"ai question overage={ai_units}, "
                         f"total=${total_cost:.2f}"
                     )
                 )

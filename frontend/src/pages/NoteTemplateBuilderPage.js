@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { Box, Container, Tabs, Tab, Typography, Paper } from "@mui/material";
+import { Box } from "@mui/material";
+import { BuilderShell } from "../components/builders/BuilderShell";
 import TemplateListView from "../components/noteBuilder/TemplateListView";
 import NoteTemplateEditor from "../components/noteBuilder/NoteTemplateEditor";
 import DictionaryManager from "../components/noteBuilder/DictionaryManager";
@@ -56,34 +57,20 @@ function NoteTemplateBuilderPage() {
     }
 
     return (
-        <Container maxWidth="lg" sx={{ py: 2 }}>
-            {/* Title and tabs stay pinned under the app bar; only the content below scrolls. */}
-            <Box
-                data-testid="builder-sticky-header"
-                sx={{ position: "sticky", top: 64, zIndex: 6, bgcolor: "background.default", pt: 0.5, mb: 2 }}
-            >
-                <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>
-                    Note Builder
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                    Build note types as ordered fields, no deploy needed. Editing a template never changes
-                    how an already-signed note looks in Note History.
-                </Typography>
-                <Paper>
-                    <Tabs
-                        sx={{ minHeight: 40, "& .MuiTab-root": { minHeight: 40, py: 0 } }}
-                        value={tab}
-                        onChange={(e, v) => {
-                            setTab(v);
-                            setEditingTemplateCode(null);
-                        }}
-                    >
-                        <Tab label="Note Templates" value="templates" />
-                        <Tab label="Dictionaries" value="dictionaries" />
-                    </Tabs>
-                </Paper>
-            </Box>
-
+        <BuilderShell
+            title="Note Builder"
+            subtitle="Build note types as ordered fields, no deploy needed. Editing a template never changes how an already-signed note looks in Note History."
+            tabs={[
+                { key: "templates", label: "Note Templates" },
+                { key: "dictionaries", label: "Dictionaries" },
+            ]}
+            tab={tab}
+            onTab={(v) => {
+                setTab(v);
+                setEditingTemplateCode(null);
+            }}
+            maxWidth={1280}
+        >
             {tab === "templates" && (
                 <Box>
                     {editingTemplateCode === null ? (
@@ -109,7 +96,7 @@ function NoteTemplateBuilderPage() {
             )}
 
             {tab === "dictionaries" && <DictionaryManager />}
-        </Container>
+        </BuilderShell>
     );
 }
 

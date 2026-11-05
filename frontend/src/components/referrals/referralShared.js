@@ -73,5 +73,48 @@ export async function runAction(id, action, body = {}) {
   return res.data;
 }
 
+/** Steps that can send the secure link along with them. */
+export const LINK_ACTIONS = ["sign_send", "resend"];
+
+/** Why a text or email did not go out, in words. */
+export const DELIVERY_REASON = {
+  opted_out: "that number has opted out of texts",
+  no_consent: "texting that number has not been agreed to",
+  no_contact: "there is no number or address to send to",
+  failed: "the message could not be sent",
+};
+
+export const CHANNEL_WORD = { sms: "text", email: "email" };
+
+/** One sentence per delivery result, e.g. "Text to •••-•••-0142: sent". */
+export function deliverySummary(deliveries = []) {
+  return deliveries.map((d) => {
+    const word = d.channel === "sms" ? "Text" : "Email";
+    const to = d.to ? ` to ${d.to}` : "";
+    return d.sent ? `${word}${to}: sent` : `${word}${to}: not sent, ${DELIVERY_REASON[d.reason] || DELIVERY_REASON.failed}`;
+  });
+}
+
+export async function sendLink(id, body) {
+  const res = await api.post(apiEndpoints.referralSendLink(id), body, { headers: await authHeader() });
+  return res.data;
+}
+
+export async function revokeLink(id) {
+  const res = await api.post(apiEndpoints.referralRevokeLink(id), {}, { headers: await authHeader() });
+  return res.data;
+}
+
+/** Open a file the specialist attached in a new tab (the server records who opened it). */
+export async function openAttachment(referralId, attachment) {
+  const res = await api.get(apiEndpoints.referralAttachmentFile(referralId, attachment.id), {
+    headers: await authHeader(),
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(res.data);
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 /** Tell the menu badge, if any, that something moved. */
 export const announceChange = () => window.dispatchEvent(new Event("referrals-changed"));
