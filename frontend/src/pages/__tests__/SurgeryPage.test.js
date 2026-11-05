@@ -17,6 +17,7 @@ jest.mock("../../components/surgery/surgeryApi", () => ({
     history: jest.fn(),
     lookups: jest.fn(),
     participants: jest.fn(),
+    bayOptions: jest.fn(),
   },
 }));
 jest.mock("../../components/SimpleToast", () => ({ toast: { success: jest.fn(), error: jest.fn(), warning: jest.fn() } }));
@@ -64,12 +65,40 @@ test("moving to the next day reloads for that date", async () => {
   await waitFor(() => expect(surgeryApi.planner.mock.calls.some((c) => c[0].date > first)).toBe(true));
 });
 
-test("Start PreOp on the selected case calls the status endpoint and reloads", async () => {
+test("Start PreOp asks which bed, then calls the status endpoint with it and reloads", async () => {
+  surgeryApi.bayOptions.mockResolvedValue([
+    { id: 31, name: "1", room: "Pre-op", unit: "Operating Rooms", state: "available", note: "", current: false },
+    { id: 32, name: "2", room: "Pre-op", unit: "Operating Rooms", state: "occupied", note: "Lee, Ann", current: false },
+  ]);
   renderPage();
   fireEvent.click((await screen.findByText("BASCOM, MARK B")).closest("tr"));
   fireEvent.click(screen.getByRole("button", { name: "Start PreOp" }));
-  await waitFor(() => expect(surgeryApi.setStatus).toHaveBeenCalledWith(1, "preop"));
+  expect(await screen.findByText("Move to PreOp: choose a bed")).toBeInTheDocument();
+  expect(surgeryApi.setStatus).not.toHaveBeenCalled();
+  expect(await screen.findByText("Lee, Ann")).toBeInTheDocument(); // beds load after the dialog opens
+  fireEvent.click(screen.getByRole("button", { name: "Bed 1 in Pre-op" }));
+  fireEvent.click(screen.getByRole("button", { name: "Move to PreOp" }));
+  await waitFor(() => expect(surgeryApi.setStatus).toHaveBeenCalledWith(1, "preop", "", 31));
   await waitFor(() => expect(surgeryApi.cases.mock.calls.length).toBeGreaterThan(1));
+});
+
+test("Decide later moves the case to PreOp without a bed", async () => {
+  surgeryApi.bayOptions.mockResolvedValue([]);
+  renderPage();
+  fireEvent.click((await screen.findByText("BASCOM, MARK B")).closest("tr"));
+  fireEvent.click(screen.getByRole("button", { name: "Start PreOp" }));
+  expect(await screen.findByText(/No PreOp or PACU beds are set up yet/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Decide later" }));
+  await waitFor(() => expect(surgeryApi.setStatus).toHaveBeenCalledWith(1, "preop", "", null));
+});
+
+test("other moves, such as Patient In OR, go straight through without a bed picker", async () => {
+  surgeryApi.cases.mockResolvedValue({ results: [{ ...caseRow, status: "preop", status_label: "In PreOp", next_statuses: ["or", "cancelled"] }] });
+  renderPage();
+  fireEvent.click((await screen.findByText("BASCOM, MARK B")).closest("tr"));
+  fireEvent.click(screen.getByRole("button", { name: "Patient In OR" }));
+  await waitFor(() => expect(surgeryApi.setStatus).toHaveBeenCalledWith(1, "or"));
+  expect(surgeryApi.bayOptions).not.toHaveBeenCalled();
 });
 
 test("Cancel Case opens the dialog instead of cancelling without a reason", async () => {
