@@ -24,7 +24,7 @@ test('someone who is not signed in is sent to the login page', () => {
 test('a nurse at a full clinic sees the clinical solutions and opens one directly', () => {
   signIn({ role: 'nurse', modules: null });
   render(<SolutionsPage />);
-  ['POWER Notes', 'POWER Scheduler', 'POWER Staffing', 'POWER Telehealth', 'POWER Dictate'].forEach((name) =>
+  ['POWER Notes', 'POWER Scheduler', 'POWER Staffing', 'POWER Surgery', 'POWER Telehealth', 'POWER Dictate'].forEach((name) =>
     expect(screen.getByText(name)).toBeInTheDocument()
   );
   expect(screen.queryByText('POWER Communicator')).toBeNull();
@@ -56,4 +56,15 @@ test('nobody but an administrator sees the Management Portal', () => {
   signIn({ role: 'nurse', modules: null });
   render(<SolutionsPage />);
   expect(screen.queryByText('Management Portal')).toBeNull();
+});
+
+test('POWER Surgery opens the Surgery page for clinical staff but not for staffing-only logins or patients', () => {
+  signIn({ role: 'doctor', modules: null });
+  const { unmount } = render(<SolutionsPage />);
+  fireEvent.click(screen.getByText('POWER Surgery'));
+  expect(mockNavigate).toHaveBeenCalledWith('/surgery');
+  unmount();
+  signIn({ role: 'staff', modules: null });
+  render(<SolutionsPage />);
+  expect(screen.queryByText('POWER Surgery')).toBeNull();
 });

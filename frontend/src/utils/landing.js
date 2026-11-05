@@ -53,6 +53,7 @@ export const SOLUTIONS = [
   { key: 'communicator', label: 'POWER Communicator', module: 'communicator', path: '/communicator', roles: ['admin', 'system_admin', 'registrar'] },
   { key: 'portal', label: 'POWER Patient Portal', module: 'patient_portal', path: '/dashboard', roles: ['admin', 'system_admin', 'patient'] },
   { key: 'staffing', label: 'POWER Staffing', module: 'staffing', path: '/staffing', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar', 'staff'] },
+  { key: 'surgery', label: 'POWER Surgery', module: 'surgery', path: '/surgery', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar'] },
   { key: 'telehealth', label: 'POWER Telehealth', module: 'telehealth', path: '/telehealth', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar', 'receptionist'] },
   { key: 'dictate', label: 'POWER Dictate', module: 'dictation', path: '/dictate', roles: ['admin', 'system_admin', 'doctor', 'nurse'] },
 ];

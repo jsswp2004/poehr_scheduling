@@ -116,6 +116,7 @@ export const MODULE_LINKS = [
   },
   {
     key: "surgery",
+    module: "surgery",
     label: "Surgery",
     to: "/surgery",
     Icon: MedicalServicesIcon,
