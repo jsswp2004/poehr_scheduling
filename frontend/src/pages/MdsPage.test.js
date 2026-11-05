@@ -20,7 +20,7 @@ describe("MdsPage sign-in hand-off", () => {
   const ORIGIN = "https://mds.example.test";
   beforeEach(() => {
     process.env.REACT_APP_MDS_URL = `${ORIGIN}/`;
-    localStorage.setItem("access_token", "tok-123");
+    localStorage.setItem("access_token", JSON.stringify({ token: "tok-123" }));
   });
   afterEach(() => {
     delete process.env.REACT_APP_MDS_URL;
@@ -48,6 +48,15 @@ describe("MdsPage sign-in hand-off", () => {
     ask(window, ORIGIN);
     ask(win, ORIGIN, "something-else");
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it("also understands the older bare-string token format", () => {
+    localStorage.setItem("access_token", "legacy-456");
+    render(<MdsPage />);
+    const win = screen.getByTitle("POWER MDS Assessment Portal").contentWindow;
+    const post = jest.spyOn(win, "postMessage").mockImplementation(() => {});
+    ask(win, ORIGIN);
+    expect(post).toHaveBeenCalledWith({ type: "mds:token", token: "legacy-456" }, ORIGIN);
   });
 
   it("sends a null token when the person is signed out", () => {
