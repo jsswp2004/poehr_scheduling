@@ -1399,3 +1399,28 @@ class RegistrationAndScheduleLinkTests(SurgeryBase):
         warnings = self.book(start="08:00").json()["warnings"]
         self.assertTrue(any("clinic appointment" in w and "Clinic scheduled" in w for w in warnings), warnings)
         self.assertFalse(any("Clinic cancelled" in w for w in warnings))
+
+
+    def linked(self):
+        case = self.make_case()
+        visit = Registration.objects.create(patient=self.patient, organization=self.org, facility=self.hospital)
+        SurgeryCase.objects.filter(pk=case["id"]).update(visit=visit)
+        return case, visit
+
+    def test_transfer_to_inpatient_admits_the_visit_as_acute_care(self):
+        case, visit = self.linked()
+        visit.refresh_from_db()
+        self.assertEqual(visit.care_setting, "ambulatory")
+        for s in ("preop", "or", "pacu"):
+            self.assertEqual(self.move(case["id"], s).status_code, 200)
+        self.assertEqual(self.move(case["id"], "transferred").status_code, 200)
+        visit.refresh_from_db()
+        self.assertEqual((visit.care_setting, visit.admission_type), ("acute", "direct"))
+        self.assertIsNone(visit.unit_id)  # waiting for an inpatient bed, not left in the surgical unit
+
+    def test_day_surgery_discharge_stays_ambulatory(self):
+        case, visit = self.linked()
+        for s in ("preop", "or", "pacu", "discharged"):
+            self.move(case["id"], s)
+        visit.refresh_from_db()
+        self.assertEqual(visit.care_setting, "ambulatory")
