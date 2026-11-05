@@ -1286,6 +1286,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               pr: 1,
               border: 0,
               p: 0,
+              pt: 1, // room for the floating field labels, which the scroll area would otherwise clip
               m: 0,
               minWidth: 0,
               ...(readOnlyVisit ? { pointerEvents: "none", opacity: 0.8 } : {}),
