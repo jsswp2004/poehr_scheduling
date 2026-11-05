@@ -316,6 +316,7 @@ export const apiEndpoints = {
     surgeryCases: `${API_BASE_URL}/api/surgery/cases/`,
     surgeryCase: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/`,
     surgeryCaseStatus: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/status/`,
+    surgeryCaseBayOptions: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/bay-options/`,
     surgeryCaseHistory: (id) => `${API_BASE_URL}/api/surgery/cases/${id}/history/`,
     surgeryRooms: `${API_BASE_URL}/api/surgery/rooms/`,
     surgeryRoomOptions: `${API_BASE_URL}/api/surgery/room-options/`,

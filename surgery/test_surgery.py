@@ -1003,6 +1003,20 @@ class SeedCommandTests(SurgeryBase):
         self.assertTrue(all(r.location_room_id and r.location_room.unit.is_surgical for r in rooms))
 
     @override_settings(DEBUG=True)
+    def test_patients_in_preop_the_or_and_pacu_are_placed_for_the_census(self):
+        self.run_seed()
+        by = {c.status: c for c in SurgeryCase.objects.filter(organization=self.org, comments__startswith="[DEMO]")}
+        self.assertEqual(by["preop"].visit.location_path(), "General Hospital › Operating Rooms › Pre-op › 1")
+        self.assertEqual(by["pacu"].visit.location_path(), "General Hospital › Operating Rooms › PACU › 1")
+        self.assertEqual(by["or"].visit.location_path(), "General Hospital › Operating Rooms › OR-1")
+        self.assertIsNone(by["discharged"].visit)
+        tree = self.as_(self.nurse).get("/api/locations/tree/").json()["locations"]
+        unit = next(u for f in tree for u in f["units"] if u["name"] == "Operating Rooms")
+        self.assertEqual(unit["occupied_count"], 2)  # the pre-op and PACU beds
+        self.run_seed("--reset")
+        self.assertEqual(Registration.objects.filter(reason_for_visit__startswith="[DEMO]").count(), 3)  # replaced, not piled up
+
+    @override_settings(DEBUG=True)
     def test_second_run_needs_reset_and_reset_only_removes_demo_cases(self):
         real = self.make_case(start="06:00")
         self.run_seed()
@@ -1179,3 +1193,138 @@ class RoomLocationTests(SurgeryBase):
         before = (Room.objects.count(), Unit.objects.count())
         migration.link_rooms(apps, None)
         self.assertEqual((Room.objects.count(), Unit.objects.count()), before)
+
+
+class BayTests(SurgeryBase):
+    """PreOp and PACU beds: the linked visit follows the case, so the census follows too."""
+
+    def setUp(self):
+        super().setUp()
+        from appointments.models import Bed, Room, Unit
+        self.sunit = Unit.objects.create(facility=self.hospital, name="Perioperative", care_type="outpatient", is_surgical=True)
+        self.or_room = Room.objects.create(unit=self.sunit, name="OR 9")
+        self.or9 = SurgeryRoom.objects.create(facility=self.hospital, name="OR 9", location_room=self.or_room)
+        self.preop = Room.objects.create(unit=self.sunit, name="Pre-op")
+        self.pacu = Room.objects.create(unit=self.sunit, name="PACU")
+        self.pre1 = Bed.objects.create(room=self.preop, name="1")
+        self.pacu1 = Bed.objects.create(room=self.pacu, name="1")
+        self.pacu2 = Bed.objects.create(room=self.pacu, name="2")
+
+    def case_with_visit(self, visit=None, **extra):
+        case = self.make_case(room=self.or9.pk, **extra)
+        visit = visit or Registration.objects.create(patient=self.patient, organization=self.org, bed=self.bed_a)
+        SurgeryCase.objects.filter(pk=case["id"]).update(visit=visit)
+        return case, visit
+
+    def where(self, visit):
+        visit.refresh_from_db()
+        return visit.location_path()
+
+    def test_options_list_only_pre_op_and_pacu_beds_with_who_is_in_them(self):
+        case, _ = self.case_with_visit()
+        other = Registration.objects.create(patient=self.patient2, organization=self.org, bed=self.pacu2)
+        rows = self.as_(self.nurse).get(f"{API}cases/{case['id']}/bay-options/").json()
+        self.assertEqual([(r["room"], r["name"], r["state"]) for r in rows],
+                         [("PACU", "1", "available"), ("PACU", "2", "occupied"), ("Pre-op", "1", "available")])
+        self.assertEqual(rows[1]["note"], "Lee, Ann")  # not the inpatient beds, not the OR itself
+        self.assertEqual(other.bed_id, self.pacu2.pk)
+
+    def test_visit_follows_the_case_and_goes_back_when_it_closes(self):
+        case, visit = self.case_with_visit()
+        self.assertEqual(visit.care_setting, "acute")
+        r = self.move(case["id"], "preop", bed=self.pre1.pk)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["bed"], {"id": self.pre1.pk, "name": "1", "room": "Pre-op", "path": "Pre-op › 1"})
+        self.assertEqual(self.where(visit), "General Hospital › Perioperative › Pre-op › 1")
+        self.assertEqual(visit.assigned_location, "General Hospital › Perioperative › Pre-op › 1")
+        # the census: the pre-op bed is occupied by this patient and the inpatient bed they left is free
+        tree = self.as_(self.nurse).get("/api/locations/tree/").json()["locations"]
+        beds = {b["name"] + "@" + room["name"]: b for f in tree for u in f["units"] for room in u["rooms"] for b in room["beds"]}
+        self.assertEqual(beds["1@Pre-op"]["status"], "occupied")
+        self.assertEqual(beds["A@312"]["status"], "available")
+        r = self.move(case["id"], "or")
+        self.assertIsNone(r.json()["bed"])
+        self.assertEqual(self.where(visit), "General Hospital › Perioperative › OR 9")
+        r = self.move(case["id"], "pacu", bed=self.pacu1.pk)
+        self.assertEqual(self.where(visit), "General Hospital › Perioperative › PACU › 1")
+        self.assertEqual(self.as_(self.nurse).get(f"{API}cases/{case['id']}/").json()["bed"]["name"], "1")
+        r = self.move(case["id"], "discharged")
+        self.assertEqual(self.where(visit), "General Hospital › 3 West › 312 › A")
+        self.assertIsNone(r.json()["bed"])
+        visit.refresh_from_db()
+        self.assertEqual(visit.care_setting, "acute")  # surgery moves the patient, not the kind of visit
+        self.assertEqual(SurgeryCase.objects.get(pk=case["id"]).previous_place, {})
+
+    def test_a_patient_with_no_bed_before_surgery_leaves_the_surgical_unit_after(self):
+        visit = Registration.objects.create(patient=self.patient, organization=self.org, facility=self.hospital)
+        case, _ = self.case_with_visit(visit=visit)
+        self.move(case["id"], "preop")  # no bed chosen yet: the operating-room unit
+        self.assertEqual(self.where(visit), "General Hospital › Perioperative")
+        self.move(case["id"], "or")
+        self.move(case["id"], "pacu", bed=self.pacu1.pk)
+        self.move(case["id"], "discharged")
+        visit.refresh_from_db()
+        self.assertEqual((visit.unit_id, visit.room_id, visit.bed_id), (None, None, None))
+        self.assertEqual(visit.location_path(), "General Hospital")
+
+    def test_cancelling_puts_the_patient_back(self):
+        case, visit = self.case_with_visit()
+        self.move(case["id"], "preop", bed=self.pre1.pk)
+        r = self.move(case["id"], "cancelled", reason="Not NPO")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(self.where(visit), "General Hospital › 3 West › 312 › A")
+
+    def test_their_old_bed_is_not_taken_back_if_someone_else_has_it(self):
+        case, visit = self.case_with_visit()
+        self.move(case["id"], "preop", bed=self.pre1.pk)
+        Registration.objects.create(patient=self.patient2, organization=self.org, bed=self.bed_a)
+        self.move(case["id"], "or")
+        self.move(case["id"], "pacu", bed=self.pacu1.pk)
+        self.move(case["id"], "discharged")
+        self.assertEqual(self.where(visit), "General Hospital › 3 West › 312")  # the room, not the taken bed
+
+    def test_a_bed_that_is_not_a_bay_or_is_taken_is_refused(self):
+        case, visit = self.case_with_visit()
+        self.assertEqual(self.move(case["id"], "preop", bed=self.bed_b.pk).status_code, 400)  # an inpatient bed
+        Registration.objects.create(patient=self.patient2, organization=self.org, bed=self.pre1)
+        r = self.move(case["id"], "preop", bed=self.pre1.pk)
+        self.assertEqual(r.status_code, 409)
+        self.assertIn("already occupied by Lee, Ann", r.json()["detail"] if "detail" in r.json() else str(r.json()))
+        self.assertEqual(SurgeryCase.objects.get(pk=case["id"]).status, "pending")
+        self.assertEqual(self.where(visit), "General Hospital › 3 West › 312 › A")  # nothing moved
+        self.pacu1.hold = "blocked"
+        self.pacu1.save()
+        self.assertEqual(self.move(case["id"], "preop", bed=self.pacu1.pk).status_code, 409)
+
+    def test_two_open_cases_cannot_hold_the_same_bed(self):
+        first = self.make_case()  # no visit linked, so only the other case holds the bed
+        second = self.make_case(start="11:00")
+        self.assertEqual(self.move(first["id"], "preop", bed=self.pre1.pk).status_code, 200)
+        r = self.move(second["id"], "preop", bed=self.pre1.pk)
+        self.assertEqual(r.status_code, 409)
+        self.assertIn("already assigned to case", str(r.json()))
+
+    def test_a_bay_is_only_for_preop_and_pacu(self):
+        case, _ = self.case_with_visit()
+        self.move(case["id"], "preop")
+        self.assertEqual(self.move(case["id"], "or", bed=self.pacu1.pk).status_code, 409)
+
+    def test_a_case_without_a_visit_still_keeps_its_bay(self):
+        case = self.make_case()
+        r = self.move(case["id"], "preop", bed=self.pre1.pk)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["bed"]["name"], "1")
+
+    def test_a_discharged_visit_is_left_alone(self):
+        from django.utils import timezone as tz
+        case, visit = self.case_with_visit()
+        Registration.objects.filter(pk=visit.pk).update(discharge_datetime=tz.now(), bed=None)
+        self.assertEqual(self.move(case["id"], "preop", bed=self.pre1.pk).status_code, 200)
+        visit.refresh_from_db()
+        self.assertIsNone(visit.bed_id)
+
+    def test_history_records_the_bay(self):
+        case, _ = self.case_with_visit()
+        self.move(case["id"], "preop", bed=self.pre1.pk)
+        fields = [c["field"] for h in self.as_(self.nurse).get(f"{API}cases/{case['id']}/history/").json() for c in h["changes"]]
+        self.assertIn("bed_id", fields)

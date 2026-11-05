@@ -133,6 +133,10 @@ class SurgeryCase(models.Model):
         "users.Registration", on_delete=models.SET_NULL, null=True, blank=True, related_name="surgery_cases"
     )
     room = models.ForeignKey(SurgeryRoom, on_delete=models.SET_NULL, null=True, blank=True, related_name="cases")
+    # The pre-op or PACU bed the patient is in now (a bed in an operating-room unit that is not an OR itself).
+    bed = models.ForeignKey("appointments.Bed", on_delete=models.SET_NULL, null=True, blank=True, related_name="surgery_cases")
+    # Where the linked visit was before surgery took it: {"unit": id, "room": id, "bed": id}; put back when the case closes.
+    previous_place = models.JSONField(default=dict, blank=True)
 
     scheduled_start = models.DateTimeField(db_index=True)
     duration_minutes = models.PositiveSmallIntegerField(default=60)

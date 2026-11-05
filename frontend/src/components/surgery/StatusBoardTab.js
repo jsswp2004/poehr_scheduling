@@ -127,7 +127,10 @@ export default function StatusBoardTab({ rows, date, refreshMs, onRefreshMsChang
             return (
               <TableRow key={r.id} data-status={r.status}>
                 <TableCell>{usDate(r.date)}</TableCell>
-                <TableCell>{r.room?.name || "Unassigned"}</TableCell>
+                <TableCell>
+                  {r.room?.name || "Unassigned"}
+                  {r.bed && <Typography variant="caption" component="div" color="text.secondary">{`Bed ${r.bed.path}`}</Typography>}
+                </TableCell>
                 <TableCell>{r.time}</TableCell>
                 <TableCell>{r.case_number}</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>{boardName(r.patient.name, prefs.names)}</TableCell>

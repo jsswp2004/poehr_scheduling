@@ -19,6 +19,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { toast } from "../SimpleToast";
 import { errorText } from "../patientHeader/headerApi";
 import { surgeryApi } from "./surgeryApi";
+import BayDialog from "./BayDialog";
 import StatusChip from "./StatusChip";
 import { ACTION_LABELS, CASE_TYPES, LATERALITY, MILESTONES, startValue, toInputValue, usDate } from "./surgeryUtils";
 
@@ -67,6 +68,7 @@ export default function CaseDialog({ open, caseId, defaults, facilityId, rooms, 
   const [visits, setVisits] = useState([]);
   const [history, setHistory] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+  const [bayFor, setBayFor] = useState(null); // PreOp or PACU waiting for a bed to be chosen
   const [reason, setReason] = useState("");
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -163,15 +165,20 @@ export default function CaseDialog({ open, caseId, defaults, facilityId, rooms, 
     }
   };
 
-  const move = async (status) => {
+  const move = async (status, bed) => {
     if (status === "cancelled" && !cancelling) {
       setCancelling(true);
       return;
     }
+    if ((status === "preop" || status === "pacu") && bed === undefined) {
+      setBayFor(status);
+      return;
+    }
+    setBayFor(null);
     setBusy(true);
     setProblem("");
     try {
-      const updated = await surgeryApi.setStatus(caseId, status, reason);
+      const updated = bed === undefined ? await surgeryApi.setStatus(caseId, status, reason) : await surgeryApi.setStatus(caseId, status, reason, bed);
       setRow(updated);
       setForm(formFromCase(updated));
       setCancelling(false);
@@ -379,6 +386,7 @@ export default function CaseDialog({ open, caseId, defaults, facilityId, rooms, 
           </Button>
         )}
       </DialogActions>
+      <BayDialog open={Boolean(bayFor)} caseId={caseId} status={bayFor} busy={busy} onClose={() => setBayFor(null)} onConfirm={(bed) => move(bayFor, bed)} />
     </Dialog>
   );
 }
