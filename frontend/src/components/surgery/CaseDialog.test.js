@@ -12,6 +12,7 @@ jest.mock("./surgeryApi", () => ({
     getCase: jest.fn(),
     setStatus: jest.fn(),
     history: jest.fn(),
+    bayOptions: jest.fn(),
   },
 }));
 jest.mock("../SimpleToast", () => ({ toast: { success: jest.fn(), error: jest.fn(), warning: jest.fn() } }));
@@ -119,4 +120,37 @@ test("saving an open case sends the edited times as null when cleared", async ()
   expect(body.preop_start).toBe("2026-11-03T07:10");
   expect(body.patient_in).toBeNull();
   expect(body).not.toHaveProperty("times");
+});
+
+const bays = [
+  { id: 31, name: "1", room: "Pre-op", unit: "Operating Rooms", state: "available", note: "", current: false },
+  { id: 32, name: "2", room: "Pre-op", unit: "Operating Rooms", state: "occupied", note: "Lee, Ann", current: false },
+];
+
+test("moving to PreOp asks which bed, shows who is in the others, and sends the choice", async () => {
+  surgeryApi.getCase.mockResolvedValue(existing);
+  surgeryApi.bayOptions.mockResolvedValue(bays);
+  surgeryApi.setStatus.mockResolvedValue({ ...existing, status: "preop", status_label: "In PreOp", next_statuses: ["or", "cancelled"] });
+  render(<CaseDialog {...base} caseId={1} defaults={{ date: "2026-11-03" }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Start PreOp" }));
+  expect(surgeryApi.setStatus).not.toHaveBeenCalled();
+  expect(await screen.findByText("Move to PreOp: choose a bed")).toBeInTheDocument();
+  expect(screen.getByText("Lee, Ann")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Bed 2 in Pre-op, Lee, Ann" })).toBeDisabled();
+  const confirm = screen.getByRole("button", { name: "Move to PreOp" });
+  expect(confirm).toBeDisabled(); // choose a bed first
+  fireEvent.click(screen.getByRole("button", { name: "Bed 1 in Pre-op" }));
+  fireEvent.click(confirm);
+  await waitFor(() => expect(surgeryApi.setStatus).toHaveBeenCalledWith(1, "preop", "", 31));
+});
+
+test("Decide later moves the case without a bed", async () => {
+  surgeryApi.getCase.mockResolvedValue(existing);
+  surgeryApi.bayOptions.mockResolvedValue([]);
+  surgeryApi.setStatus.mockResolvedValue({ ...existing, status: "preop", status_label: "In PreOp", next_statuses: ["or", "cancelled"] });
+  render(<CaseDialog {...base} caseId={1} defaults={{ date: "2026-11-03" }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Start PreOp" }));
+  expect(await screen.findByText(/No PreOp or PACU beds are set up yet/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Decide later" }));
+  await waitFor(() => expect(surgeryApi.setStatus).toHaveBeenCalledWith(1, "preop", "", null));
 });

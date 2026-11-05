@@ -82,6 +82,22 @@ Start the API and the front end as you normally do, then sign in as a **nurse** 
 17. Open the browser's network tab on the Case List: one `planner` and one `cases` call per refresh, each well under a
     second. Report anything slower with the number of cases it had.
 
+## 3b. PreOp and PACU beds, and the census
+
+18. Location Manager: the "Operating Rooms" unit now has **Pre-op** and **PACU** rooms with beds 1 to 3 (the seed makes
+    them). The unit shows the "Operating rooms" badge.
+19. Case List: open a Pending case and click **Start PreOp**. A bed picker appears: free beds are selectable, beds with
+    someone in them show the patient or the case. Pick one and move. Choose **Decide later** to move without a bed.
+20. The case strip shows the bed. If the case has a linked visit, open Patients, Bed Board: the Operating Rooms unit
+    lists the Pre-op and PACU beds and the patient is in the bed you picked. Their visit location reads
+    "Facility › Operating Rooms › Pre-op › 1".
+21. Move the case to **In OR**: the pre-op bed frees up and the visit's location becomes the operating room. Move it to
+    **PACU** and pick a PACU bed; the bed board follows.
+22. Close the case (Discharged, Transferred or Cancelled): the patient goes back to where they were before surgery
+    (an inpatient bed if it is still free, otherwise its room), or out of the operating-room unit if they had no place.
+23. A case with no linked visit still keeps its bed on the case, but the census only changes for a linked visit
+    (use **Link Visit**).
+
 ## 4. Known gaps (not bugs)
 
 * A system admin with no organization gets "No facility available" (no organization switcher yet).

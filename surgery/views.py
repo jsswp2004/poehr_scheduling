@@ -11,6 +11,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from appointments.locations import occupied_beds
 from appointments.models import Facility, Room as LocationRoom
 from staffing.org_scope import acting_org
 from users.facility_scope import assigned_facility_ids, limit_to_facilities
@@ -20,6 +21,7 @@ from users.models import CustomUser, Registration
 from .models import (
     ANESTHESIA_TYPES,
     CLOSED_EDITABLE,
+    CLOSED_STATUSES,
     DELAY_REASONS,
     PARTICIPANT_ROLE_LABELS,
     PARTICIPANT_ROLES,
@@ -59,6 +61,8 @@ from .services import (
     case_card_row,
     case_row,
     room_row,
+    bay_beds,
+    bay_problem,
     surgical_unit,
     charge_row,
     charge_status,
@@ -199,6 +203,32 @@ class RoomOptions(SurgeryView):
         ])
 
 
+class BayOptions(SurgeryView):
+    """PreOp/PACU beds for one case: every bay bed at its facility with who is in it, so the picker shows what is free."""
+
+    def get(self, request, pk):
+        case = self.get_case(pk)
+        if case is None:
+            return _bad("Case not found.", http.HTTP_404_NOT_FOUND)
+        taken = occupied_beds(case.organization, exclude_registration=case.visit_id)
+        held = {c.bed_id: c.case_number for c in SurgeryCase.objects.filter(bed__isnull=False, facility=case.facility)
+                .exclude(pk=case.pk).exclude(status__in=CLOSED_STATUSES)}
+        rows = []
+        for b in bay_beds([case.facility_id]).order_by("room__name", "name"):
+            if b.hold:
+                state, note = b.hold, ""
+            elif b.pk in taken:
+                who = taken[b.pk].patient.user
+                state, note = "occupied", f"{who.last_name}, {who.first_name}"
+            elif b.pk in held:
+                state, note = "occupied", f"Case {held[b.pk]}"
+            else:
+                state, note = "available", ""
+            rows.append({"id": b.pk, "name": b.name, "room": b.room.name, "unit": b.room.unit.name,
+                         "state": state, "note": note, "current": b.pk == case.bed_id})
+        return Response(rows)
+
+
 class RoomDetail(SurgeryView):
     def patch(self, request, pk):
         if request.user.role not in ROOM_ADMIN_ROLES:
@@ -335,8 +365,13 @@ class CaseStatus(SurgeryView):
         case = self.get_case(pk)
         if case is None:
             return _bad("Case not found.", http.HTTP_404_NOT_FOUND)
+        bed = None
+        if request.data.get("bed"):
+            bed = bay_beds(self.facilities()).filter(pk=request.data["bed"]).first()
+            if bed is None:
+                return _bad("That bed is not a PreOp/PACU bed you can use.")
         try:
-            transition(case, str(request.data.get("status", "")), request.user, str(request.data.get("reason", "")))
+            transition(case, str(request.data.get("status", "")), request.user, str(request.data.get("reason", "")), bed=bed)
         except TransitionError as exc:
             unknown = str(exc).startswith("Unknown")
             return _bad(str(exc), http.HTTP_400_BAD_REQUEST if unknown else http.HTTP_409_CONFLICT,

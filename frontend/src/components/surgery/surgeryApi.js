@@ -16,7 +16,9 @@ export const surgeryApi = {
   getCase: (id) => call("get", apiEndpoints.surgeryCase(id)),
   createCase: (data) => call("post", apiEndpoints.surgeryCases, { data }),
   updateCase: (id, data) => call("patch", apiEndpoints.surgeryCase(id), { data }),
-  setStatus: (id, status, reason) => call("post", apiEndpoints.surgeryCaseStatus(id), { data: { status, reason } }),
+  setStatus: (id, status, reason, bed) =>
+    call("post", apiEndpoints.surgeryCaseStatus(id), { data: { status, reason, ...(bed ? { bed } : {}) } }),
+  bayOptions: (id) => call("get", apiEndpoints.surgeryCaseBayOptions(id)),
   history: (id) => call("get", apiEndpoints.surgeryCaseHistory(id)),
   lookups: () => call("get", apiEndpoints.surgeryLookups),
   staff: (q) => call("get", apiEndpoints.surgeryStaff, { params: { q } }),

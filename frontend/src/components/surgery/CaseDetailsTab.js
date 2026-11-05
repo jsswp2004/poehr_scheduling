@@ -68,7 +68,10 @@ export default function CaseDetailsTab({ caseId, canEdit, rooms, onEditBooking, 
           </Box>
           <Typography variant="body2">Case ID: {row.case_number}</Typography>
           <StatusChip status={row.status} label={row.status_label} />
-          <Typography variant="body2">{row.room?.path || row.room?.name || "No room"}</Typography>
+          <Typography variant="body2">
+            {row.room?.path || row.room?.name || "No room"}
+            {row.bed ? ` · Bed ${row.bed.path}` : ""}
+          </Typography>
           <Typography variant="body2" sx={{ flex: 1, minWidth: 220 }}>
             {row.procedures_text}
           </Typography>

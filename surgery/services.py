@@ -5,7 +5,8 @@ from datetime import datetime, time, timedelta
 from django.db import transaction
 from django.utils import timezone
 
-from appointments.models import Unit
+from appointments.locations import occupied_beds
+from appointments.models import Bed, Room, Unit
 
 from .models import (
     CLOSED_STATUSES,
@@ -26,7 +27,7 @@ from .models import (
 )
 
 TRACKED_FIELDS = [
-    "facility_id", "patient_id", "visit_id", "room_id", "scheduled_start", "duration_minutes", "surgeon_id",
+    "facility_id", "patient_id", "visit_id", "room_id", "bed_id", "scheduled_start", "duration_minutes", "surgeon_id",
     "service", "case_type", "anesthesia_type", "comments", "cancel_reason",
     "planned_start", "scheduled_delay_reason", "planned_delay_reason", "requires_review", "review_reason",
     "physical_status", "block_id", "booking_comments_2", "procedure_notes", "provider_notes", "time_reasons",
@@ -114,6 +115,8 @@ def case_row(case, detail=False):
         "duration_minutes": case.duration_minutes,
         "room": {"id": case.room_id, "name": case.room.name, "unit": case.room.unit_name, "path": case.room.path}
         if case.room_id else None,
+        "bed": {"id": case.bed_id, "name": case.bed.name, "room": case.bed.room.name,
+                "path": f"{case.bed.room.name} \u203a {case.bed.name}"} if case.bed_id else None,
         "patient": {
             "id": patient.pk,
             "mrn": patient.mrn,
@@ -188,7 +191,7 @@ def room_row(r):
 
 def with_related(queryset):
     return queryset.select_related(
-        "patient__user", "visit", "room__facility", "room__location_room__unit", "surgeon", "facility"
+        "patient__user", "visit", "room__facility", "room__location_room__unit", "bed__room", "surgeon", "facility"
     ).prefetch_related("procedures")
 
 
@@ -255,7 +258,87 @@ def overlap_warnings(case):
     return [f"Overlaps case {c.case_number} in {case.room.name}" for c in overlapping(case)]
 
 
-def transition(case, new_status, user, reason=""):
+def bay_beds(facility_ids):
+    """Beds a patient can wait or recover in: active beds in operating-room units, outside the ORs themselves."""
+    return Bed.objects.filter(
+        room__unit__facility_id__in=facility_ids, room__unit__is_surgical=True, room__unit__is_active=True,
+        room__is_active=True, is_active=True, room__surgery_room__isnull=True,
+    ).select_related("room__unit__facility")
+
+
+def bay_problem(case, bed):
+    """Why this bed cannot be used for the case right now, or "" when it can."""
+    if not bay_beds([case.facility_id]).filter(pk=bed.pk).exists():
+        return "That bed is not a PreOp/PACU bed at this facility."
+    if bed.hold:
+        return f"Bed {bed.name} is {bed.get_hold_display().lower()}."
+    taken = occupied_beds(case.organization, exclude_registration=case.visit_id)
+    if bed.pk in taken:
+        who = taken[bed.pk].patient.user
+        return f"Bed {bed.name} is already occupied by {who.last_name}, {who.first_name}."
+    other = SurgeryCase.objects.filter(bed=bed).exclude(pk=case.pk).exclude(status__in=CLOSED_STATUSES).first()
+    if other is not None:
+        return f"Bed {bed.name} is already assigned to case {other.case_number}."
+    return ""
+
+
+def _set_place(visit, unit=None, room=None, bed=None):
+    """Put the visit in a place, keeping its care setting (surgery moves a patient, it does not change the kind of visit)."""
+    from users.models import Registration
+
+    care = visit.care_setting
+    visit.unit, visit.room, visit.bed = unit, room, bed
+    visit.facility = None if (unit or room or bed) else visit.facility  # filled from the place in save()
+    visit.save()
+    if visit.care_setting != care:
+        Registration.objects.filter(pk=visit.pk).update(care_setting=care)
+        visit.care_setting = care
+
+
+def _restore_place(case, visit):
+    """Back to where the patient was before surgery when that place is still usable, else out of the surgical unit."""
+    prev = case.previous_place or {}
+    bed = Bed.objects.filter(pk=prev.get("bed")).select_related("room__unit").first() if prev.get("bed") else None
+    if bed is not None and bed.is_active and not bed.hold and bed.pk not in occupied_beds(case.organization, exclude_registration=visit.pk):
+        return _set_place(visit, bed.room.unit, bed.room, bed)
+    room = Room.objects.filter(pk=prev.get("room")).select_related("unit").first() if prev.get("room") else None
+    if room is not None and room.is_active:
+        return _set_place(visit, room.unit, room, None)
+    unit = Unit.objects.filter(pk=prev.get("unit")).first() if prev.get("unit") else None
+    if unit is not None and unit.is_active:
+        return _set_place(visit, unit, None, None)
+    _set_place(visit)
+
+
+def place_visit(case):
+    """
+    Move the linked visit to where the case says the patient is, so the census follows:
+    PreOp and PACU put the patient in the chosen bed (or the operating-room unit when none is chosen yet),
+    In OR puts them in the operating room, and a closed case puts them back where they were.
+    """
+    visit = case.visit
+    if visit is None or visit.discharge_datetime is not None:
+        return
+    inside = bool(visit.unit_id and visit.unit.is_surgical)
+    if case.status in CLOSED_STATUSES:
+        if case.previous_place or inside:
+            _restore_place(case, visit)
+        case.previous_place = {}
+        return
+    if not inside and not case.previous_place:
+        case.previous_place = {"unit": visit.unit_id, "room": visit.room_id, "bed": visit.bed_id}
+    if case.status == "or":
+        loc = case.room.location_room if case.room_id and case.room.location_room_id else None
+        if loc is not None:
+            return _set_place(visit, loc.unit, loc, None)
+        return _set_place(visit, surgical_unit(case.facility))
+    if case.bed_id:
+        return _set_place(visit, case.bed.room.unit, case.bed.room, case.bed)
+    _set_place(visit, surgical_unit(case.facility))
+
+
+
+def transition(case, new_status, user, reason="", bed=None):
     """Move a case along the status flow, stamping the matching times. Raises TransitionError."""
     if new_status not in STATUS_LABELS:
         raise TransitionError(f"Unknown status '{new_status}'.")
@@ -270,6 +353,12 @@ def transition(case, new_status, user, reason=""):
             raise TransitionError(f"A case that is {here} is closed and cannot change status.")
         if new_status == "cancelled" and not reason.strip():
             raise TransitionError("A reason is required to cancel a case.")
+        if bed is not None and new_status not in ("preop", "pacu"):
+            raise TransitionError("A bay can only be chosen when the patient goes to PreOp or PACU.")
+        if bed is not None:
+            problem = bay_problem(case, bed)
+            if problem:
+                raise TransitionError(problem)
         before = snapshot(case)
         now = timezone.now()
         for field in STATUS_STAMPS.get(new_status, []):
@@ -279,6 +368,9 @@ def transition(case, new_status, user, reason=""):
             case.cancel_reason = reason.strip()[:200]
         old_status = case.status
         case.status = new_status
+        # the bay follows the stage: chosen for PreOp/PACU, released for the OR and when the case closes
+        case.bed = bed if new_status in ("preop", "pacu") else None
+        place_visit(case)
         case.save()
         after = snapshot(case)
         after["status"] = new_status

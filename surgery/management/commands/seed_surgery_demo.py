@@ -16,9 +16,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from appointments.models import Facility
-from users.models import CustomUser, Organization, Patient
+from users.models import CustomUser, Organization, Patient, Registration
 
-from appointments.models import Room as LocationRoom
+from appointments.models import Bed, Room as LocationRoom
 from surgery.models import (
     CaseCard,
     CaseParticipant,
@@ -108,14 +108,16 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             if opts["reset"]:
+                Registration.objects.filter(organization=org, reason_for_visit__startswith=TAG).delete()  # frees their beds
                 removed = SurgeryCase.objects.filter(organization=org, comments__startswith=TAG).delete()[0]
                 self.stdout.write(f"Removed demo cases ({removed} rows including their details).")
             elif SurgeryCase.objects.filter(organization=org, comments__startswith=TAG).exists():
                 raise CommandError("Demo cases already exist here. Use --reset to replace them.")
             rooms = self._rooms(facility)
+            bays = self._bays(facility)
             cards = self._cards(org)
             self._policies_and_prices(org)
-            made = self._cases(org, facility, rooms, cards, patients, doctors, nurses, day)
+            made = self._cases(org, facility, rooms, bays, cards, patients, doctors, nurses, day)
         self.stdout.write(self.style.SUCCESS(
             f"Seeded {made} cases for {day} at {facility.name} ({org.name}): {len(rooms)} rooms, {len(cards)} cards."))
 
@@ -141,6 +143,27 @@ class Command(BaseCommand):
             rooms.append(room)
         return rooms
 
+    def _bays(self, facility):
+        """Pre-op and PACU beds in the operating-room unit; the census shows who is in them."""
+        unit = surgical_unit(facility)
+        out = {}
+        for key, name in (("preop", "Pre-op"), ("pacu", "PACU")):
+            room, _ = LocationRoom.objects.get_or_create(unit=unit, name=name)
+            out[key] = [Bed.objects.get_or_create(room=room, name=str(n))[0] for n in (1, 2, 3)]
+        return out
+
+    def _visit(self, case, org, facility, bays):
+        """A patient who is in PreOp, the OR or PACU has an open visit placed where the case says they are."""
+        if case.status not in ("preop", "or", "pacu"):
+            return
+        from surgery.services import place_visit
+        case.visit = Registration.objects.create(
+            patient=case.patient, organization=org, facility=facility, reason_for_visit=f"{TAG} surgery")
+        if case.status in ("preop", "pacu"):
+            case.bed = bays[case.status][0]
+        place_visit(case)
+        case.save()
+
     def _cards(self, org):
         out = {}
         for name, spec in CARDS.items():
@@ -164,7 +187,7 @@ class Command(BaseCommand):
         h, m = hhmm.split(":")
         return timezone.make_aware(datetime(day.year, day.month, day.day, int(h), int(m)))
 
-    def _cases(self, org, facility, rooms, cards, patients, doctors, nurses, day):
+    def _cases(self, org, facility, rooms, bays, cards, patients, doctors, nurses, day):
         made = 0
         for i, (clock, minutes, room_i, status, ctype, service, proc, lat, card_name, in_room) in enumerate(CASES):
             patient = patients[i % len(patients)]
@@ -179,6 +202,7 @@ class Command(BaseCommand):
             record(case, case.created_by, "created", {}, snapshot(case))
             if status != "pending":
                 self._advance(case, status, start, in_room, doctors, nurses, card_name and cards[card_name])
+                self._visit(case, org, facility, bays)
             made += 1
         return made
 
