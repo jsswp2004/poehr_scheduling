@@ -154,3 +154,19 @@ test("Decide later moves the case without a bed", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Decide later" }));
   await waitFor(() => expect(surgeryApi.setStatus).toHaveBeenCalledWith(1, "preop", "", null));
 });
+
+test("can ask booking to open the visit in Registration", async () => {
+  surgeryApi.createCase.mockResolvedValue({ id: 9, case_number: 1001, warnings: [] });
+  render(<CaseDialog {...base} caseId={null} defaults={{ date: "2026-11-03", room: 10, time: "08:00" }} />);
+  const box = screen.getByLabelText("Open a visit in Registration for this case");
+  expect(box).toBeDisabled(); // needs a patient first
+  const patientInput = screen.getByLabelText(/Patient/);
+  fireEvent.focus(patientInput);
+  fireEvent.change(patientInput, { target: { value: "basc" } });
+  fireEvent.click(await screen.findByText("Bascom, Mark (MRN-000001)"));
+  fireEvent.click(screen.getByLabelText("Open a visit in Registration for this case"));
+  fireEvent.change(screen.getByLabelText("Procedure"), { target: { value: "CYSTOSCOPY" } });
+  fireEvent.click(screen.getByRole("button", { name: "Book Case" }));
+  await waitFor(() => expect(surgeryApi.createCase).toHaveBeenCalledTimes(1));
+  expect(surgeryApi.createCase.mock.calls[0][0]).toEqual(expect.objectContaining({ visit: null, create_visit: true }));
+});

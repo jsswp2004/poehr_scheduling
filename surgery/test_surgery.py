@@ -126,7 +126,7 @@ class BookingTests(SurgeryBase):
         r = self.book(start="09:00")
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.json()["warnings"], ["Overlaps case 1001 in OR-1"])
-        self.assertEqual(self.book(start="09:00", room=self.or2.pk).json()["warnings"], [])
+        self.assertEqual(self.book(start="09:00", room=self.or2.pk, surgeon=None).json()["warnings"], [])
 
     def test_patients_and_patient_role_cannot_use_the_module(self):
         self.assertEqual(self.as_(self.patient_user).get(API + "cases/").status_code, 403)
@@ -1351,3 +1351,51 @@ class BayTests(SurgeryBase):
         self.move(case["id"], "preop", bed=self.pre1.pk)
         fields = [c["field"] for h in self.as_(self.nurse).get(f"{API}cases/{case['id']}/history/").json() for c in h["changes"]]
         self.assertIn("bed_id", fields)
+
+
+class RegistrationAndScheduleLinkTests(SurgeryBase):
+    """Booking can open the visit in Registration; the surgeon's other cases and appointments warn."""
+
+    def test_booking_with_create_visit_opens_and_links_a_scheduled_visit(self):
+        r = self.book(create_visit=True)
+        self.assertEqual(r.status_code, 201, r.content)
+        case = SurgeryCase.objects.get(pk=r.json()["id"])
+        visit = case.visit
+        self.assertIsNotNone(visit)
+        self.assertEqual((visit.patient_id, visit.facility_id, visit.admission_type), (self.patient.pk, self.hospital.pk, "scheduled"))
+        self.assertEqual(visit.care_setting, "ambulatory")
+        self.assertEqual(visit.attending_provider_id, self.doctor.pk)
+        self.assertIn("CYSTOSCOPY", visit.scheduled_procedure)
+        self.assertTrue(visit.visit_number.startswith("VN-"))
+
+    def test_create_visit_does_nothing_when_a_visit_is_chosen_or_not_asked_for(self):
+        own = Registration.objects.create(patient=self.patient, organization=self.org)
+        r = self.book(visit=own.pk, create_visit=True)
+        self.assertEqual(SurgeryCase.objects.get(pk=r.json()["id"]).visit_id, own.pk)
+        self.assertEqual(Registration.objects.filter(patient=self.patient).count(), 1)
+        r = self.book(start="12:00")
+        self.assertIsNone(SurgeryCase.objects.get(pk=r.json()["id"]).visit_id)
+
+    def test_editing_can_open_a_visit_once(self):
+        case = self.make_case()
+        for _ in range(2):
+            r = self.as_(self.nurse).patch(f"{API}cases/{case['id']}/", {"create_visit": True}, format="json")
+            self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(Registration.objects.filter(patient=self.patient).count(), 1)
+
+    def test_warns_when_the_surgeon_is_in_another_room_at_the_same_time(self):
+        self.make_case(start="08:00")
+        r = self.book(start="09:00", room=self.or2.pk)
+        self.assertEqual(r.status_code, 201)
+        self.assertTrue(any("is also booked on case 1001" in w for w in r.json()["warnings"]), r.json()["warnings"])
+
+    def test_warns_about_a_clinic_appointment_but_not_a_cancelled_one(self):
+        from appointments.models import Appointment
+        for status in ("scheduled", "cancelled"):
+            Appointment.objects.create(
+                organization=self.org, patient=self.patient.user, provider=self.doctor, title=f"Clinic {status}",
+                appointment_datetime=at(self.day, "08:30"), duration_minutes=30, status=status,
+            )
+        warnings = self.book(start="08:00").json()["warnings"]
+        self.assertTrue(any("clinic appointment" in w and "Clinic scheduled" in w for w in warnings), warnings)
+        self.assertFalse(any("Clinic cancelled" in w for w in warnings))
