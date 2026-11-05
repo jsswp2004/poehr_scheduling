@@ -70,7 +70,7 @@ export default function MdsPage() {
     );
   }
   return (
-    <Box sx={{ height: "100vh", width: "100%" }}>
+    <Box sx={{ height: "calc(100vh - 95px)", width: "100%", overflow: "hidden" }}>
       <iframe ref={frame} title="POWER MDS Assessment Portal" src={MDS_URL} style={{ border: 0, width: "100%", height: "100%" }} />
     </Box>
   );
