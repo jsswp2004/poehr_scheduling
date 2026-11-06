@@ -195,7 +195,7 @@ export const OverviewPage = ({ className }) => {
                 </div>
                 <div className="panel-content">
                   <h2 className="app-title">{p.title}</h2>
-                  {p.ai && <span className="ai-tag">AI assistant</span>}
+                  {p.ai && <span className="ai-tag">With AI Assistant</span>}
                   {p.audience && <p className="app-audience">{p.audience}</p>}
                   <p className="app-description">{p.description}</p>
                   <div className="feature-highlights">

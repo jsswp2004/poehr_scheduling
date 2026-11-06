@@ -36,7 +36,7 @@ test('groups the services and lists what every plan includes', () => {
 
 test('marks the four AI assistants and names the Staffing audiences', () => {
   render(<OverviewPage />);
-  expect(screen.getAllByText('AI assistant')).toHaveLength(4);
+  expect(screen.getAllByText('With AI Assistant')).toHaveLength(4);
   expect(
     screen.getByText(
       'Built for skilled nursing facilities, rehabilitation centers, clinics and hospitals.'
