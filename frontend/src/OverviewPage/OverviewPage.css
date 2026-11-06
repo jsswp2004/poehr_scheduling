@@ -49,9 +49,6 @@
 /* A two-tile row uses the same tile width as the three-tile rows and sits centered. */
 .three-panel-layout.cols-2 { grid-template-columns: repeat(2, calc((100% - 32px) / 3)); justify-content: center; min-height: 0; }
 .three-panel-layout.cols-3 { grid-template-columns: repeat(3, 1fr); min-height: 0; }
-/* Four tiles: two by two on a medium screen, one row on a wide one. */
-.three-panel-layout.cols-4 { grid-template-columns: repeat(2, 1fr); min-height: 0; }
-@media (min-width: 1600px) { .three-panel-layout.cols-4 { grid-template-columns: repeat(4, 1fr); } }
 
 .group-heading {
   margin: 0;
@@ -300,8 +297,7 @@
 @media (max-width: 1200px) {
   .three-panel-layout,
   .three-panel-layout.cols-2,
-  .three-panel-layout.cols-3,
-  .three-panel-layout.cols-4 {
+  .three-panel-layout.cols-3 {
     grid-template-columns: 1fr;
     gap: 16px;
     padding: 8px 20px 24px;

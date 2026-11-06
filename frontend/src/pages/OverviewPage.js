@@ -45,21 +45,16 @@ const GROUPS = [
         ],
       },
       {
-        title: "POWER MDS",
-        image: mdsImage,
-        alt: "POWER MDS coding workspace",
-        audience: "Built for MDS coordinators in skilled nursing facilities.",
-        ai: {
-          title: "Ask the AI assistant about an assessment",
-          text: "Ask what is due this week, why an answer was suggested, how the PDPM result was reached, or which documents you need to code. It answers from the open assessment and takes you to the right page. It only reads; it never changes, signs or prints anything.",
-        },
+        title: "POWER Surgery",
+        image: surgeryImage,
+        alt: "POWER Surgery case list and day planner",
         description:
-          "A guide for MDS 3.0 coding. It reads the chart and shows what supports each answer. You code in your own system.",
+          "Operating-room cases for the day, from the schedule to the charges, in one place.",
         highlights: [
-          ["📋", "Suggested answers with the chart pages that support them"],
-          ["✅", "Validation checks and a final review before you finish"],
-          ["💰", "PDPM and HIPPS results, with care areas that triggered"],
-          ["🔒", "Names are removed in your browser; working copies are deleted automatically"],
+          ["📋", "Case List, Day Planner and a live Status Board"],
+          ["🩺", "Procedures with CPT codes, the team and the case times"],
+          ["🧰", "Preference cards and the supplies used in each case"],
+          ["💲", "Charges by your own policies, plus case documents"],
         ],
       },
     ],
@@ -100,19 +95,6 @@ const GROUPS = [
           ["📊", "Coverage against your staffing requirements"],
           ["👩‍⚕️", "Time off, call-outs and shift pick-up"],
           ["📄", "Daily staffing reports and shift reminders"],
-        ],
-      },
-      {
-        title: "POWER Surgery",
-        image: surgeryImage,
-        alt: "POWER Surgery case list and day planner",
-        description:
-          "Operating-room cases for the day, from the schedule to the charges, in one place.",
-        highlights: [
-          ["📋", "Case List, Day Planner and a live Status Board"],
-          ["🩺", "Procedures with CPT codes, the team and the case times"],
-          ["🧰", "Preference cards and the supplies used in each case"],
-          ["💲", "Charges by your own policies, plus case documents"],
         ],
       },
       {
@@ -157,6 +139,24 @@ const GROUPS = [
           ["🎙️", "US English medical dictation"],
           ["✨", "Optional AI clean-up that you review and accept field by field"],
           ["🔐", "Audio is not stored by POWER"],
+        ],
+      },
+      {
+        title: "POWER MDS",
+        image: mdsImage,
+        alt: "POWER MDS coding workspace",
+        audience: "Built for MDS coordinators in skilled nursing facilities.",
+        ai: {
+          title: "Ask the AI assistant about an assessment",
+          text: "Ask what is due this week, why an answer was suggested, how the PDPM result was reached, or which documents you need to code. It answers from the open assessment and takes you to the right page. It only reads; it never changes, signs or prints anything.",
+        },
+        description:
+          "A guide for MDS 3.0 coding. It reads the chart and shows what supports each answer. You code in your own system.",
+        highlights: [
+          ["📋", "Suggested answers with the chart pages that support them"],
+          ["✅", "Validation checks and a final review before you finish"],
+          ["💰", "PDPM and HIPPS results, with care areas that triggered"],
+          ["🔒", "Names are removed in your browser; working copies are deleted automatically"],
         ],
       },
     ],
