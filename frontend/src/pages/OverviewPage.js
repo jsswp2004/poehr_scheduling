@@ -48,6 +48,10 @@ const GROUPS = [
         image: mdsImage,
         alt: "POWER MDS coding workspace",
         audience: "Built for MDS coordinators in skilled nursing facilities.",
+        ai: {
+          title: "Ask the AI assistant about an assessment",
+          text: "Ask what is due this week, why an answer was suggested, how the PDPM result was reached, or which documents you need to code. It answers from the open assessment and takes you to the right page. It only reads; it never changes, signs or prints anything.",
+        },
         description:
           "A guide for MDS 3.0 coding. It reads the chart and shows what supports each answer. You code in your own system.",
         highlights: [
