@@ -72,6 +72,23 @@ const CAPABILITIES = {
     "Consent and opt-out handling for texts",
     "Message log showing what was sent or blocked",
   ],
+  surgery: [
+    "Case List, Day Planner and a live Status Board for the day, by facility",
+    "Procedures with CPT codes, the surgical team and the case times",
+    "Preference cards, and the supplies and implants used in each case",
+    "Charges built from policies you set, and case documents",
+    "A history of changes to each case",
+  ],
+  mds: [
+    "Assessment calendar showing what is due and what is late",
+    "Redactor swaps names and identifiers for codes in your browser before any text is sent",
+    "Suggested answers for MDS 3.0 items, with the chart pages that support them",
+    "PDPM and HIPPS result, care areas that triggered, and a Section GG and Section I view",
+    "Validation checks and a Triple check before you finish",
+    "Printable findings sheet; working copies are deleted automatically",
+    "AI assistant that answers from the open assessment (read only)",
+    "A guide for coding; you still enter and sign the MDS in your own system",
+  ],
   telehealth: [
     "Video visits; patients join from a link, no account needed",
     "Waiting room; the provider admits the patient",

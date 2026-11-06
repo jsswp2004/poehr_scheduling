@@ -10,6 +10,7 @@ import staffingImage from "../assets/dashboard_clinician.png";
 import telehealthImage from "../assets/telehealth.jpg";
 import dictationImage from "../assets/dictation.jpg";
 import mdsImage from "../assets/mds.jpg";
+import surgeryImage from "../assets/surgery.jpg";
 
 // Every service, grouped the same way as the Pricing page. Descriptions and bullets say only what the product
 // does today (the same list the Pricing page uses).
@@ -99,6 +100,19 @@ const GROUPS = [
           ["📊", "Coverage against your staffing requirements"],
           ["👩‍⚕️", "Time off, call-outs and shift pick-up"],
           ["📄", "Daily staffing reports and shift reminders"],
+        ],
+      },
+      {
+        title: "POWER Surgery",
+        image: surgeryImage,
+        alt: "POWER Surgery case list and day planner",
+        description:
+          "Operating-room cases for the day, from the schedule to the charges, in one place.",
+        highlights: [
+          ["📋", "Case List, Day Planner and a live Status Board"],
+          ["🩺", "Procedures with CPT codes, the team and the case times"],
+          ["🧰", "Preference cards and the supplies used in each case"],
+          ["💲", "Charges by your own policies, plus case documents"],
         ],
       },
       {

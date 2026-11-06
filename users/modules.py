@@ -49,7 +49,7 @@ MODULES = [
     ("surgery", "Surgery", "Operations",
      "Operating-room cases, Case List, Day Planner, Status Board, charges and case documents.", False),
     ("mds", "POWER MDS", "Clinical",
-     "MDS 3.0 coordinator workspace: assessment calendar, chart coding assistant, PDPM, validation and submission.", False),
+     "MDS 3.0 coding guide: assessment calendar, chart coding suggestions, PDPM, validation and a printable findings sheet.", False),
     ("lab_interface", "Electronic lab interface", "Add-ons",
      "Connect to Quest or Labcorp. Set up by arrangement and quoted separately.", True),
 ]
