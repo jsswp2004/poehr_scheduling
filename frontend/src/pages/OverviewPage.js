@@ -9,6 +9,7 @@ import documentationImage from "../assets/documentation.png";
 import staffingImage from "../assets/dashboard_clinician.png";
 import telehealthImage from "../assets/telehealth.jpg";
 import dictationImage from "../assets/dictation.jpg";
+import mdsImage from "../assets/mds.jpg";
 
 // Every service, grouped the same way as the Pricing page. Descriptions and bullets say only what the product
 // does today (the same list the Pricing page uses).
@@ -40,6 +41,20 @@ const GROUPS = [
           ["📈", "Flowsheets, growth charts and vaccine schedules"],
           ["🧪", "Orders and lab results, prescriptions and referrals"],
           ["🚑", "Triage and live status boards, plus builders for your own forms"],
+        ],
+      },
+      {
+        title: "POWER MDS",
+        image: mdsImage,
+        alt: "POWER MDS coding workspace",
+        audience: "Built for MDS coordinators in skilled nursing facilities.",
+        description:
+          "A guide for MDS 3.0 coding. It reads the chart and shows what supports each answer. You code in your own system.",
+        highlights: [
+          ["📋", "Suggested answers with the chart pages that support them"],
+          ["✅", "Validation checks and a final review before you finish"],
+          ["💰", "PDPM and HIPPS results, with care areas that triggered"],
+          ["🔒", "Names are removed in your browser; working copies are deleted automatically"],
         ],
       },
     ],

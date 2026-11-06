@@ -14,6 +14,7 @@ test('keeps its title and shows every service except the lab interface', () => {
   [
     'POWER Patient Portal',
     'POWER Notes',
+    'POWER MDS',
     'POWER Scheduler',
     'POWER Staffing',
     'POWER Communicator',
