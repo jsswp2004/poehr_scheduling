@@ -17,6 +17,7 @@ test('keeps its title and shows every service except the lab interface', () => {
     'POWER MDS',
     'POWER Scheduler',
     'POWER Staffing',
+    'POWER Surgery',
     'POWER Communicator',
     'POWER Telehealth',
     'POWER Dictate',
