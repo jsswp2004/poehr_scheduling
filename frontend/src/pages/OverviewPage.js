@@ -172,7 +172,7 @@ const GROUPS = [
 ];
 
 const INCLUDED = [
-  "AI assistants in Scheduler, Staffing, Communicator and MDS, with a free monthly amount of questions",
+  "AI assistants in Scheduler, Staffing and Communicator, with a free monthly amount of questions",
   "Reports: build, save, share and export to PDF or CSV",
   "Secure staff messaging",
   "Role-based access you can adjust for each person",
