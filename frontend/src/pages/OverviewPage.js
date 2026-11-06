@@ -6,6 +6,7 @@ import schedulerImage from "../assets/dashboard_scheduling.jpg";
 import communicatorImage from "../assets/communicator.png";
 import portalImage from "../assets/Portal.png";
 import documentationImage from "../assets/documentation.png";
+import registrationImage from "../assets/registration.jpg";
 import staffingImage from "../assets/dashboard_clinician.png";
 import telehealthImage from "../assets/telehealth.jpg";
 import dictationImage from "../assets/dictation.jpg";
@@ -13,7 +14,9 @@ import mdsImage from "../assets/mds.jpg";
 import surgeryImage from "../assets/surgery.jpg";
 
 // Every service, grouped the same way as the Pricing page. Descriptions and bullets say only what the product
-// does today (the same list the Pricing page uses).
+// does today (the same list the Pricing page uses). Each panel: who it is for, what it does, three highlights.
+const AUDIENCES = ["Clinics", "Skilled nursing facilities", "Hospitals"];
+
 const GROUPS = [
   {
     name: "Clinical",
@@ -22,39 +25,48 @@ const GROUPS = [
         title: "POWER Patient Portal",
         image: portalImage,
         alt: "POWER Patient Portal interface",
-        description:
-          "Patients sign in, see their information and ask for visits, with an easy, clear experience.",
+        audience: "For patients and the staff who serve them",
+        description: "Patients sign in, see their information and ask for visits.",
         highlights: [
-          ["📅", "Appointment requests that staff approve or deny"],
-          ["📢", "Announcements for patients and staff"],
-          ["🔔", "Text and email preferences with opt-out"],
           ["👤", "Patients see and update their own information"],
+          ["📅", "Appointment requests that staff approve or deny"],
+          ["📢", "Announcements, with text and email opt-out"],
+        ],
+      },
+      {
+        title: "POWER Registration",
+        image: registrationImage,
+        alt: "POWER Registration workspace",
+        audience: "For front-desk and registration staff",
+        description: "Register patients at the front desk, quickly or step by step. Works alone or with Notes.",
+        highlights: [
+          ["⚡", "Quick register with a duplicate check"],
+          ["🧾", "Registration steps you choose and order"],
+          ["👶", "Newborn registration and numbered receipts"],
         ],
       },
       {
         title: "POWER Notes",
         image: documentationImage,
         alt: "POWER Notes clinical documentation interface",
-        description:
-          "Clinical notes and charting, with orders, results and prescriptions together in one place.",
+        audience: "For physicians, nurses and clinical staff",
+        description: "Notes, orders and results together in one chart.",
         highlights: [
-          ["📝", "Admission, triage, ambulatory, progress and nursing notes"],
-          ["📈", "Flowsheets, growth charts and vaccine schedules"],
-          ["🧪", "Orders and lab results, prescriptions and referrals"],
-          ["🚑", "Triage and live status boards, plus builders for your own forms"],
+          ["📝", "Admission, triage, progress and nursing notes, plus flowsheets"],
+          ["🧪", "Orders, lab results, prescriptions and referrals"],
+          ["🚑", "Builders for your own forms and status boards"],
         ],
       },
       {
         title: "POWER Surgery",
         image: surgeryImage,
         alt: "POWER Surgery case list and day planner",
-        description:
-          "Operating-room cases for the day, from the schedule to the charges, in one place.",
+        audience: "For OR schedulers and charge nurses",
+        description: "Run the day\u2019s operating-room cases from schedule to charges.",
         highlights: [
           ["📋", "Case List, Day Planner and a live Status Board"],
-          ["🩺", "Procedures with CPT codes, the team and the case times"],
-          ["🧰", "Preference cards and the supplies used in each case"],
-          ["💲", "Charges by your own policies, plus case documents"],
+          ["🩺", "Procedures, team, case times and supplies used"],
+          ["💲", "Charges from your own policies, plus case documents"],
         ],
       },
     ],
@@ -66,15 +78,14 @@ const GROUPS = [
         title: "POWER Scheduler",
         image: schedulerImage,
         alt: "POWER Scheduler dashboard",
+        audience: "For clinics and hospital departments",
         ai: {
-          title: "Ask the AI assistant about your schedule",
-          text: "Ask who is waiting for approval. It can prepare an approval, a denial, an arrival or a no-show. Nothing changes until you confirm.",
+          title: "Ask: who is waiting for approval?",
+          text: "It can prepare an approval, denial, arrival or no-show. Nothing changes until you confirm.",
         },
-        description:
-          "Appointments, provider availability and check-in, with automatic reminders to patients.",
+        description: "Appointments, availability and check-in, with automatic reminders.",
         highlights: [
-          ["📅", "Daily, weekly and monthly recurring appointments"],
-          ["⏰", "Provider availability, holidays and clinic events"],
+          ["📅", "Recurring appointments and provider availability"],
           ["✅", "Patient requests, check-in and no-show tracking"],
           ["📤", "CSV upload for availability, events and patients"],
         ],
@@ -83,35 +94,32 @@ const GROUPS = [
         title: "POWER Staffing",
         image: staffingImage,
         alt: "POWER Staffing dashboard",
-        audience: "Built for skilled nursing facilities, rehabilitation centers, clinics and hospitals.",
+        audience: "For skilled nursing facilities, rehabilitation centers, clinics and hospitals",
         ai: {
-          title: "Ask the AI assistant",
-          text: "Ask who is working tonight or whether next week is covered. It answers from your roster, and staff can ask about their own schedule. It can prepare a time-off request or a call-out; nothing is sent until you confirm.",
+          title: "Ask: who is working tonight?",
+          text: "It answers from your roster and can prepare a time-off request or call-out. Nothing is sent until you confirm.",
         },
-        description:
-          "Duty rosters for nurses and physicians, with coverage kept visible at a glance.",
+        description: "Duty rosters for nurses and physicians, with coverage visible at a glance.",
         highlights: [
           ["🗓️", "Roster, units and recurring shift patterns"],
           ["📊", "Coverage against your staffing requirements"],
-          ["👩‍⚕️", "Time off, call-outs and shift pick-up"],
-          ["📄", "Daily staffing reports and shift reminders"],
+          ["👩‍⚕️", "Time off, call-outs and shift reminders"],
         ],
       },
       {
         title: "POWER Communicator",
         image: communicatorImage,
         alt: "POWER Communicator interface",
+        audience: "For front desks and care teams",
         ai: {
-          title: "Ask the AI assistant about your contacts and messages",
-          text: "Ask who has opted out of texts. It can prepare a text, an email or a new contact. Nothing is sent until you confirm.",
+          title: "Ask: who has opted out of texts?",
+          text: "It can prepare a text, an email or a new contact. Nothing is sent until you confirm.",
         },
-        description:
-          "Text and email updates to patients, with consent and opt-outs handled.",
+        description: "Text and email updates to patients, with consent and opt-outs handled.",
         highlights: [
           ["📱", "Bulk text and email to a contact list"],
           ["🔔", "Automatic appointment reminders"],
-          ["🔒", "Consent and opt-out handling for texts"],
-          ["📋", "Message log of what was sent or blocked"],
+          ["📋", "Opt-outs handled, with a log of what was sent"],
         ],
       },
     ],
@@ -123,6 +131,7 @@ const GROUPS = [
         title: "POWER Telehealth",
         image: telehealthImage,
         alt: "POWER Telehealth video visit",
+        audience: "For providers and their patients",
         description: "Video visits that patients join from a link.",
         highlights: [
           ["🎥", "No account needed for the patient"],
@@ -134,10 +143,11 @@ const GROUPS = [
         title: "POWER Dictate",
         image: dictationImage,
         alt: "POWER Dictate voice dictation",
+        audience: "For physicians and nurses who write notes",
         description: "Speak into a note instead of typing.",
         highlights: [
           ["🎙️", "US English medical dictation"],
-          ["✨", "Optional AI clean-up that you review and accept field by field"],
+          ["✨", "Optional AI clean-up that you review and accept"],
           ["🔐", "Audio is not stored by POWER"],
         ],
       },
@@ -145,18 +155,16 @@ const GROUPS = [
         title: "POWER MDS",
         image: mdsImage,
         alt: "POWER MDS coding workspace",
-        audience: "Built for MDS coordinators in skilled nursing facilities.",
+        audience: "For MDS coordinators in skilled nursing facilities",
         ai: {
-          title: "Ask the AI assistant about an assessment",
-          text: "Ask what is due this week, why an answer was suggested, how the PDPM result was reached, or which documents you need to code. It answers from the open assessment and takes you to the right page. It only reads; it never changes, signs or prints anything.",
+          title: "Ask: which documents do I need to code?",
+          text: "It answers from the open assessment. It only reads; it never changes, signs or prints anything.",
         },
-        description:
-          "A guide for MDS 3.0 coding. It reads the chart and shows what supports each answer. You code in your own system.",
+        description: "A coding guide for MDS 3.0. You still enter the MDS in your own system.",
         highlights: [
           ["📋", "Suggested answers with the chart pages that support them"],
-          ["✅", "Validation checks and a final review before you finish"],
-          ["💰", "PDPM and HIPPS results, with care areas that triggered"],
-          ["🔒", "Names are removed in your browser; working copies are deleted automatically"],
+          ["💰", "Validation checks, PDPM and HIPPS results"],
+          ["🔒", "Names removed in your browser; working copies deleted automatically"],
         ],
       },
     ],
@@ -164,10 +172,11 @@ const GROUPS = [
 ];
 
 const INCLUDED = [
-  "AI assistants in Scheduler, Staffing and Communicator, with a free monthly amount of questions",
+  "AI assistants in Scheduler, Staffing, Communicator and MDS, with a free monthly amount of questions",
   "Reports: build, save, share and export to PDF or CSV",
   "Secure staff messaging",
   "Role-based access you can adjust for each person",
+  "A 7-day free trial, and change your services at any time",
 ];
 
 export const OverviewPage = ({ className }) => {
@@ -180,6 +189,15 @@ export const OverviewPage = ({ className }) => {
         <h2 className="page-title">
           Discover the complete POWER healthcare management suite
         </h2>
+        <p className="page-tagline">One platform for your clinic, nursing home or hospital</p>
+        <p className="page-subtitle">
+          Choose only the services you need. They share one sign-in, and you can change your services at any time.
+        </p>
+        <ul className="audience-chips" aria-label="Who POWER is for">
+          {AUDIENCES.map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
       </div>
 
       {GROUPS.map((group) => (
@@ -231,8 +249,16 @@ export const OverviewPage = ({ className }) => {
         <p className="included-cta-text">
           Pay for the services you use. Start with a 7-day free trial.
         </p>
-        <button type="button" className="included-cta" onClick={() => navigate("/pricing")}>
-          See pricing
+        <div className="included-actions">
+          <button type="button" className="included-cta" onClick={() => navigate("/pricing")}>
+            See pricing
+          </button>
+          <button type="button" className="included-cta included-cta-outline" onClick={() => navigate("/contact")}>
+            Talk to us
+          </button>
+        </div>
+        <button type="button" className="included-link" onClick={() => navigate("/security")}>
+          How we protect your data
         </button>
       </section>
 
