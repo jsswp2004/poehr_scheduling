@@ -43,7 +43,7 @@ test('marks the four AI assistants and names the Staffing audiences', () => {
       'For skilled nursing facilities, rehabilitation centers, clinics and hospitals'
     )
   ).toBeInTheDocument();
-  expect(screen.getByText(/AI assistants in Scheduler, Staffing, Communicator and MDS/)).toBeInTheDocument();
+  expect(screen.getByText(/AI assistants in Scheduler, Staffing and Communicator/)).toBeInTheDocument();
   expect(screen.getByText('One platform for your clinic, nursing home or hospital')).toBeInTheDocument();
   ['Clinics', 'Skilled nursing facilities', 'Hospitals'].forEach((a) => expect(screen.getByText(a)).toBeInTheDocument());
   expect(screen.getByRole('button', { name: 'Talk to us' })).toBeInTheDocument();
