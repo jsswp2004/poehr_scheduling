@@ -41,3 +41,8 @@ export const formatMoney = (n) => `$${Number(n).toLocaleString('en-US')}`;
 export const userLimitLabel = (limit) => (limit >= 999999 ? 'Unlimited users' : limit === 1 ? '1 user' : `Up to ${limit} users`);
 
 export const GROUP_ORDER = ['Clinical', 'Operations', 'Add-ons'];
+
+// Where each service sits on the Pricing page. Same grouping as the Overview page; it holds even before the
+// server's catalog says the same (the catalog's group is only a label).
+const GROUP_OF = { surgery: 'Clinical', mds: 'Add-ons' };
+export const groupOf = (m) => GROUP_OF[m.code] || m.group;
