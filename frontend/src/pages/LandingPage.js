@@ -5,8 +5,8 @@
  * =====================
  * 1. Hero Section - Main banner with headline and CTA button
  * 2. Navigation Header - Logo, menu items, login/trial buttons
- * 3. Product Features - POWER Scheduling feature showcase
- * 4. Collaboration Section - Team collaboration features
+ * 3. Services strip and four feature rows (scheduling, front desk to OR, nursing, team)
+ * 4. AI assistants band
  * 5. Customer Testimonials - Client reviews and feedback
  * 6. Cross-Platform Section - Multi-device availability info
  * 7. Data Security Section - Security and privacy features
@@ -29,7 +29,83 @@ import DashboardImage from "../assets/dashboard_clinician.png"; // Dashboard cli
 import DashboardSchedulingImage from "../assets/dashboard_scheduling.jpg"; // Dashboard scheduling image
 import DashboardTogetherImage from "../assets/dashboard_together.png"; // Dashboard together image
 import DashboardQouteImage from "../assets/dashboard_quotes.png"; // Dashboard quote image
+import SurgeryImage from "../assets/surgery.jpg"; // Surgery case list and day planner
+import MdsImage from "../assets/mds.jpg"; // MDS coding workspace
 import Footer from "../components/Footer";
+
+// The services, in the order the Overview page shows them. Each chip opens the Overview page.
+const SERVICES = [
+  "Patient Portal", "Registration", "Notes", "Surgery", "Scheduler",
+  "Staffing", "Communicator", "Telehealth", "Dictate", "MDS",
+];
+
+// The feature rows: who each is for, what it does today. Images alternate sides.
+const FEATURE_ROWS = [
+  {
+    key: "scheduling",
+    image: DashboardSchedulingImage,
+    alt: "POWER Scheduler",
+    kicker: "Scheduling and messaging",
+    title: "Keep the whole day organized",
+    text: "Appointments, provider availability and check-in, with texts and emails that remind your patients for you.",
+    bullets: [
+      "Recurring appointments, holidays and clinic events",
+      "Upload staff, provider and patient lists from a file",
+      "Automatic reminders and bulk text, with opt-outs handled",
+    ],
+    link: "See Scheduler and Communicator",
+  },
+  {
+    key: "front-desk",
+    image: SurgeryImage,
+    alt: "POWER Surgery case list and day planner",
+    kicker: "Clinics and hospitals",
+    title: "From the front desk to the operating room",
+    text: "Register the patient, document the care, and run the day\u2019s surgical cases.",
+    bullets: [
+      "Registration with a duplicate check and numbered receipts",
+      "Notes, orders, lab results and prescriptions together",
+      "Surgery case list, day planner and a live status board",
+    ],
+    link: "See Registration, Notes and Surgery",
+  },
+  {
+    key: "nursing",
+    image: MdsImage,
+    alt: "POWER MDS coding workspace",
+    kicker: "Skilled nursing facilities",
+    title: "Cover the floor and code the MDS",
+    text: "Keep shifts covered against your requirements, and get a coding guide for MDS 3.0 that shows its evidence.",
+    bullets: [
+      "Staffing coverage against your requirements",
+      "MDS suggested answers with the chart pages that support them",
+      "PDPM and HIPPS results, validation and a printable findings sheet",
+    ],
+    link: "See Staffing and MDS",
+  },
+  {
+    key: "team",
+    image: DashboardTogetherImage,
+    alt: "POWER team collaboration",
+    kicker: "Your whole team",
+    title: "Share it with the team, use it anywhere",
+    text: "Share schedules, notes and announcements securely, and open POWER on a computer, phone or tablet in any modern browser.",
+    bullets: [
+      "Secure staff messaging and announcements",
+      "Role-based access you can adjust for each person",
+      "Works on Windows, macOS, Android and iOS",
+    ],
+    link: "See what every plan includes",
+  },
+];
+
+// The AI assistants, with a question each answers. Only MDS is read-only; the others prepare changes you confirm.
+const ASSISTANTS = [
+  { name: "Scheduler", ask: "Who is waiting for approval?", note: "Can prepare an approval, denial, arrival or no-show for you to confirm." },
+  { name: "Staffing", ask: "Who is working tonight?", note: "Answers from your roster. Can prepare a time-off request or call-out." },
+  { name: "Communicator", ask: "Who has opted out of texts?", note: "Can prepare a text, an email or a new contact. Nothing is sent until you confirm." },
+  { name: "MDS", ask: "Which documents do I need to code?", note: "Answers from the open assessment. It only reads; it never changes anything." },
+];
 
 // Main landing page component for POWER IT healthcare scheduling software
 export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
@@ -82,23 +158,31 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
         <div className="heading">
           <div className="text-block">
             {/* Primary value proposition headline */}
+            <div className="lp-kicker">For clinics, nursing homes and hospitals</div>
             <div className="smarter-scheduling-better-outcomes-powered-by-power">
-              Smarter Scheduling. Better Outcomes. That is POWER.
+              Smarter Platform. Better Outcomes. That is POWER.
             </div>
             {/* Supporting description text */}
             <div className="healthcare-scheduling-software-that-empowers-your-team-to-coordinate-plan-and-manage-patient-care-every-day">
-              Healthcare scheduling software that empowers your team to
-              coordinate, plan, and manage patient care—every day.
+              Scheduling, registration, charting, staffing, surgery and MDS
+              coding in one platform. Choose the services you need, add more as
+              you grow.
             </div>
           </div>
           {/* Primary call-to-action button */}
-          <div
-            className="btn-free-trial"
-            onClick={handlePricingClick}
-            style={{ cursor: "pointer" }}
-          >
-            <div className="try-power-free">Try POWER free</div>
+          <div className="lp-hero-actions">
+            <div
+              className="btn-free-trial"
+              onClick={handlePricingClick}
+              style={{ cursor: "pointer" }}
+            >
+              <div className="try-power-free">Try POWER free</div>
+            </div>
+            <button type="button" className="lp-btn-secondary" onClick={() => navigate("/overview")}>
+              See what is included
+            </button>
           </div>
+          <div className="lp-hero-note">7-day free trial. Change your services at any time.</div>
         </div>{" "}
         {/* Hero image placeholder */}
         <div className="image-container">
@@ -118,110 +202,50 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
       </div>
 
       {/* ===================================================================
-          SECTION 3: PRODUCT FEATURES - MAIN CONTENT AREA
-          - "POWER Scheduling" feature showcase with bullet points
-          - Detailed feature descriptions and benefits
-          - Visual elements and feature graphics
+          SERVICES: the ten services as links to the Overview page
           ================================================================= */}
-      <div className="work-management">
-        <div className="content3">
-          <div className="headline">
-            <div className="text-block">
-              <div className="power-scheduling">POWER Scheduling</div>
-              {/* Feature description with bullet points */}
-              <div className="keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform">
-                <span>
-                  <span className="keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform-span">
-                    Keep your patient schedule organized with POWER:
-                    <br />
-                  </span>
-                  <ul className="keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform-span2">
-                    <li>
-                      Upload clinic events, holidays, staff lists, and provider
-                      lists directly from the app.
-                    </li>
-                    <li>Manage availability and block times seamlessly.</li>
-                    <li>
-                      Easily send text and email messages to patients, including
-                      automated appointment reminders and bulk SMS
-                      notifications.
-                    </li>
-                    <li>
-                      Keep all essential clinic information and communication in
-                      one secure, user-friendly platform.
-                    </li>
-                  </ul>
-                </span>
-              </div>{" "}
-            </div>
-            <div
-              className="btn-get-started3"
-              onClick={handlePricingClick}
-              style={{ cursor: "pointer" }}
-            >
-              <div className="get-started3">Get Started</div>
-            </div>
-          </div>
-          {/* Feature image placeholder */}
-          <div className="work-together-image">
-            <img
-              src={DashboardSchedulingImage}
-              alt="POWER Healthcare Scheduler"
-              className="scheduling-dashboard-image"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                borderRadius: "16px",
-                padding: "5px",
-              }}
-            />
-          </div>
+      <section className="lp-services" aria-labelledby="lp-services-title">
+        <h2 id="lp-services-title">Ten services, one sign-in</h2>
+        <p>From the front desk to the operating room to the MDS office. Use one, or use them together.</p>
+        <div className="lp-chips">
+          {SERVICES.map((name) => (
+            <button type="button" key={name} className="lp-chip" onClick={() => navigate("/overview")}>
+              {name}
+            </button>
+          ))}
         </div>
-      </div>
-      <div className="work-management2">
-        {/* ===================================================================
-            SUB-SECTION: COLLABORATION FEATURES
-            - "POWER together" team collaboration showcase
-            - Real-time collaboration benefits
-            - Team communication features
-            ================================================================= */}{" "}
-        <div className="content4">
-          {/* Collaboration visualization placeholder */}
-          <div className="work-together-image">
-            <img
-              src={DashboardTogetherImage}
-              alt="POWER Healthcare Collaboration Dashboard"
-              className="collaboration-dashboard-image"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                borderRadius: "16px",
-                padding: "5px",
-              }}
-            />
+        <button type="button" className="lp-link" onClick={() => navigate("/overview")}>
+          Explore every service
+        </button>
+      </section>
+
+      {/* ===================================================================
+          FEATURE ROWS: who each part of the platform is for (images alternate sides)
+          ================================================================= */}
+      {FEATURE_ROWS.map((r, idx) => (
+        <section key={r.key} className={"lp-row" + (idx % 2 === 1 ? " lp-row-reverse" : "")}>
+          <div className="lp-row-image">
+            <img src={r.image} alt={r.alt} />
           </div>
-          <div className="headline">
-            <div className="text-block">
-              <div className="power-together">POWER together</div>
-              <div className="with-power-securely-share-schedules-notes-and-updates-with-your-team-for-real-time-collaboration-collaborate-important-information-or-announcements-and-share-links-with-staff-or-providers-as-needed">
-                With POWER, securely share schedules, notes, and updates with
-                your team for real-time collaboration. Collaborate important
-                information or announcements and share links with staff or
-                providers as needed.
-              </div>{" "}
-            </div>
-            <div
-              className="btn-get-started3"
-              onClick={handlePricingClick}
-              style={{ cursor: "pointer" }}
+          <div className="lp-row-text">
+            <div className="lp-row-kicker">{r.kicker}</div>
+            <h2>{r.title}</h2>
+            <p>{r.text}</p>
+            <ul>
+              {r.bullets.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="lp-link"
+              onClick={() => navigate(r.key === "team" ? "/pricing" : "/overview")}
             >
-              <div className="try-it-now">Try it now</div>
-            </div>
+              {r.link}
+            </button>
           </div>
-        </div>
-      </div>
+        </section>
+      ))}
 
       {/* ===================================================================
           SECTION 4: CUSTOMER TESTIMONIALS
@@ -307,37 +331,22 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
       </div> */}
 
       {/* ===================================================================
-          SECTION 5: CROSS-PLATFORM AVAILABILITY
-          - "Efficient scheduling—anywhere, anytime" headline
-          - Multi-device access information
-          - Platform compatibility (Windows, macOS, Android, iOS)
-          - "Try POWER" call-to-action button
+          AI ASSISTANTS: an example question for each
           ================================================================= */}
-      <div className="efficient-scheduling-section">
-        <div className="efficient-scheduling-content">
-          <div className="efficient-scheduling-text">
-            <h2 className="efficient-scheduling-headline">
-              Efficient scheduling—anywhere, anytime.
-            </h2>
-            <p className="efficient-scheduling-description">
-              Access your schedules and patient information from your computer,
-              phone, or tablet—anytime, anywhere. POWER keeps everything in
-              sync, so your appointments and clinic data are always up to date,
-              whether you're at the office, at home, or on the go. Works in any
-              modern web browser on Windows, macOS, Android, and iOS.
-            </p>
-            <div className="efficient-scheduling-cta">
-              <div
-                className="btn-try-power"
-                onClick={handlePricingClick}
-                style={{ cursor: "pointer" }}
-              >
-                <div className="try-power-text">Try POWER</div>
-              </div>
+      <section className="lp-ai" aria-labelledby="lp-ai-title">
+        <div className="lp-row-kicker">New</div>
+        <h2 id="lp-ai-title">AI assistants that answer from your own data</h2>
+        <p>Ask in plain words. Where an assistant can prepare a change, nothing happens until you confirm it.</p>
+        <div className="lp-ai-grid">
+          {ASSISTANTS.map((a) => (
+            <div className="lp-ai-card" key={a.name}>
+              <div className="lp-ai-name">{a.name}</div>
+              <div className="lp-ai-ask">{a.ask}</div>
+              <div className="lp-ai-note">{a.note}</div>
             </div>
-          </div>{" "}
-        </div>{" "}
-      </div>
+          ))}
+        </div>
+      </section>
 
       {/* ===================================================================
           SECTION 6: DATA SECURITY & PRIVACY
