@@ -16,6 +16,7 @@ import { API_BASE_URL } from "../config/api";
 import {
   EXTRA_MODULE_PRICE,
   GROUP_ORDER,
+  groupOf,
   formatMoney,
   planMonthlyTotal,
   planTerms,
@@ -163,7 +164,7 @@ export const PricingPage = ({ className }) => {
 
   const groups = useMemo(
     () =>
-      GROUP_ORDER.map((g) => ({ name: g, items: catalog.modules.filter((m) => m.group === g) })).filter(
+      GROUP_ORDER.map((g) => ({ name: g, items: catalog.modules.filter((m) => groupOf(m) === g) })).filter(
         (g) => g.items.length > 0
       ),
     [catalog.modules]
