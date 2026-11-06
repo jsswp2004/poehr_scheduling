@@ -13,6 +13,7 @@ test('keeps its title and shows every service except the lab interface', () => {
   ).toBeInTheDocument();
   [
     'POWER Patient Portal',
+    'POWER Registration',
     'POWER Notes',
     'POWER MDS',
     'POWER Scheduler',
@@ -39,9 +40,12 @@ test('marks the four AI assistants and names the Staffing audiences', () => {
   expect(screen.getAllByText('With AI Assistant')).toHaveLength(4);
   expect(
     screen.getByText(
-      'Built for skilled nursing facilities, rehabilitation centers, clinics and hospitals.'
+      'For skilled nursing facilities, rehabilitation centers, clinics and hospitals'
     )
   ).toBeInTheDocument();
-  expect(screen.getByText(/AI assistants in Scheduler, Staffing and Communicator/)).toBeInTheDocument();
+  expect(screen.getByText(/AI assistants in Scheduler, Staffing, Communicator and MDS/)).toBeInTheDocument();
+  expect(screen.getByText('One platform for your clinic, nursing home or hospital')).toBeInTheDocument();
+  ['Clinics', 'Skilled nursing facilities', 'Hospitals'].forEach((a) => expect(screen.getByText(a)).toBeInTheDocument());
+  expect(screen.getByRole('button', { name: 'Talk to us' })).toBeInTheDocument();
   expect(screen.queryByText(/hipaa/i)).toBeNull();
 });
