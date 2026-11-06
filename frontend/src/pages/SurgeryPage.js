@@ -32,6 +32,7 @@ function SurgeryPage() {
   const [tab, setTab] = useState("list");
   const [date, setDate] = useState(todayISO());
   const [facility, setFacility] = useState("");
+  const [unit, setUnit] = useState(""); // an operating-room unit; empty means all of them
   const [planner, setPlanner] = useState(null);
   const [rows, setRows] = useState([]);
   const [problem, setProblem] = useState("");
@@ -63,18 +64,19 @@ function SurgeryPage() {
 
   const load = useCallback(async () => {
     try {
-      const p = await surgeryApi.planner({ date, facility: facility || undefined });
-      const c = await surgeryApi.cases({ date, facility: p.facility });
+      const p = await surgeryApi.planner({ date, facility: facility || undefined, unit: unit || undefined });
+      const c = await surgeryApi.cases({ date, facility: p.facility, unit: p.unit || undefined });
       setPlanner(p);
       setRows(c.results);
-      if (!facility) setFacility(String(p.facility));
+      if (!facility || p.unit) setFacility(String(p.facility));
+      if (!unit && p.unit) setUnit(String(p.unit)); // several facilities: no "All", so the first unit is chosen
       setProblem("");
     } catch (err) {
       setPlanner(null);
       setRows([]);
       setProblem(errorText(err, "Could not load the surgery schedule."));
     }
-  }, [date, facility]);
+  }, [date, facility, unit]);
 
   useEffect(() => {
     if (!role) return undefined;
@@ -146,7 +148,17 @@ function SurgeryPage() {
         <Button size="small" onClick={() => setDate(todayISO())}>
           Today
         </Button>
-        {planner && planner.facilities.length > 1 && (
+        {planner && (planner.units || []).length > 1 && (
+          <TextField size="small" select label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)} sx={{ minWidth: 220 }}>
+            {planner.all_units && <MenuItem value="">All surgical units</MenuItem>}
+            {planner.units.map((u) => (
+              <MenuItem key={u.id} value={String(u.id)}>
+                {u.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
+        {planner && (planner.units || []).length === 0 && planner.facilities.length > 1 && (
           <TextField size="small" select label="Facility" value={facility} onChange={(e) => setFacility(e.target.value)} sx={{ minWidth: 200 }}>
             {planner.facilities.map((f) => (
               <MenuItem key={f.id} value={String(f.id)}>

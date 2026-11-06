@@ -137,3 +137,33 @@ test("Open Case Details adds a Case Details tab for the selected case", async ()
   await waitFor(() => expect(surgeryApi.getCase).toHaveBeenCalledWith(1));
   expect(await screen.findByRole("tab", { name: "Case Header" })).toBeInTheDocument();
 });
+
+test("lists the operating-room units, not facilities, and a unit narrows the load", async () => {
+  const units = [
+    { id: 21, name: "Main OR", facility: 7, label: "Main OR" },
+    { id: 22, name: "Ambulatory Surgery", facility: 7, label: "Ambulatory Surgery" },
+  ];
+  surgeryApi.planner.mockResolvedValue({ ...plannerPayload, facilities: [{ id: 7, name: "General Hospital" }, { id: 8, name: "Annex" }], units, unit: null, all_units: true });
+  renderPage();
+  await screen.findByText("BASCOM, MARK B");
+  expect(screen.queryByLabelText("Facility")).toBeNull();
+  fireEvent.mouseDown(screen.getByLabelText("Unit"));
+  expect(screen.getByRole("option", { name: "All surgical units" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("option", { name: "Main OR" }));
+  await waitFor(() => expect(surgeryApi.planner).toHaveBeenLastCalledWith(expect.objectContaining({ unit: "21" })));
+  await waitFor(() => expect(surgeryApi.cases).toHaveBeenLastCalledWith(expect.objectContaining({ facility: 7 })));
+});
+
+test("with units in several facilities there is no All choice and the first unit is picked", async () => {
+  const units = [
+    { id: 21, name: "Main OR", facility: 7, label: "General Hospital \u203a Main OR" },
+    { id: 31, name: "Annex OR", facility: 8, label: "Annex \u203a Annex OR" },
+  ];
+  surgeryApi.planner.mockResolvedValue({ ...plannerPayload, units, unit: 21, all_units: false });
+  renderPage();
+  await screen.findByText("BASCOM, MARK B");
+  await waitFor(() => expect(surgeryApi.planner).toHaveBeenLastCalledWith(expect.objectContaining({ unit: "21" })));
+  fireEvent.mouseDown(screen.getByLabelText("Unit"));
+  expect(screen.queryByRole("option", { name: "All surgical units" })).toBeNull();
+  expect(screen.getByRole("option", { name: "Annex \u203a Annex OR" })).toBeInTheDocument();
+});

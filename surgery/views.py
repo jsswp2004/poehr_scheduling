@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from appointments.locations import occupied_beds
-from appointments.models import Facility, Room as LocationRoom
+from appointments.models import Facility, Room as LocationRoom, Unit as LocationUnit
 from staffing.org_scope import acting_org
 from users.facility_scope import assigned_facility_ids, limit_to_facilities
 
@@ -116,6 +116,18 @@ class SurgeryView(APIView):
     def cases(self):
         qs = SurgeryCase.objects.filter(organization=self.org())
         return limit_to_facilities(qs, self.request.user, "facility")
+
+    def surgical_units(self):
+        """The operating-room units (Location Manager units marked surgical) this person may use."""
+        return list(
+            LocationUnit.objects.filter(facility__in=self.facilities(), is_surgical=True, is_active=True)
+            .select_related("facility").order_by("facility__name", "name", "id")
+        )
+
+    @staticmethod
+    def in_unit(queryset, unit):
+        """Cases in a unit's operating rooms, plus cases with no room yet so none go missing while unassigned."""
+        return queryset.filter(Q(room__location_room__unit=unit) | Q(room__isnull=True))
 
     def get_case(self, pk):
         return with_related(self.cases()).filter(pk=pk).first()
@@ -278,6 +290,9 @@ class CaseList(SurgeryView):
         qs = with_related(self.cases()).filter(scheduled_start__gte=start, scheduled_start__lt=end)
         if q.get("facility"):
             qs = qs.filter(facility_id=q["facility"])
+        if q.get("unit"):
+            unit = next((u for u in self.surgical_units() if str(u.pk) == str(q["unit"])), None)
+            qs = self.in_unit(qs, unit) if unit else qs.none()
         if q.get("status"):
             qs = qs.filter(status__in=[s for s in q["status"].split(",") if s])
         if q.get("room"):
@@ -414,8 +429,19 @@ class Planner(SurgeryView):
         if day is None:
             return _bad("Date must look like 2026-11-03.")
         facilities = list(self.facilities())
+        units = self.surgical_units()
+        # One facility's units can be viewed together ("All"); with several facilities a unit is always chosen.
+        all_units = len({u.facility_id for u in units}) <= 1
+        wanted_unit = request.query_params.get("unit")
+        unit = next((u for u in units if str(u.pk) == str(wanted_unit)), None) if wanted_unit else None
+        if unit is None and units and not all_units:
+            unit = units[0]
         wanted = request.query_params.get("facility")
         facility = next((f for f in facilities if str(f.pk) == str(wanted)), None) if wanted else None
+        if unit is not None:
+            facility = unit.facility
+        elif units and facility is None:
+            facility = next((f for f in facilities if f.pk == units[0].facility_id), None)
         if facility is None and facilities:
             # default to the first facility that has operating rooms
             with_rooms = set(SurgeryRoom.objects.filter(facility__in=facilities, is_active=True).values_list("facility_id", flat=True))
@@ -425,9 +451,19 @@ class Planner(SurgeryView):
         start, end = day_bounds(day)
         cases = with_related(self.cases()).filter(facility=facility, scheduled_start__gte=start, scheduled_start__lt=end)
         rooms = SurgeryRoom.objects.filter(facility=facility, is_active=True)
+        if unit is not None:
+            cases = self.in_unit(cases, unit)
+            rooms = rooms.filter(location_room__unit=unit)
         payload = build_planner(cases, rooms, day)
         payload["facilities"] = [{"id": f.pk, "name": f.name} for f in facilities]
         payload["facility"] = facility.pk
+        several = len({u.facility_id for u in units}) > 1
+        payload["units"] = [
+            {"id": u.pk, "name": u.name, "facility": u.facility_id, "label": f"{u.facility.name} \u203a {u.name}" if several else u.name}
+            for u in units
+        ]
+        payload["unit"] = unit.pk if unit is not None else None
+        payload["all_units"] = all_units
         return Response(payload)
 
 
@@ -440,6 +476,9 @@ class StatusCounts(SurgeryView):
         qs = self.cases().filter(scheduled_start__gte=start, scheduled_start__lt=end)
         if request.query_params.get("facility"):
             qs = qs.filter(facility_id=request.query_params["facility"])
+        if request.query_params.get("unit"):
+            unit = next((u for u in self.surgical_units() if str(u.pk) == str(request.query_params["unit"])), None)
+            qs = self.in_unit(qs, unit) if unit else qs.none()
         return Response({"date": day.isoformat(), "legend": status_counts_from_list(qs)})
 
 

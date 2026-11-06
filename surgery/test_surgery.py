@@ -1424,3 +1424,66 @@ class RegistrationAndScheduleLinkTests(SurgeryBase):
             self.move(case["id"], s)
         visit.refresh_from_db()
         self.assertEqual(visit.care_setting, "ambulatory")
+
+
+class UnitFilterTests(SurgeryBase):
+    """The Surgery dropdown lists the operating-room units, and a unit narrows the rooms and cases."""
+
+    def setUp(self):
+        super().setUp()
+        from appointments.models import Room, Unit
+        self.main = Unit.objects.create(facility=self.hospital, name="Main OR", care_type="outpatient", is_surgical=True)
+        self.asc = Unit.objects.create(facility=self.hospital, name="Ambulatory Surgery", care_type="outpatient", is_surgical=True)
+        for sr, unit in ((self.or1, self.main), (self.or2, self.asc)):
+            sr.location_room = Room.objects.create(unit=unit, name=sr.name)
+            sr.save()
+
+    def planner(self, **params):
+        return self.as_(self.nurse).get(API + "planner/", {"date": "2026-11-03", **params}).json()
+
+    def test_planner_lists_the_units_and_defaults_to_all(self):
+        d = self.planner()
+        self.assertEqual([(u["name"], u["label"]) for u in d["units"]], [("Ambulatory Surgery",) * 2, ("Main OR",) * 2])
+        self.assertTrue(d["all_units"])
+        self.assertIsNone(d["unit"])
+        self.assertEqual([r["name"] for r in d["rooms"]], ["OR-1", "OR-2"])
+
+    def test_a_unit_shows_only_its_rooms_and_cases_plus_unassigned_ones(self):
+        in_main = self.make_case(start="08:00")
+        in_asc = self.make_case(start="09:00", room=self.or2.pk)
+        free = self.as_(self.nurse).post(API + "cases/", {
+            "patient": self.patient.pk, "facility": self.hospital.pk, "scheduled_start": at(self.day, "11:00").isoformat()}, format="json").json()
+        d = self.planner(unit=self.main.pk)
+        self.assertEqual(d["unit"], self.main.pk)
+        self.assertEqual([r["name"] for r in d["rooms"]], ["OR-1"])
+        self.assertEqual([x["id"] for x in d["rooms"][0]["cases"]], [in_main["id"]])
+        self.assertEqual([x["id"] for x in d["unassigned"]], [free["id"]])
+        listed = self.as_(self.nurse).get(API + "cases/", {"date": "2026-11-03", "unit": self.main.pk}).json()["results"]
+        self.assertEqual({c["id"] for c in listed}, {in_main["id"], free["id"]})
+        self.assertNotIn(in_asc["id"], {c["id"] for c in listed})
+        counts = self.as_(self.nurse).get(API + "status-counts/", {"date": "2026-11-03", "unit": self.asc.pk}).json()
+        self.assertEqual({x["status"]: x["count"] for x in counts["legend"]}["pending"], 2)  # its case and the unassigned one
+
+    def test_an_unknown_unit_shows_no_cases(self):
+        self.make_case()
+        listed = self.as_(self.nurse).get(API + "cases/", {"date": "2026-11-03", "unit": 999999}).json()
+        self.assertEqual(listed["results"], [])
+
+    def test_several_facilities_list_units_with_their_facility_and_always_pick_one(self):
+        from appointments.models import Room, Unit
+        annex = Facility.objects.create(organization=self.org, name="Annex")
+        annex_unit = Unit.objects.create(facility=annex, name="Annex OR", care_type="outpatient", is_surgical=True)
+        d = self.planner()
+        self.assertFalse(d["all_units"])
+        self.assertIn("General Hospital \u203a Ambulatory Surgery", [u["label"] for u in d["units"]])
+        self.assertIsNotNone(d["unit"])  # no "All" across facilities, so the first unit is chosen
+        d = self.planner(unit=annex_unit.pk)
+        self.assertEqual((d["facility"], d["unit"]), (annex.pk, annex_unit.pk))
+        self.assertEqual(d["rooms"], [])
+
+    def test_without_operating_room_units_nothing_changes(self):
+        from appointments.models import Unit
+        Unit.objects.filter(is_surgical=True).update(is_surgical=False)
+        d = self.planner()
+        self.assertEqual((d["units"], d["unit"], d["all_units"]), ([], None, True))
+        self.assertEqual([r["name"] for r in d["rooms"]], ["OR-1", "OR-2"])
