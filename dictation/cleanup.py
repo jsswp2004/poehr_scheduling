@@ -19,6 +19,8 @@ from .engines import EngineUnavailable
 log = logging.getLogger(__name__)
 
 MAX_TRANSCRIPT_CHARS = 12000
+# Room for the model's answer: the cleaned text plus every proposed field, so a long note needs several thousand tokens.
+MAX_OUTPUT_TOKENS = 6000
 MAX_FIELDS = 60
 MAX_OPTIONS = 40
 MAX_TEXT_VALUE = 4000
@@ -194,7 +196,7 @@ def run(transcript, raw_fields=None):
     """Clean `transcript`. `raw_fields` (optional) are note field definitions to fill."""
     fields = clean_field_defs(raw_fields)
     try:
-        reply = _backend()(SYSTEM_PROMPT, _build_user_text(transcript, fields), 2000)
+        reply = _backend()(SYSTEM_PROMPT, _build_user_text(transcript, fields), MAX_OUTPUT_TOKENS)
     except EngineUnavailable:
         raise
     except Exception as exc:  # vendor/network errors: never include their text (may echo input)

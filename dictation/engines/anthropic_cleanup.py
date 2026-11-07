@@ -36,12 +36,13 @@ def complete(system: str, user_text: str, max_tokens: int = 2000) -> str:
         messages=[{"role": "user", "content": user_text}],
     )
     text = "".join(getattr(block, "text", "") for block in response.content)
-    if "{" not in text:
-        # Diagnostic only, never the text itself (it may hold clinical content): why did the reply carry no JSON?
+    stop_reason = getattr(response, "stop_reason", None)
+    if "{" not in text or stop_reason == "max_tokens":
+        # Diagnostic only, never the text itself (it may hold clinical content): was the reply empty or cut off at the token limit?
         usage = getattr(response, "usage", None)
         log.warning(
-            "dictation cleanup: model reply had no JSON (stop_reason=%s, blocks=%s, output_tokens=%s, chars=%d)",
-            getattr(response, "stop_reason", None),
+            "dictation cleanup: model reply incomplete or without JSON (stop_reason=%s, blocks=%s, output_tokens=%s, chars=%d)",
+            stop_reason,
             [getattr(block, "type", "?") for block in response.content],
             getattr(usage, "output_tokens", None),
             len(text),
