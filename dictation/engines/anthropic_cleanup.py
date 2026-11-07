@@ -10,9 +10,13 @@ zero data retention on the organization. Until then use made-up text only.
 settings.DICTATION_ANTHROPIC_API_KEY  = "<api key>"            (required; keep it only in the host's environment)
 settings.DICTATION_CLEANUP_MODEL_ID   = "claude-sonnet-5-5"    (required)
 """
+import logging
+
 from django.conf import settings
 
 from . import EngineUnavailable
+
+log = logging.getLogger(__name__)
 
 
 def complete(system: str, user_text: str, max_tokens: int = 2000) -> str:
@@ -31,4 +35,15 @@ def complete(system: str, user_text: str, max_tokens: int = 2000) -> str:
         system=system,
         messages=[{"role": "user", "content": user_text}],
     )
-    return "".join(getattr(block, "text", "") for block in response.content)
+    text = "".join(getattr(block, "text", "") for block in response.content)
+    if "{" not in text:
+        # Diagnostic only, never the text itself (it may hold clinical content): why did the reply carry no JSON?
+        usage = getattr(response, "usage", None)
+        log.warning(
+            "dictation cleanup: model reply had no JSON (stop_reason=%s, blocks=%s, output_tokens=%s, chars=%d)",
+            getattr(response, "stop_reason", None),
+            [getattr(block, "type", "?") for block in response.content],
+            getattr(usage, "output_tokens", None),
+            len(text),
+        )
+    return text
