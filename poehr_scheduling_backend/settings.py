@@ -220,16 +220,19 @@ REST_FRAMEWORK = {
 DICTATION_AWS_REGION = os.environ.get("DICTATION_AWS_REGION", "us-east-1")
 # Bedrock model/inference-profile id for the "clean up & structure" step. Unset = cleanup unavailable.
 DICTATION_CLEANUP_MODEL_ID = os.environ.get("DICTATION_CLEANUP_MODEL_ID", "")
-# Which service runs the cleanup model: "bedrock" (AWS, default) or "vertex" (Claude on Google Cloud).
+# Which service runs the cleanup model: "bedrock" (AWS, default), "vertex" (Claude on Google Cloud) or "anthropic" (Anthropic API).
 DICTATION_CLEANUP_PROVIDER = os.environ.get("DICTATION_CLEANUP_PROVIDER", "bedrock").lower()
 DICTATION_CLEANUP_BACKEND = {
     "bedrock": "dictation.engines.bedrock_cleanup.complete",
     "vertex": "dictation.engines.vertex_cleanup.complete",
+    "anthropic": "dictation.engines.anthropic_cleanup.complete",
 }.get(DICTATION_CLEANUP_PROVIDER, "dictation.engines.bedrock_cleanup.complete")
 # Vertex only: project, region ("global" by default) and the service account key as JSON text.
 DICTATION_VERTEX_PROJECT = os.environ.get("DICTATION_VERTEX_PROJECT", "")
 DICTATION_VERTEX_REGION = os.environ.get("DICTATION_VERTEX_REGION", "global")
 DICTATION_VERTEX_CREDENTIALS_JSON = os.environ.get("DICTATION_VERTEX_CREDENTIALS_JSON", "")
+# Anthropic API only: the API key. Set it in the host environment (Render), never in code.
+DICTATION_ANTHROPIC_API_KEY = os.environ.get("DICTATION_ANTHROPIC_API_KEY", "")
 
 # ---- Documentation assistant (chat over a patient's chart: patients, notes, orders, visits, labs) ----
 # Off until you turn it on, because it sends chart text to the model. Needs the AWS BAA (same account and IAM

@@ -344,3 +344,42 @@ class VertexEngineTests(SimpleTestCase):
 
         with mock.patch("anthropic.AnthropicVertex"), self.assertRaises(EngineUnavailable):
             vertex_cleanup.complete("s", "u")
+
+
+class AnthropicEngineTests(SimpleTestCase):
+    """Claude through the Anthropic API directly: same contract as the other engines, no network in the tests."""
+
+    def _reply(self, text):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(content=[SimpleNamespace(text=text)])
+
+    @override_settings(DICTATION_CLEANUP_MODEL_ID="claude-sonnet-5-5", DICTATION_ANTHROPIC_API_KEY="sk-test")
+    def test_calls_anthropic_with_key_and_model(self):
+        from unittest import mock
+
+        from .engines import anthropic_cleanup
+
+        with mock.patch("anthropic.Anthropic") as client:
+            client.return_value.messages.create.return_value = self._reply("hello")
+            self.assertEqual(anthropic_cleanup.complete("SYS", "USER", 500), "hello")
+        self.assertEqual(client.call_args.kwargs["api_key"], "sk-test")
+        sent = client.return_value.messages.create.call_args.kwargs
+        self.assertEqual(sent["model"], "claude-sonnet-5-5")
+        self.assertEqual(sent["system"], "SYS")
+        self.assertEqual(sent["max_tokens"], 500)
+        self.assertNotIn("temperature", sent)
+
+    @override_settings(DICTATION_CLEANUP_MODEL_ID="claude-sonnet-5-5", DICTATION_ANTHROPIC_API_KEY="")
+    def test_missing_key_is_engine_unavailable(self):
+        from .engines import EngineUnavailable, anthropic_cleanup
+
+        with self.assertRaises(EngineUnavailable):
+            anthropic_cleanup.complete("s", "u")
+
+    @override_settings(DICTATION_CLEANUP_MODEL_ID="", DICTATION_ANTHROPIC_API_KEY="sk-test")
+    def test_missing_model_is_engine_unavailable(self):
+        from .engines import EngineUnavailable, anthropic_cleanup
+
+        with self.assertRaises(EngineUnavailable):
+            anthropic_cleanup.complete("s", "u")

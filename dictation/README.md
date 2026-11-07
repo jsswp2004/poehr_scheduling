@@ -32,6 +32,8 @@ Access needs: login, the `clinical_notes.view_author` right, the organization's 
    - `DICTATION_AWS_REGION` (default `us-east-1`)
    - `DICTATION_CLEANUP_MODEL_ID`: a Bedrock model or inference-profile id. Unset means AI cleanup answers 503; plain dictation still works.
    - Keep **Bedrock model invocation logging OFF** (the default). Turning it on would store dictated text in your AWS account.
+   - `DICTATION_CLEANUP_PROVIDER`: `bedrock` (default), `vertex` (Claude on Google Cloud) or `anthropic` (Anthropic API directly).
+   - Anthropic API only: set `DICTATION_ANTHROPIC_API_KEY` in the host environment (never in code) and set `DICTATION_CLEANUP_MODEL_ID` to the model name, for example `claude-sonnet-5-5`. Get a signed BAA with Anthropic and zero data retention before any real patient text goes through; use made-up text until then.
 4. **Migrate:** `python manage.py migrate` (adds the four organization fields and the `DictationEvent` audit table).
 5. **Turn it on:** an admin opens Settings > Dictation, switches it on, picks the specialty, and saves.
 
