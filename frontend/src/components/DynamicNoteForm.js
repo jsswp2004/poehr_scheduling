@@ -127,6 +127,13 @@ export function formatFieldValue(field, rawValue, allValues) {
 // section_label, preserving first-appearance order (never re-sorts).
 // Shared by the live form (per-tab) and, indirectly, by the pattern used in
 // DynamicNoteSummary below.
+// How many of the 12 grid columns a field takes on wide screens. Anything without a
+// recognised width (every template made before widths existed) takes the whole row.
+const WIDTH_SPANS = { full: 12, half: 6, third: 4, quarter: 3 };
+export function fieldSpan(field) {
+  return WIDTH_SPANS[field && field.width] || 12;
+}
+
 export function groupBySection(fieldList) {
   const sections = [];
   const sectionIndex = {};
@@ -518,9 +525,15 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
                 <Divider sx={{ mb: 2 }} />
               </>
             )}
-            <Stack spacing={2}>
-              {section.fields.filter((f) => isFieldVisible(f, values)).map(renderField)}
-            </Stack>
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, minmax(0, 1fr))", gap: 2 }}>
+              {section.fields
+                .filter((f) => isFieldVisible(f, values))
+                .map((f) => (
+                  <Box key={f.key} sx={{ gridColumn: { xs: "span 12", md: `span ${fieldSpan(f)}` }, minWidth: 0 }}>
+                    {renderField(f)}
+                  </Box>
+                ))}
+            </Box>
           </Box>
         ))}
       </Stack>

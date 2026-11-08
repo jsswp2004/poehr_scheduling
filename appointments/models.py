@@ -935,6 +935,19 @@ class NoteFieldDefinition(models.Model):
     required = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)
     help_text = models.CharField(max_length=255, blank=True)
+    # How much of the row this field takes in the rendered form. "full" (the
+    # default, and what every template used before this existed) puts the field
+    # on its own line; the others let neighbouring fields share a line on wide
+    # screens (a 12-column grid: full 12, half 6, third 4, quarter 3). Purely
+    # cosmetic -- on a phone every field is full width, and it never changes
+    # the template version.
+    WIDTH_CHOICES = [
+        ("full", "Full row"),
+        ("half", "Half row"),
+        ("third", "Third of a row"),
+        ("quarter", "Quarter of a row"),
+    ]
+    width = models.CharField(max_length=10, choices=WIDTH_CHOICES, default="full")
     # Only used when field_type is 'calculated': how the value is worked out
     # from other fields (sum / average / min / max / formula), plus optional
     # interpretation ranges and cautions. Format and rules:

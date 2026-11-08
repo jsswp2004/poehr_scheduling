@@ -85,3 +85,20 @@ test("an empty or missing list shows nothing", () => {
   expect(formatFieldValue(FIELD, undefined, {})).toBeNull();
   expect(formatFieldValue(FIELD, "", {})).toBeNull();
 });
+
+describe("field widths", () => {
+  const { fieldSpan } = require("../DynamicNoteForm");
+
+  it("maps each width to a share of the 12-column grid", () => {
+    expect(fieldSpan({ width: "full" })).toBe(12);
+    expect(fieldSpan({ width: "half" })).toBe(6);
+    expect(fieldSpan({ width: "third" })).toBe(4);
+    expect(fieldSpan({ width: "quarter" })).toBe(3);
+  });
+
+  it("gives templates without a width the whole row", () => {
+    expect(fieldSpan({})).toBe(12);
+    expect(fieldSpan({ width: "bogus" })).toBe(12);
+    expect(fieldSpan(undefined)).toBe(12);
+  });
+});
