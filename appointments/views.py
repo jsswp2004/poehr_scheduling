@@ -2073,6 +2073,9 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
         note.status = "signed"
         note.signed_at = timezone.now()
         note.save(update_fields=["status", "signed_at"] + (["structured_data"] if (is_triage or keeps_chart) else []))
+        from .pediatric_sync import sync_birth_details
+
+        sync_birth_details(note)
         alert = None
         if is_triage:
             triage_service.finish_signing(note)

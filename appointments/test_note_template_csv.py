@@ -96,7 +96,7 @@ class ParserRuleTests(SimpleTestCase):
     def test_every_field_type_accepted_case_insensitive(self):
         types = {
             "single-line text": "text", "MULTI-LINE TEXT": "textarea", "Numeric": "numeric", "date": "date",
-            "Checkbox (yes/no)": "checkbox",
+            "Checkbox (yes/no)": "checkbox", "Diagnosis codes (ICD-10)": "icd10",
         }
         for label, code in types.items():
             parsed, errors = parse_template_csv(make_csv(row(ftype=label)))

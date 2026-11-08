@@ -56,6 +56,7 @@ FIELD_TYPE_LABELS = {
     "date": "Date",
     "calculated": "Calculated (total / result)",
     "chart_data": "Chart data (read-only)",
+    "icd10": "Diagnosis codes (ICD-10)",
 }
 DICTIONARY_TYPES = {"radio", "dropdown", "multiselect"}
 

@@ -26,6 +26,7 @@ from .models import (
 import copy
 import logging
 
+from .pediatric_sync import sync_birth_details
 from .calculations import (
     INTERPRETATION_SUFFIX,
     OPTION_TYPES,
@@ -539,6 +540,10 @@ class NoteFieldDefinitionAdminSerializer(serializers.Serializer):
             data["calc"] = {"source": source}
             data["required"] = False
             data["dictionary"] = None
+        if field_type == "icd10":
+            # A list of { code, description } picked from the ICD-10-CM search: no options, nothing to calculate.
+            data["dictionary"] = None
+            data["calc"] = {}
         return data
 
 
@@ -932,7 +937,9 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
         # template after creation.
         self._sync_template_snapshot(validated_data)
 
-        return super().create(validated_data)
+        note = super().create(validated_data)
+        sync_birth_details(note)
+        return note
 
     def update(self, instance, validated_data):
         if instance.status == "signed":
@@ -944,7 +951,9 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
         # whenever that happens so the note keeps tracking whichever
         # template it's currently pointed at.
         self._sync_template_snapshot(validated_data)
-        return super().update(instance, validated_data)
+        note = super().update(instance, validated_data)
+        sync_birth_details(note)
+        return note
 
     @staticmethod
     def _sync_template_snapshot(validated_data):

@@ -152,7 +152,7 @@ export function GrowthChartModal({ patientId, onClose }) {
             )}
             {!info.gestational_age_known && body.patient.age_months < 24 && (
               <Typography variant="body2" color="text.secondary" data-testid="gc-term-note">
-                Gestational age is not recorded, so the chart assumes a term birth. Add it under Birth details in Patient Info for a premature baby.
+                Gestational age is not recorded, so the chart assumes a term birth. For a premature baby, record it in the Birth & Perinatal tab of the General Pediatric Note.
               </Typography>
             )}
             {body.skipped > 0 && (

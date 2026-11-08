@@ -682,8 +682,8 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
       (f) =>
         f.required &&
         isFieldVisible(f, form.structured_data) &&
-        !form.structured_data[f.key] &&
-        form.structured_data[f.key] !== false
+        ((!form.structured_data[f.key] && form.structured_data[f.key] !== false) ||
+          (f.field_type === "icd10" && Array.isArray(form.structured_data[f.key]) && form.structured_data[f.key].length === 0))
     );
     if (missing.length > 0) {
       toast.error(`Please complete: ${missing.map((f) => f.label).join(", ")}`);

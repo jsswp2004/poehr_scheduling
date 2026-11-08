@@ -898,6 +898,7 @@ class NoteFieldDefinition(models.Model):
         ("date", "Date"),
         ("calculated", "Calculated (total / result)"),
         ("chart_data", "Chart data (read-only)"),
+        ("icd10", "Diagnosis codes (ICD-10)"),
     ]
 
     template = models.ForeignKey(

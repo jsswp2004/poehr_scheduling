@@ -54,6 +54,7 @@ const FIELD_TYPES = [
     { value: "date", label: "Date" },
     { value: "calculated", label: "Calculated (total / result)" },
     { value: "chart_data", label: "Chart data (read-only)" },
+    { value: "icd10", label: "Diagnosis codes (ICD-10)" },
 ];
 const DICTIONARY_FIELD_TYPES = new Set(["radio", "dropdown", "multiselect"]);
 
