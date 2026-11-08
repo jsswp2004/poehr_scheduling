@@ -134,3 +134,39 @@ class NewbornBirthSyncTests(TestCase):
         profile = FakeProfile(gestational_age_weeks=36)
         self.assertEqual(sync_birth_details(newborn_note({"gestational_age_weeks": 36}, profile)), [])
         self.assertIsNone(profile.saved)
+
+
+class NewbornLayoutTests(TestCase):
+    """Migration 0092 lays the Newborn Note out in rows (see NoteFieldDefinition.width)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        import importlib
+
+        cls.layout = importlib.import_module("appointments.migrations.0092_newborn_note_layout")
+
+    def test_long_text_and_snapshots_stay_full_width(self):
+        for field_type in ("textarea", "chart_data", "icd10"):
+            self.assertEqual(self.layout.width_for("anything", field_type), "full")
+
+    def test_numbers_and_dates_take_a_quarter(self):
+        for field_type in ("numeric", "date"):
+            self.assertEqual(self.layout.width_for("birth_weight_g", field_type), "quarter")
+
+    def test_dropdowns_text_and_checkboxes_take_a_third(self):
+        for field_type in ("dropdown", "text", "checkbox", "calculated"):
+            self.assertEqual(self.layout.width_for("delivery_type", field_type), "third")
+
+    def test_exam_status_and_findings_share_a_row(self):
+        self.assertEqual(self.layout.width_for("nb_heart_status", "radio"), "half")
+        self.assertEqual(self.layout.width_for("nb_heart_findings", "text"), "half")
+
+    def test_every_seeded_field_gets_a_valid_width(self):
+        import importlib
+
+        seed = importlib.import_module("appointments.migrations.0090_seed_newborn_note")
+        valid = {"full", "half", "third", "quarter"}
+        for _tab, _section, fields in seed.NEWBORN:
+            for f in fields:
+                self.assertIn(self.layout.width_for(f["key"], f["type"]), valid)

@@ -283,6 +283,7 @@ class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
             "id",
             "tab_label",
             "section_label",
+            "width",
             "key",
             "label",
             "field_type",
@@ -509,6 +510,7 @@ class NoteFieldDefinitionAdminSerializer(serializers.Serializer):
     client_id = serializers.CharField()
     tab_label = serializers.CharField(allow_blank=True, required=False, default="")
     section_label = serializers.CharField(allow_blank=True, required=False, default="")
+    width = serializers.ChoiceField(choices=NoteFieldDefinition.WIDTH_CHOICES, required=False, default="full")
     key = serializers.SlugField(max_length=64)
     label = serializers.CharField(max_length=200)
     field_type = serializers.ChoiceField(choices=NoteFieldDefinition.FIELD_TYPE_CHOICES)
@@ -682,6 +684,7 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
             common = dict(
                 tab_label=f.get("tab_label", ""),
                 section_label=f.get("section_label", ""),
+                width=f.get("width", "full"),
                 key=f["key"],
                 label=f["label"],
                 field_type=f["field_type"],

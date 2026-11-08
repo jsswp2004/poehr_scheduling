@@ -56,6 +56,13 @@ const FIELD_TYPES = [
     { value: "chart_data", label: "Chart data (read-only)" },
     { value: "icd10", label: "Diagnosis codes (ICD-10)" },
 ];
+// How much of a line a field takes on wide screens (phones always show one field per line).
+const FIELD_WIDTHS = [
+    { value: "full", label: "Full row" },
+    { value: "half", label: "Half row" },
+    { value: "third", label: "Third of a row" },
+    { value: "quarter", label: "Quarter of a row" },
+];
 const DICTIONARY_FIELD_TYPES = new Set(["radio", "dropdown", "multiselect"]);
 
 let tempIdCounter = 0;
@@ -70,6 +77,7 @@ function fieldFromApi(f) {
         realId: f.id,
         tab_label: f.tab_label || "",
         section_label: f.section_label || "",
+        width: f.width || "full",
         key: f.key,
         label: f.label,
         field_type: f.field_type,
@@ -88,6 +96,7 @@ function blankField() {
         realId: null,
         tab_label: "",
         section_label: "",
+        width: "full",
         key: "",
         label: "",
         field_type: "text",
@@ -341,6 +350,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 client_id: f.clientId,
                 tab_label: f.tab_label || "",
                 section_label: f.section_label,
+                width: f.width || "full",
                 key: f.key,
                 label: f.label,
                 field_type: f.field_type,
@@ -404,6 +414,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 field_type: f.field_type,
                 tab_label: f.tab_label || "",
                 section_label: f.section_label || "",
+                width: f.width || "full",
                 required: f.field_type === "calculated" || f.field_type === "chart_data" ? false : !!f.required,
                 sort_order: i * 10,
                 help_text: f.help_text || "",
@@ -800,6 +811,23 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                         {FIELD_TYPES.map((t) => (
                                             <MenuItem key={t.value} value={t.value}>
                                                 {t.label}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                    <TextField
+                                        size="small"
+                                        select
+                                        label="Width"
+                                        fullWidth
+                                        value={f.width || "full"}
+                                        onChange={(e) => updateField(f.clientId, { width: e.target.value })}
+                                        helperText="Narrow fields share a line on wide screens"
+                                    >
+                                        {FIELD_WIDTHS.map((w) => (
+                                            <MenuItem key={w.value} value={w.value}>
+                                                {w.label}
                                             </MenuItem>
                                         ))}
                                     </TextField>
