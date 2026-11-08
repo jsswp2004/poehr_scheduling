@@ -825,8 +825,8 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   const currentTab = showTabs ? activeTab : "history";
 
   return (
-    <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
-      {/* The tabs stay pinned under the app bar; only the content below scrolls. */}
+    <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3, ...(fixedVisit ? { pt: 0, mt: 0 } : {}) }}>
+      {/* In the chart the tabs sit flush under the chart tab bar (no gap above them). The tabs stay pinned under the app bar; only the content below scrolls. */}
       <Box
         data-testid="notes-sticky-header"
         sx={{
@@ -838,7 +838,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
           bgcolor: "background.paper",
           mx: -3,
           px: 3,
-          pt: 1,
+          pt: fixedVisit ? 0 : 1,
           mb: 1.5,
           borderBottom: 1,
           borderColor: "divider",
