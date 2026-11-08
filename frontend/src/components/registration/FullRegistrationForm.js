@@ -60,8 +60,6 @@ const LEGAL_DOCS = [
   { key: "release_of_information", label: "Release of Information" },
 ];
 
-const BIRTH_FIELDS = ["gestational_age_weeks", "gestational_age_days", "birth_weight_g"];
-
 // Demographics and advance directive live on the patient. Blank is a real answer here (a cleared field),
 // so these are sent even when empty.
 const DEMOGRAPHIC_KEYS = [
@@ -76,29 +74,9 @@ const EMPTY_EXTRAS = {
   employer: { employer_name: "", employment_status: "", occupation: "", phone: "", from_date: "" },
 };
 
-// "Born 4 weeks early" for the Birth details hint; "" when term or not entered.
-export function birthHint(weeks, days, dob) {
-  const w = parseInt(weeks, 10);
-  if (Number.isNaN(w) || w >= 37) return "";
-  const d = Math.min(Math.max(parseInt(days, 10) || 0, 0), 6);
-  const early = Math.round(((40 * 7 - (w * 7 + d)) / 7) * 10) / 10;
-  let text = `Born ${early} weeks early.`;
-  if (dob) {
-    const ageDays = Math.floor((Date.now() - new Date(`${dob}T00:00:00`).getTime()) / 86400000);
-    const corrected = Math.round(((ageDays - early * 7) / 30.4375) * 10) / 10;
-    if (ageDays < 24 * 30.4375 && corrected >= 0) {
-      text += ` Growth charts will use corrected age (${corrected} months today) until 24 months.`;
-    }
-  }
-  return text;
-}
-
 const EMPTY_PATIENT_FIELDS = {
   email: "",
   legal_sex: "",
-  gestational_age_weeks: "",
-  gestational_age_days: "",
-  birth_weight_g: "",
   ssn_last4: "",
   preferred_language: "",
   date_of_birth: "",
@@ -313,9 +291,6 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setPatientFields({
       email: patient.email || "",
       legal_sex: patient.legal_sex || "",
-      gestational_age_weeks: patient.gestational_age_weeks ?? "",
-      gestational_age_days: patient.gestational_age_days ?? "",
-      birth_weight_g: patient.birth_weight_g ?? "",
       ssn_last4: patient.ssn_last4 || "",
       preferred_language: patient.preferred_language || "",
       date_of_birth: patient.date_of_birth || "",
@@ -561,9 +536,8 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         // (date_of_birth, policyholder_dob) rejects "" as invalid, and PUT
         // only overwrites fields actually present, so omitting an untouched
         // blank field just leaves the patient's existing value alone.
-        // Birth details are the exception: blank is a real answer (term baby, or
-        // an entry that was cleared), so it is sent and stored as empty.
-        if (BIRTH_FIELDS.includes(key) || DEMOGRAPHIC_KEYS.includes(key)) {
+        // Demographics are the exception: blank is a real answer (a cleared field), so it is sent and stored as empty.
+        if (DEMOGRAPHIC_KEYS.includes(key)) {
           patientForm.append(key, value === null || value === undefined ? "" : value);
           return;
         }
@@ -1365,41 +1339,6 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     value={patientFields.email}
                     onChange={(e) => handlePatientFieldChange("email", e.target.value)}
                   />
-                )}
-                <Typography variant="subtitle2" sx={{ pt: 1 }}>Birth details</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Used to plot premature babies at corrected age on the growth charts. Leave blank for babies born at term.
-                </Typography>
-                <Stack direction="row" spacing={1.5}>
-                  <TextField
-                    label="Gestational age at birth, weeks"
-                    size="small"
-                    fullWidth
-                    inputProps={{ inputMode: "numeric", "data-testid": "birth-weeks" }}
-                    value={patientFields.gestational_age_weeks}
-                    onChange={(e) => handlePatientFieldChange("gestational_age_weeks", e.target.value.replace(/\D/g, "").slice(0, 2))}
-                  />
-                  <TextField
-                    label="Plus days"
-                    size="small"
-                    inputProps={{ inputMode: "numeric", "data-testid": "birth-days" }}
-                    sx={{ width: 120 }}
-                    value={patientFields.gestational_age_days}
-                    onChange={(e) => handlePatientFieldChange("gestational_age_days", e.target.value.replace(/\D/g, "").slice(0, 1))}
-                  />
-                </Stack>
-                <TextField
-                  label="Birth weight, grams"
-                  size="small"
-                  fullWidth
-                  inputProps={{ inputMode: "numeric", "data-testid": "birth-weight" }}
-                  value={patientFields.birth_weight_g}
-                  onChange={(e) => handlePatientFieldChange("birth_weight_g", e.target.value.replace(/\D/g, "").slice(0, 4))}
-                />
-                {birthHint(patientFields.gestational_age_weeks, patientFields.gestational_age_days, patientFields.date_of_birth) && (
-                  <Alert severity="info" data-testid="birth-hint">
-                    {birthHint(patientFields.gestational_age_weeks, patientFields.gestational_age_days, patientFields.date_of_birth)}
-                  </Alert>
                 )}
               </Stack>
             )}

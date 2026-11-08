@@ -24,6 +24,7 @@ import {
 import { INTERPRETATION_SUFFIX, applyCalculations, computeCalc } from "../utils/calculations";
 import DictationTextField from "./dictation/DictationTextField";
 import ChartDataField from "./ChartDataField";
+import IcdCodePicker, { dxLabel } from "./IcdCodePicker";
 
 /**
  * Renders a form for any structured (non-SOAP) ClinicalNote from a
@@ -45,6 +46,7 @@ import ChartDataField from "./ChartDataField";
  *   date        -> TextField type="date"
  *   chart_data  -> part of the patient's chart (field.calc.source) shown read-only; needs `patientId`.
  *                  The server stores a snapshot of it in the note on save and at signing.
+ *   icd10       -> ICD-10-CM diagnosis picker (search by code or name); stored as a list of { code, description }.
  *   calculated  -> read-only result (a total / score) worked out live from
  *                  other fields by the field's `calc` config, with its
  *                  interpretation and cautions; stored like any other value
@@ -99,6 +101,12 @@ export function formatFieldValue(field, rawValue, allValues) {
     return rawValue.rows
       .map((row) => columns.map((c) => row[c.key]).filter(Boolean).join(", "))
       .join("; ");
+  }
+  if (field.field_type === "icd10") {
+    // Notes written before this field was switched to the picker hold plain text: show it as it was typed.
+    if (typeof rawValue === "string") return rawValue.trim() || null;
+    if (!Array.isArray(rawValue) || rawValue.length === 0) return null;
+    return rawValue.map((dx) => dxLabel(dx)).join("; ");
   }
   if (field.field_type === "multiselect") {
     if (!Array.isArray(rawValue) || rawValue.length === 0) return null;
@@ -403,6 +411,18 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
           </FormControl>
         );
       }
+
+      case "icd10":
+        return (
+          <IcdCodePicker
+            key={field.key}
+            label={`${field.label}${field.required ? " *" : ""}`}
+            value={Array.isArray(value) ? value : []}
+            disabled={disabled}
+            onChange={(codes) => onChange(field.key, codes)}
+            sx={{ width: "100%" }}
+          />
+        );
 
       case "chart_data":
         return <ChartDataField key={field.key} field={field} value={value} patientId={patientId} />;
