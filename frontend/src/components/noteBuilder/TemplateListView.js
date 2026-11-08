@@ -26,6 +26,7 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import SearchIcon from "@mui/icons-material/Search";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { BUILDER_STICKY_TOP, BuilderToolbar } from "../builders/BuilderShell";
+import { ownershipLabel } from "./ownership";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
@@ -233,6 +234,16 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
         return terms.every((term) => hay.includes(term));
     });
     const headSx = { position: "sticky", top: BUILDER_STICKY_TOP, zIndex: 2, bgcolor: "background.paper", fontWeight: 700 };
+    const ownershipBadge = (tpl) => {
+        const label = ownershipLabel(tpl.ownership);
+        if (!label) {
+            return (
+                <Chip size="small" variant="outlined" label="Not set" sx={{ borderStyle: "dashed", color: "#9a3412", borderColor: "#c2410c" }} />
+            );
+        }
+        return <Chip size="small" variant="outlined" label={label} />;
+    };
+
     const typeBadge = (tpl) => {
         if (!tpl.note_type) {
             return (
@@ -368,6 +379,7 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
                             <TableCell sx={headSx}>Name</TableCell>
                             <TableCell sx={headSx}>Code</TableCell>
                             {!isOrderForm && <TableCell sx={headSx}>Note type</TableCell>}
+                            {!isOrderForm && <TableCell sx={headSx}>Document ownership</TableCell>}
                             <TableCell align="center" sx={headSx}>Version</TableCell>
                             <TableCell align="center" sx={headSx}>Fields</TableCell>
                             <TableCell align="center" sx={headSx}>Status</TableCell>
@@ -382,6 +394,7 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
                                     <code>{tpl.code}</code>
                                 </TableCell>
                                 {!isOrderForm && <TableCell>{typeBadge(tpl)}</TableCell>}
+                                {!isOrderForm && <TableCell>{ownershipBadge(tpl)}</TableCell>}
                                 <TableCell align="center">v{tpl.version}</TableCell>
                                 <TableCell align="center">{tpl.fields.length}</TableCell>
                                 <TableCell align="center">
@@ -424,7 +437,7 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
                         ))}
                         {templates && templates.length > 0 && shown.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={7}>
+                                <TableCell colSpan={8}>
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                                         No templates match.{" "}
                                         <Button size="small" onClick={() => { setSearch(""); setTypeFilter("all"); }}>
@@ -436,7 +449,7 @@ function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
                         )}
                         {templates && templates.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={7}>
+                                <TableCell colSpan={8}>
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                                         {isOrderForm ? 'No detail forms yet -- click "New Detail Form" to build one.' : 'No templates yet -- click "New Template" to build one.'}
                                     </Typography>
