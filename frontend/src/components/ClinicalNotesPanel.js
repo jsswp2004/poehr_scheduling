@@ -911,34 +911,8 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
               </FormControl>
             </Stack>
 
-            {(userRole === "admin" || userRole === "system_admin" || (noteTypes && noteTypes.length > 1)) && !amendsId ? (
-              <FormControl fullWidth size="small">
-                <InputLabel id="note-type-label">Note Type</InputLabel>
-                <Select
-                  labelId="note-type-label"
-                  label="Note Type"
-                  value={form.note_type}
-                  onChange={handleFieldChange("note_type")}
-                >
-                  {(noteTypes && noteTypes.length
-                    ? noteTypes
-                    : [
-                        { value: "doctor_assessment", label: "Doctor Assessment" },
-                        { value: "nursing_assessment", label: "Nursing Assessment" },
-                      ]
-                  ).map((t) => (
-                    <MenuItem key={t.value} value={t.value}>
-                      {t.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            ) : (
-              <Chip
-                label={noteTypeLabel(form.note_type) || "Select an appointment"}
-                sx={{ alignSelf: "flex-start" }}
-              />
-            )}
+            {/* The note type is not chosen here: it is set in the background from the documentation type
+                (the type assigned when the template was built) and saved with the note. */}
 
             <DictationProvider>
               <DictateNoteBar
