@@ -30,6 +30,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
 import DynamicNoteForm from "../DynamicNoteForm";
+import { OWNERSHIP_OPTIONS } from "./ownership";
 import { describeCalc } from "../../utils/calculations";
 import { CHART_SOURCES, chartSourceLabel } from "../../utils/chartSources";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
@@ -132,6 +133,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
     const [dictionaries, setDictionaries] = useState([]);
     // Value of an item in the note_types dictionary ("" = not set). Only note templates have one.
     const [noteType, setNoteType] = useState("");
+    const [ownership, setOwnership] = useState("");
     // A new template starts on Details (it needs a code and name first); an existing one on Fields.
     const [tab, setTab] = useState(templateCode === null ? "details" : "fields");
     const [previewValues, setPreviewValues] = useState({});
@@ -171,6 +173,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 setIsActive(tpl.is_active);
                 setVersion(tpl.version);
                 setNoteType(tpl.note_type || "");
+                setOwnership(tpl.ownership || "");
 
                 const loaded = tpl.fields.map(fieldFromApi);
                 const keyToClientId = {};
@@ -345,7 +348,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
             is_active: isActive,
             // Only set when creating: a template's kind never changes afterwards.
             ...(isNew ? { kind } : {}),
-            ...(kind === "note" ? { note_type: noteType } : {}),
+            ...(kind === "note" ? { note_type: noteType, ownership } : {}),
             fields: fields.map((f) => ({
                 client_id: f.clientId,
                 tab_label: f.tab_label || "",
@@ -494,7 +497,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                 helperText={isNew ? "Stable machine key, e.g. 'discharge_note'" : "Locked once created"}
                             />
                         </Grid>
-                        <Grid size={{ xs: 12, sm: 4 }}>
+                        <Grid size={{ xs: 12, sm: kind === "note" ? 3 : 4 }}>
                             <TextField label="Name" value={name} fullWidth onChange={(e) => setName(e.target.value)} />
                         </Grid>
                         {kind === "note" && (
@@ -519,6 +522,25 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                     {noteTypeItems.map((i) => (
                                         <MenuItem key={i.value} value={i.value}>
                                             {i.label}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            </Grid>
+                        )}
+                        {kind === "note" && (
+                            <Grid size={{ xs: 12, sm: 3 }}>
+                                <TextField
+                                    select
+                                    label="Document ownership"
+                                    value={ownership}
+                                    fullWidth
+                                    onChange={(e) => setOwnership(e.target.value)}
+                                    helperText="Which discipline owns documents made from this template"
+                                >
+                                    <MenuItem value="">(not set)</MenuItem>
+                                    {OWNERSHIP_OPTIONS.map((o) => (
+                                        <MenuItem key={o.value} value={o.value}>
+                                            {o.label}
                                         </MenuItem>
                                     ))}
                                 </TextField>

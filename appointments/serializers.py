@@ -338,10 +338,21 @@ class NoteTemplateAdminReadSerializer(NoteTemplateSerializer):
     note_type_label = serializers.SerializerMethodField()
 
     class Meta(NoteTemplateSerializer.Meta):
-        fields = NoteTemplateSerializer.Meta.fields + ["kind", "note_type", "note_type_label"]
+        fields = NoteTemplateSerializer.Meta.fields + ["kind", "note_type", "note_type_label", "ownership"]
 
     def get_note_type_label(self, obj):
         return NoteTemplateAdminSerializer.get_note_type_label(None, obj)
+
+
+class NoteTemplatePickerSerializer(NoteTemplateSerializer):
+    """What the Documents tab reads: the template plus its assigned note type and ownership.
+
+    The note type lets the tab default its Note Type to the one set when the template was built. Kept apart from
+    NoteTemplateSerializer so the frozen template_snapshot stored on each note is unchanged.
+    """
+
+    class Meta(NoteTemplateSerializer.Meta):
+        fields = NoteTemplateSerializer.Meta.fields + ["note_type", "ownership"]
 
 
 # --- Phase 2: note-builder configuration UI (admin-only write access) -----
@@ -572,7 +583,7 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = NoteTemplate
-        fields = ["id", "code", "name", "kind", "note_type", "note_type_label", "organization", "is_active", "version", "fields"]
+        fields = ["id", "code", "name", "kind", "note_type", "note_type_label", "ownership", "organization", "is_active", "version", "fields"]
         read_only_fields = ["id", "version", "note_type_label"]
 
     def get_note_type_label(self, obj):

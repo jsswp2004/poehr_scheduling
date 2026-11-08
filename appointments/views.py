@@ -30,6 +30,7 @@ from .serializers import (
     AutoSMSSerializer,
     ClinicalNoteSerializer,
     NoteTemplateSerializer,
+    NoteTemplatePickerSerializer,
     NoteTemplateAdminSerializer,
     NoteTemplateAdminReadSerializer,
     DictionaryAdminSerializer,
@@ -2313,7 +2314,7 @@ class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = NoteTemplate.objects.filter(is_active=True, kind="note").prefetch_related(
         "fields", "fields__dictionary", "fields__dictionary__items"
     )
-    serializer_class = NoteTemplateSerializer
+    serializer_class = NoteTemplatePickerSerializer
     permission_classes = [permissions.IsAuthenticated, CanAccessClinicalNotes]
     lookup_field = "code"
 

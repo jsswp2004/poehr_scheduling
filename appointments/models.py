@@ -867,6 +867,20 @@ class NoteTemplate(models.Model):
         default="",
         help_text="Value of an item in the note_types dictionary; blank = not set",
     )
+    # Which discipline owns (writes and answers for) documents made from this
+    # template. Shown as a column in the Note Builder; blank = not set yet.
+    OWNERSHIP_CHOICES = [
+        ("physician", "Physician"),
+        ("nursing", "Nursing"),
+        ("ancillary", "Ancillary"),
+    ]
+    ownership = models.CharField(
+        max_length=20,
+        choices=OWNERSHIP_CHOICES,
+        blank=True,
+        default="",
+        help_text="Document ownership: physician, nursing or ancillary; blank = not set",
+    )
     version = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

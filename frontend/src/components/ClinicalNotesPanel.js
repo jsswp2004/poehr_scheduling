@@ -48,7 +48,6 @@ import NotePreviewPane from "./NotePreviewPane";
 import { DictationProvider } from "./dictation/DictationContext";
 import DictationTextField from "./dictation/DictationTextField";
 import DictateNoteBar from "./dictation/DictateNoteBar";
-import PanelTitle from "./patients/PanelTitle";
 import SignDialog from "./notes/SignDialog";
 import CosignActions from "./notes/CosignActions";
 import { cosignChip } from "./notes/cosignHelpers";
@@ -284,7 +283,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
         const res = await api.get(apiEndpoints.noteTemplates, { headers });
         if (cancelled) return;
         const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
-        setActiveTemplates(list.map((t) => ({ code: t.code, name: t.name })));
+        setActiveTemplates(list.map((t) => ({ code: t.code, name: t.name, note_type: t.note_type || "" })));
       } catch (err) {
         // Keep the built-in types; the dropdown just won't list extra templates.
         console.error("Failed to load note templates:", err);
@@ -654,6 +653,22 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     setForm((f) => ({ ...f, [field]: e.target.value }));
   };
 
+  // Picking a documentation type also defaults the Note Type to the one assigned to that template when it was built
+  // in the Note Builder -- as long as the author is allowed to use that type. It can still be changed afterwards.
+  const handleDocumentationTypeChange = (e) => {
+    const code = e.target.value;
+    const assigned = ((activeTemplates || []).find((t) => t.code === code) || {}).note_type || "";
+    const allowed = (noteTypes && noteTypes.length
+      ? noteTypes
+      : [{ value: "doctor_assessment" }, { value: "nursing_assessment" }]
+    ).some((t) => t.value === assigned);
+    setForm((f) => ({
+      ...f,
+      documentation_type: code,
+      ...(assigned && allowed && !amendsId ? { note_type: assigned } : {}),
+    }));
+  };
+
   // Dictation: the fields "Dictate whole note" may fill (never calculated items or hidden ones),
   // how to read a field's current value, and how to write accepted values back.
   const dictationFields = isTemplateDriven
@@ -811,7 +826,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
 
   return (
     <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
-      {/* Title + tabs stay pinned under the app bar; only the content below scrolls. */}
+      {/* The tabs stay pinned under the app bar; only the content below scrolls. */}
       <Box
         data-testid="notes-sticky-header"
         sx={{
@@ -829,7 +844,6 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
           borderColor: "divider",
         }}
       >
-        <PanelTitle>Clinical Documentation</PanelTitle>
         {showTabs && (
           <Tabs value={currentTab} onChange={(e, newValue) => setActiveTab(newValue)}>
             <Tab label="Documentation" value="documentation" />
@@ -886,7 +900,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                   labelId="doc-type-select-label"
                   label="Documentation Type"
                   value={form.documentation_type}
-                  onChange={handleFieldChange("documentation_type")}
+                  onChange={handleDocumentationTypeChange}
                 >
                   {documentationTypeOptions.map((dt) => (
                     <MenuItem key={dt.value} value={dt.value}>

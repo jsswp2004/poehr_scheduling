@@ -24,19 +24,20 @@ beforeEach(() => {
 
 test("Documents: header has no patient name and, with the header's visit, no visit picker", async () => {
   render(<ClinicalNotesPanel patientId={3} patientName="Devon Baptiste" chartVisit={{ loading: false, appointmentId: 55 }} />);
-  expect(await screen.findByRole("heading", { name: "Clinical Documentation" })).toBeInTheDocument();
+  expect(await screen.findByRole("tab", { name: "Documentation" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Clinical Documentation" })).toBeNull();
   expect(screen.queryByText(/Devon Baptiste/)).toBeNull();
   await waitFor(() => expect(api.get).toHaveBeenCalled());
   expect(screen.queryByText("Appointment / Registration")).toBeNull();
 });
 
-test("Documents: Preview is its own tab right after Documentation, and the title and tabs sit in a sticky header", async () => {
+test("Documents: Preview is its own tab right after Documentation, and the tabs sit in a sticky header with no title", async () => {
   render(<ClinicalNotesPanel patientId={3} patientName="Devon Baptiste" chartVisit={{ loading: false, appointmentId: 55 }} />);
-  const heading = await screen.findByRole("heading", { name: "Clinical Documentation" });
+  await screen.findByRole("tab", { name: "Documentation" });
+  expect(screen.queryByRole("heading", { name: "Clinical Documentation" })).toBeNull();
   const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
   expect(tabs).toEqual(["Documentation", "Preview", "Note History"]);
   const header = screen.getByTestId("notes-sticky-header");
-  expect(header).toContainElement(heading);
   expect(header).toContainElement(screen.getByRole("tab", { name: "Preview" }));
   fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
   expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
