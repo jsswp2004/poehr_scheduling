@@ -119,6 +119,7 @@ def case_row(case, detail=False):
                 "path": f"{case.bed.room.name} \u203a {case.bed.name}"} if case.bed_id else None,
         "patient": {
             "id": patient.pk,
+            "user_id": patient.user_id,  # the id the patient chart banner uses
             "mrn": patient.mrn,
             "name": person_name(patient.user),
             "age": age_text(patient.date_of_birth) if patient.date_of_birth else "",

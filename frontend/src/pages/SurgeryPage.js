@@ -17,6 +17,7 @@ import CaseDialog from "../components/surgery/CaseDialog";
 import RoomsDialog from "../components/surgery/RoomsDialog";
 import SetupDialog from "../components/surgery/SetupDialog";
 import { shiftDay, todayISO, usDate } from "../components/surgery/surgeryUtils";
+import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import CareSettingSidebar, { rememberCareSetting } from "../components/patients/CareSettingSidebar";
 
 const ALLOWED_ROLES = ["doctor", "nurse", "registrar", "admin", "system_admin"];
@@ -87,6 +88,7 @@ function SurgeryPage() {
   }, [role, load, refreshMs]);
 
   const canEdit = ALLOWED_ROLES.includes(role);
+  const headerRow = rows.find((r) => r.id === (tab === "details" && detailId ? detailId : selectedId)) || null;
   const rooms = planner ? planner.rooms.map((r) => ({ id: r.id, name: r.name })) : [];
 
   const openNew = (defaults = {}) => setDialog({ caseId: null, defaults: { date, ...defaults } });
@@ -204,6 +206,9 @@ function SurgeryPage() {
           {problem}
         </Alert>
       )}
+
+      {/* The same patient banner as the chart, for the case that is selected (reads "No patient selected" until one is) */}
+      <PatientChartHeader persistent patientId={headerRow ? headerRow.patient.user_id : null} visitId={headerRow && headerRow.visit ? headerRow.visit.id : null} />
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 1.5 }}>
         <Tab value="list" label="Case List" />

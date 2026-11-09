@@ -61,6 +61,7 @@ class BookingTests(SurgeryBase):
         self.assertEqual(row["room"]["name"], "OR-1")
         self.assertEqual(row["patient"]["name"], "Bcs, Test")
         self.assertEqual(row["patient"]["mrn"], self.patient.mrn)
+        self.assertEqual(row["patient"]["user_id"], self.patient.user_id)
         self.assertEqual(row["procedures_text"], "CYSTOSCOPY [Right]; STENT")
         self.assertTrue(row["procedures"][0]["is_primary"])
         self.assertEqual(row["next_statuses"], ["preop", "cancelled"])
