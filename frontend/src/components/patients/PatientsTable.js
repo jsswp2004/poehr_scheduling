@@ -106,7 +106,7 @@ function PatientsTable({
     // Surgery shows where the patient is (PreOp, OR, PACU); the Surgery module moves them, so no admit/transfer here
     const surgeryView = careSetting === 'surgery';
     const locationView = inpatientView || surgeryView;
-    const columnCount = inpatientView ? 6 : 5;
+    const columnCount = 5;
 
     if (loading) {
         return (
@@ -132,14 +132,42 @@ function PatientsTable({
                     flexShrink: 0,
                 }}
             >
-                <SearchField
-                    label="Search patients..."
-                    onSearchChange={setSearch}
-                    initialValue={search}
-                    variant="outlined"
-                    size="small"
-                    sx={{ minWidth: 250 }}
-                />
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <SearchField
+                        label="Search patients..."
+                        onSearchChange={setSearch}
+                        initialValue={search}
+                        variant="outlined"
+                        size="small"
+                        sx={{ minWidth: 250 }}
+                    />
+                    {inpatientView && (
+                        <FormControl size="small" sx={{ minWidth: 200 }}>
+                            <InputLabel id="patients-unit-filter-label" shrink>Filter by Unit</InputLabel>
+                            <MUISelect
+                                labelId="patients-unit-filter-label"
+                                label="Filter by Unit"
+                                notched
+                                displayEmpty
+                                value={unit === '' || unit == null ? '' : String(unit)}
+                                onChange={(e) => setUnit && setUnit(e.target.value)}
+                                renderValue={(v) => {
+                                    // the closed filter shows the unit's own name only; the open list still carries the facility
+                                    const chosen = units.find((u) => String(u.id) === String(v)) || {};
+                                    return v ? chosen.short || chosen.name || v : 'All Units';
+                                }}
+                                inputProps={{ 'aria-label': 'Filter by unit', 'data-testid': 'unit-filter' }}
+                            >
+                                <MenuItem value="">All Units</MenuItem>
+                                {units.map((u) => (
+                                    <MenuItem key={u.id} value={String(u.id)}>
+                                        {u.name}
+                                    </MenuItem>
+                                ))}
+                            </MUISelect>
+                        </FormControl>
+                    )}
+                </Box>
                 <FormControl size="small" sx={{ minWidth: 200 }}>
                     <InputLabel>Filter by Provider</InputLabel>
                     <MUISelect
@@ -166,32 +194,6 @@ function PatientsTable({
                 <Table stickyHeader>
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#dbeafe' }}>
-                            {inpatientView && (
-                                <TableCell sx={{ fontWeight: 'bold' }}>
-                                    <MUISelect
-                                        variant="standard"
-                                        size="small"
-                                        displayEmpty
-                                        disableUnderline={false}
-                                        value={unit === '' || unit == null ? '' : String(unit)}
-                                        onChange={(e) => setUnit && setUnit(e.target.value)}
-                                        renderValue={(v) => {
-                                            // the closed filter shows the unit's own name only; the open list still carries the facility
-                                            const chosen = units.find((u) => String(u.id) === String(v)) || {};
-                                            return v ? `Unit: ${chosen.short || chosen.name || v}` : 'Unit';
-                                        }}
-                                        inputProps={{ 'aria-label': 'Filter by unit', 'data-testid': 'unit-filter' }}
-                                        sx={{ fontWeight: 'bold', fontSize: 'inherit', minWidth: 90, color: unit ? 'primary.main' : 'inherit' }}
-                                    >
-                                        <MenuItem value="">All units</MenuItem>
-                                        {units.map((u) => (
-                                            <MenuItem key={u.id} value={String(u.id)}>
-                                                {u.name}
-                                            </MenuItem>
-                                        ))}
-                                    </MUISelect>
-                                </TableCell>
-                            )}
                             <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
                             {locationView ? (
                                 <>
@@ -237,13 +239,6 @@ function PatientsTable({
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    {inpatientView && (
-                                        <TableCell>
-                                            <Typography variant="body2" data-testid={`patient-unit-${patient.user_id}`}>
-                                                {patient.current_visit?.unit_name || ''}
-                                            </Typography>
-                                        </TableCell>
-                                    )}
                                     <TableCell>
                                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                             {patient.full_name}
@@ -488,7 +483,7 @@ function PatientsTable({
 }
 
 
-// The Location column shows only the room and the bed ("312 › A"); the unit has its own column.
+// The Location column shows only the room and the bed ("312 › A"); the unit is a filter beside the search box.
 const roomAndBed = (visit) => {
     if (!visit) return '';
     if (!('room_name' in visit) && !('bed_name' in visit)) return visit.location || ''; // older response
