@@ -25,7 +25,7 @@ import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
 import { applyToFacilities, isAllFacilities } from "../../utils/facilityScope";
-import { CARE_SETTINGS } from "../patients/CareSettingSidebar";
+import { availableCareSettings } from "../patients/CareSettingSidebar";
 import { CHART_TABS } from "../patients/PatientChartTabs";
 
 // Gives each switch a spoken name ("Show Orders") without drawing any extra text.
@@ -258,7 +258,7 @@ function TabManagementSettings() {
 
       <SettingsToolbarPortal>
       <ToggleButtonGroup exclusive size="small" value={care} onChange={(e, v) => v && setCare(v)} aria-label="Module">
-        {CARE_SETTINGS.map((c) => (
+        {availableCareSettings().map((c) => (
           <ToggleButton key={c.key} value={c.key} data-testid={`tabs-module-${c.key}`}>
             {c.label}
           </ToggleButton>

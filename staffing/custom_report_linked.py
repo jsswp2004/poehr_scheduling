@@ -117,7 +117,7 @@ def load_pat(org, start, end, user=None):
     return rows
 
 
-CARE = {"ambulatory": "Clinic", "emergency": "ED", "acute": "Inpatient"}
+CARE = {"ambulatory": "Clinic", "emergency": "ED", "acute": "Inpatient", "surgery": "Surgery"}
 ADMISSION = {"scheduled": "Scheduled", "emergency": "Emergency", "direct": "Direct"}
 
 

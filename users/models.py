@@ -648,12 +648,13 @@ class Registration(models.Model):
         ("direct", "Direct"),
     ]
     # The care setting this visit belongs to: drives the Ambulatory / Emergency /
-    # Acute tabs on the Patients page. Left blank it is worked out from the
+    # Acute / Surgery tabs on the Patients page. Left blank it is worked out from the
     # admission type when the visit is saved (see save() below).
     CARE_SETTING_CHOICES = [
         ("ambulatory", "Ambulatory Care"),
         ("emergency", "Emergency Care"),
         ("acute", "Acute Care"),
+        ("surgery", "Surgery"),
     ]
 
     patient = models.ForeignKey(

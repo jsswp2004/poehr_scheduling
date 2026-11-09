@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from .models import ChartTabLayout
 from .patient_header import ADMIN_ROLES, STAFF_ROLES, _target_org
 
-CARE_SETTINGS = ("ambulatory", "emergency", "acute")
+CARE_SETTINGS = ("ambulatory", "emergency", "acute", "surgery")
 CLINICAL_ROLES = ("doctor", "nurse", "admin", "system_admin")
 LIST_TAB = "patient_list"  # always shown: it is how a patient gets chosen
 
@@ -122,7 +122,7 @@ def _care_setting(value):
 def _validate_payload(request):
     care = _care_setting(request.data.get("care_setting"))
     if not care:
-        return None, None, None, Response({"detail": "care_setting must be ambulatory, emergency or acute."}, status=400)
+        return None, None, None, Response({"detail": "care_setting must be ambulatory, emergency, acute or surgery."}, status=400)
     raw = request.data.get("items")
     if not isinstance(raw, list):
         return None, None, None, Response({"detail": "items must be a list."}, status=400)
@@ -189,7 +189,7 @@ class MyChartTabsView(APIView):
     def delete(self, request):
         care = _care_setting(request.query_params.get("care_setting"))
         if not care:
-            return Response({"detail": "care_setting must be ambulatory, emergency or acute."}, status=400)
+            return Response({"detail": "care_setting must be ambulatory, emergency, acute or surgery."}, status=400)
         org = _target_org(request)
         if org is None:
             return Response({"detail": "Choose a clinic."}, status=400)
@@ -246,7 +246,7 @@ class OrgChartTabsView(APIView):
             return denied
         care = _care_setting(request.query_params.get("care_setting"))
         if not care:
-            return Response({"detail": "care_setting must be ambulatory, emergency or acute."}, status=400)
+            return Response({"detail": "care_setting must be ambulatory, emergency, acute or surgery."}, status=400)
         org = _target_org(request)
         if org is None:
             return Response({"detail": "Choose a clinic."}, status=400)

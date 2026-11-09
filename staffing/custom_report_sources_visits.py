@@ -14,7 +14,7 @@ from .custom_reports import dim, measure, register
 
 RIGHT = "analytics.view"
 
-CARE = {"ambulatory": "Clinic", "emergency": "ED", "acute": "Inpatient"}
+CARE = {"ambulatory": "Clinic", "emergency": "ED", "acute": "Inpatient", "surgery": "Surgery"}
 ADMISSION = {"scheduled": "Scheduled", "emergency": "Emergency", "direct": "Direct"}
 ED_STATUS = {
     "wtbs": "Waiting to be seen", "tip": "Treatment in progress", "dispo": "Disposition pending",

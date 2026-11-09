@@ -1,11 +1,19 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import { jwtDecode } from "jwt-decode";
 import CareSettingSidebar, { COLLAPSED_KEY, SELECTED_KEY, storedCareSetting, rememberCareSetting } from "../patients/CareSettingSidebar";
 
-beforeEach(() => window.localStorage.clear());
+jest.mock("jwt-decode", () => ({ jwtDecode: jest.fn() }));
 
-test("lists the three care settings and no All patients item", () => {
+beforeEach(() => {
+  window.localStorage.clear();
+  jwtDecode.mockReset();
+});
+
+test("lists the four care settings, Surgery last, and no All patients item", () => {
   render(<CareSettingSidebar onChange={() => {}} />);
-  for (const name of ["Ambulatory Care", "Emergency Care", "Acute Care"]) {
+  const names = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label")).filter((n) => n && n.length > 5 && !/sidebar/i.test(n));
+  expect(names).toEqual(["Ambulatory Care", "Emergency Care", "Acute Care", "Surgery"]);
+  for (const name of ["Ambulatory Care", "Emergency Care", "Acute Care", "Surgery"]) {
     expect(screen.getByRole("button", { name })).toBeInTheDocument();
   }
   expect(screen.queryByRole("button", { name: "All patients" })).toBeNull();
@@ -94,4 +102,32 @@ describe("compact mode (beside a patient's chart pages)", () => {
     expect(onChange).toHaveBeenCalledWith("emergency");
     expect(window.localStorage.getItem("powerCareSidebarCollapsed")).toBe("0");
   });
+});
+
+test("Surgery is only offered to an organization licensed for it", () => {
+  window.localStorage.setItem("access_token", "t");
+  jwtDecode.mockReturnValue({ role: "nurse", modules: ["scheduling", "staffing"] });
+  const { unmount } = render(<CareSettingSidebar onChange={() => {}} />);
+  expect(screen.getByRole("button", { name: "Acute Care" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Surgery" })).toBeNull();
+  unmount();
+  jwtDecode.mockReturnValue({ role: "nurse", modules: ["scheduling", "surgery"] });
+  render(<CareSettingSidebar onChange={() => {}} />);
+  expect(screen.getByRole("button", { name: "Surgery" })).toBeInTheDocument();
+});
+
+test("a remembered Surgery setting falls back to Ambulatory when the module is not licensed", () => {
+  window.localStorage.setItem("access_token", "t");
+  window.localStorage.setItem(SELECTED_KEY, "surgery");
+  jwtDecode.mockReturnValue({ role: "nurse", modules: ["scheduling"] });
+  expect(storedCareSetting()).toBe("ambulatory");
+  jwtDecode.mockReturnValue({ role: "nurse", modules: ["scheduling", "surgery"] });
+  expect(storedCareSetting()).toBe("surgery");
+});
+
+test("clicking Surgery reports its key", () => {
+  const onChange = jest.fn();
+  render(<CareSettingSidebar value="" onChange={onChange} />);
+  fireEvent.click(screen.getByRole("button", { name: "Surgery" }));
+  expect(onChange).toHaveBeenCalledWith("surgery");
 });

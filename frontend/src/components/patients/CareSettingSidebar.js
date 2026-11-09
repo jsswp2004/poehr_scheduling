@@ -6,12 +6,18 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 import EmergencyIcon from "@mui/icons-material/Emergency";
 import HotelIcon from "@mui/icons-material/Hotel";
+import HealingIcon from "@mui/icons-material/Healing";
+import { moduleEnabled } from "../../utils/orgModules";
 
 export const CARE_SETTINGS = [
   { key: "ambulatory", label: "Ambulatory Care", Icon: MedicalServicesIcon },
   { key: "emergency", label: "Emergency Care", Icon: EmergencyIcon },
   { key: "acute", label: "Acute Care", Icon: HotelIcon },
+  { key: "surgery", label: "Surgery", Icon: HealingIcon },
 ];
+
+/** The care settings this organization can use: Surgery only when it is licensed for the Surgery module. */
+export const availableCareSettings = () => CARE_SETTINGS.filter((c) => c.key !== "surgery" || moduleEnabled("surgery"));
 
 export const COLLAPSED_KEY = "powerCareSidebarCollapsed";
 export const SELECTED_KEY = "powerCareSetting";
@@ -37,7 +43,7 @@ export const DEFAULT_CARE_SETTING = "ambulatory";
 /** The care setting remembered from last time. The list is always filtered, so the default is Ambulatory. */
 export const storedCareSetting = () => {
   const value = readStored(SELECTED_KEY);
-  return CARE_SETTINGS.some((c) => c.key === value) ? value : DEFAULT_CARE_SETTING;
+  return availableCareSettings().some((c) => c.key === value) ? value : DEFAULT_CARE_SETTING;
 };
 
 export const rememberCareSetting = (value) => writeStored(SELECTED_KEY, value || DEFAULT_CARE_SETTING);
@@ -106,7 +112,7 @@ function CareSettingSidebar({ value = DEFAULT_CARE_SETTING, onChange, compact = 
       </Box>
       )}
       <List dense disablePadding sx={compact ? { pt: 1 } : undefined}>
-        {CARE_SETTINGS.map(({ key, label, Icon }) => {
+        {availableCareSettings().map(({ key, label, Icon }) => {
           const selected = value === key;
           return (
             <Tooltip key={key || "all"} title={collapsed ? label : ""} placement="right">

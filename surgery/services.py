@@ -341,15 +341,15 @@ def bay_problem(case, bed):
     return ""
 
 
-def _set_place(visit, unit=None, room=None, bed=None):
-    """Put the visit in a place, keeping its care setting (surgery moves a patient, it does not change the kind of visit)."""
+def _set_place(visit, unit=None, room=None, bed=None, care=None):
+    """Put the visit in a place. The unit decides the care setting (an operating-room unit is Surgery); with no
+    unit the visit takes `care`, the setting it had before surgery."""
     from users.models import Registration
 
-    care = visit.care_setting
     visit.unit, visit.room, visit.bed = unit, room, bed
     visit.facility = None if (unit or room or bed) else visit.facility  # filled from the place in save()
     visit.save()
-    if visit.care_setting != care:
+    if care and not visit.unit_id and visit.care_setting != care:
         Registration.objects.filter(pk=visit.pk).update(care_setting=care)
         visit.care_setting = care
 
@@ -357,21 +357,22 @@ def _set_place(visit, unit=None, room=None, bed=None):
 def _restore_place(case, visit):
     """Back to where the patient was before surgery when that place is still usable, else out of the surgical unit."""
     prev = case.previous_place or {}
+    care = prev.get("care_setting") or "ambulatory"  # where the patient was: Ambulatory, Emergency or Acute
     bed = Bed.objects.filter(pk=prev.get("bed")).select_related("room__unit").first() if prev.get("bed") else None
     if bed is not None and bed.is_active and not bed.hold and bed.pk not in occupied_beds(case.organization, exclude_registration=visit.pk):
-        return _set_place(visit, bed.room.unit, bed.room, bed)
+        return _set_place(visit, bed.room.unit, bed.room, bed, care)
     room = Room.objects.filter(pk=prev.get("room")).select_related("unit").first() if prev.get("room") else None
     if room is not None and room.is_active:
-        return _set_place(visit, room.unit, room, None)
+        return _set_place(visit, room.unit, room, None, care)
     unit = Unit.objects.filter(pk=prev.get("unit")).first() if prev.get("unit") else None
     if unit is not None and unit.is_active:
-        return _set_place(visit, unit, None, None)
-    _set_place(visit)
+        return _set_place(visit, unit, None, None, care)
+    _set_place(visit, care=care)
 
 
 def _admit_as_inpatient(visit):
     """A surgery patient moved to an inpatient bed is admitted: Acute Care, and out of any outpatient unit
-    until a bed is chosen (day-surgery patients stay Ambulatory; only an admission changes that)."""
+    until a bed is chosen (a day-surgery patient goes back to Ambulatory; only an admission changes that)."""
     from users.models import Registration
 
     if visit.unit_id and visit.unit.care_setting != "acute":
@@ -402,7 +403,10 @@ def place_visit(case):
             _admit_as_inpatient(visit)
         return
     if not inside and not case.previous_place:
-        case.previous_place = {"unit": visit.unit_id, "room": visit.room_id, "bed": visit.bed_id}
+        case.previous_place = {
+            "unit": visit.unit_id, "room": visit.room_id, "bed": visit.bed_id,
+            "care_setting": visit.care_setting if visit.care_setting not in ("", "surgery") else "ambulatory",
+        }
     if case.status == "or":
         loc = case.room.location_room if case.room_id and case.room.location_room_id else None
         if loc is not None:
