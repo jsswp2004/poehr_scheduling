@@ -17,6 +17,7 @@ import CaseDialog from "../components/surgery/CaseDialog";
 import RoomsDialog from "../components/surgery/RoomsDialog";
 import SetupDialog from "../components/surgery/SetupDialog";
 import { shiftDay, todayISO, usDate } from "../components/surgery/surgeryUtils";
+import CareSettingSidebar, { rememberCareSetting } from "../components/patients/CareSettingSidebar";
 
 const ALLOWED_ROLES = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 const ADMIN_ROLES = ["admin", "system_admin"];
@@ -133,6 +134,18 @@ function SurgeryPage() {
   if (!role) return null;
 
   return (
+    <Box sx={{ display: "flex", alignItems: "stretch", minHeight: "calc(100vh - 80px)" }}>
+      {/* The same care-setting sidebar as the Patients page, with Surgery selected; the others go to that list */}
+      <CareSettingSidebar
+        value="surgery"
+        onBack={() => navigate(-1)}
+        onChange={(value) => {
+          if (value === "surgery") return;
+          rememberCareSetting(value);
+          navigate("/patients");
+        }}
+      />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
     <Container maxWidth={false} sx={{ py: 2 }}>
       <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
         <Typography variant="h5" sx={{ mr: 1 }}>
@@ -231,6 +244,8 @@ function SurgeryPage() {
         <RoomsDialog open={roomsOpen} facilityId={planner.facility} onClose={() => setRoomsOpen(false)} onChanged={load} />
       )}
     </Container>
+      </Box>
+    </Box>
   );
 }
 

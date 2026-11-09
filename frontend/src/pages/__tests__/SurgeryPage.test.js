@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SurgeryPage from "../SurgeryPage";
 import { surgeryApi } from "../../components/surgery/surgeryApi";
 
-jest.mock("react-router-dom", () => ({ useNavigate: () => jest.fn() }), { virtual: true });
+const mockNavigate = jest.fn();
+jest.mock("react-router-dom", () => ({ useNavigate: () => mockNavigate }), { virtual: true });
 jest.mock("jwt-decode", () => ({ jwtDecode: () => ({ role: "nurse" }) }));
 jest.mock("../../components/surgery/surgeryApi", () => ({
   surgeryApi: {
@@ -166,4 +167,17 @@ test("with units in several facilities there is no All choice and the first unit
   fireEvent.mouseDown(screen.getByLabelText("Unit"));
   expect(screen.queryByRole("option", { name: "All surgical units" })).toBeNull();
   expect(screen.getByRole("option", { name: "Annex \u203a Annex OR" })).toBeInTheDocument();
+});
+
+test("shows the care-setting sidebar with Surgery selected; another setting goes to that patient list", async () => {
+  const setItem = jest.spyOn(Storage.prototype, "setItem");
+  renderPage();
+  await screen.findByText("BASCOM, MARK B");
+  expect(screen.getByRole("button", { name: "Surgery" })).toHaveAttribute("aria-current", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Acute Care" }));
+  expect(mockNavigate).toHaveBeenCalledWith("/patients");
+  expect(setItem).toHaveBeenCalledWith("powerCareSetting", "acute");
+  mockNavigate.mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "Surgery" }));
+  expect(mockNavigate).not.toHaveBeenCalled(); // already here
 });

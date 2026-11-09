@@ -103,6 +103,9 @@ function PatientsTable({
     const inpatientView = careSetting === 'acute';
     // Transfer and Discharge apply to anyone in a bed or waiting in the ED, as well as inpatients
     const inHouseView = careSetting === 'acute' || careSetting === 'emergency';
+    // Surgery shows where the patient is (PreOp, OR, PACU); the Surgery module moves them, so no admit/transfer here
+    const surgeryView = careSetting === 'surgery';
+    const locationView = inpatientView || surgeryView;
     const columnCount = inpatientView ? 6 : 5;
 
     if (loading) {
@@ -190,7 +193,7 @@ function PatientsTable({
                                 </TableCell>
                             )}
                             <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                            {inpatientView ? (
+                            {locationView ? (
                                 <>
                                     <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
                                     <TableCell sx={{ fontWeight: 'bold' }}>Admitted</TableCell>
@@ -214,6 +217,8 @@ function PatientsTable({
                                 <TableCell colSpan={columnCount} sx={{ textAlign: 'center', py: 4 }}>
                                     {inpatientView
                                         ? 'No inpatients right now. Admit a patient from the Ambulatory or Emergency list with the bed icon.'
+                                        : surgeryView
+                                        ? 'No patients in surgery right now. Patients appear here from PreOp until they leave PACU.'
                                         : 'No patients found'}
                                 </TableCell>
                             </TableRow>
@@ -244,7 +249,7 @@ function PatientsTable({
                                             {patient.full_name}
                                         </Typography>
                                     </TableCell>
-                                    {inpatientView ? (
+                                    {locationView ? (
                                         <>
                                             <TableCell>
                                                 <Typography variant="body2" data-testid={`patient-location-${patient.user_id}`}>
@@ -331,7 +336,7 @@ function PatientsTable({
                                                     </IconButton>
                                                 </Tooltip>
                                             )}
-                                            {canAdmit && !inpatientView && onAdmit && (
+                                            {canAdmit && !inpatientView && !surgeryView && onAdmit && (
                                                 <Tooltip title="Admit">
                                                     <IconButton
                                                         size="small"

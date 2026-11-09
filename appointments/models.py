@@ -2059,6 +2059,8 @@ class Unit(models.Model):
 
     @property
     def care_setting(self):
+        if self.is_surgical:  # a patient in an operating-room unit (PreOp, OR, PACU) is in Surgery
+            return "surgery"
         return self.CARE_SETTING_FOR_TYPE.get(self.care_type, "ambulatory")
 
     def __str__(self):

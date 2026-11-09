@@ -990,10 +990,10 @@ def get_patients(request):
             patients = patients.filter(user__provider_id=provider_id)
 
         # Sidebar tabs: a patient belongs to the care setting of their *current* visit: an open
-        # inpatient (acute) visit first, then an open ED visit, else Ambulatory. A newer blank or
+        # surgery visit first, then an open inpatient (acute) visit, then an open ED visit, else Ambulatory. A newer blank or
         # ambulatory visit never hides a patient who is still in a bed.
         care_setting = request.GET.get("care_setting")
-        if care_setting in ("ambulatory", "emergency", "acute"):
+        if care_setting in ("ambulatory", "emergency", "acute", "surgery"):
             from django.db.models import Exists, OuterRef, Subquery
 
             def open_visits(setting):
@@ -1002,6 +1002,7 @@ def get_patients(request):
                 )
 
             patients = patients.annotate(
+                _has_surgery=Exists(open_visits("surgery")),
                 _has_acute=Exists(open_visits("acute")),
                 _has_emergency=Exists(open_visits("emergency")),
             )
@@ -1014,14 +1015,19 @@ def get_patients(request):
                     here, patient=OuterRef("pk"), care_setting=setting, discharge_datetime__isnull=True
                 )
 
+            # a patient in PreOp, OR or PACU is in Surgery first, then inpatient, then ED, else ambulatory
             if care_setting == "ambulatory":
-                patients = patients.filter(_has_acute=False, _has_emergency=False)
+                patients = patients.filter(_has_surgery=False, _has_acute=False, _has_emergency=False)
+            elif care_setting == "surgery":
+                patients = patients.filter(_has_surgery=True)
+                if here is not None:
+                    patients = patients.filter(Exists(open_here("surgery")))
             elif care_setting == "emergency":
-                patients = patients.filter(_has_emergency=True, _has_acute=False)
+                patients = patients.filter(_has_emergency=True, _has_acute=False, _has_surgery=False)
                 if here is not None:
                     patients = patients.filter(Exists(open_here("emergency")))
             else:
-                patients = patients.filter(_has_acute=True)
+                patients = patients.filter(_has_acute=True, _has_surgery=False)
                 if here is not None:
                     patients = patients.filter(Exists(open_here("acute")))
                 # the Unit column filter on the Acute Care list: patients whose open inpatient visit is in that unit

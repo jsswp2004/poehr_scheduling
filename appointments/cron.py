@@ -83,7 +83,7 @@ def send_patient_reminders():
                 organization=config.organization,
             ).exclude(
                 # ED and inpatient visits keep a chart appointment; they are not reminder candidates
-                registration__care_setting__in=("emergency", "acute")
+                registration__care_setting__in=("emergency", "acute", "surgery")
             ).select_related("patient")
             print(
                 f"Processing {appointments.count()} appointments for organization: {config.organization.name}"
@@ -94,7 +94,7 @@ def send_patient_reminders():
                 appointment_datetime__date__lte=next_week,
             ).exclude(
                 # ED and inpatient visits keep a chart appointment; they are not reminder candidates
-                registration__care_setting__in=("emergency", "acute")
+                registration__care_setting__in=("emergency", "acute", "surgery")
             ).select_related("patient")
             print(f"Processing {appointments.count()} appointments (all organizations)")
 
@@ -214,7 +214,7 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
                 organization=config.organization,
             ).exclude(
                 # ED and inpatient visits keep a chart appointment; they are not reminder candidates
-                registration__care_setting__in=("emergency", "acute")
+                registration__care_setting__in=("emergency", "acute", "surgery")
             ).select_related("patient")
             print(
                 f"Processing {appointments.count()} SMS appointments for organization: {config.organization.name}"
@@ -225,7 +225,7 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
                 appointment_datetime__date__lte=next_week,
             ).exclude(
                 # ED and inpatient visits keep a chart appointment; they are not reminder candidates
-                registration__care_setting__in=("emergency", "acute")
+                registration__care_setting__in=("emergency", "acute", "surgery")
             ).select_related("patient")
             print(
                 f"Processing {appointments.count()} SMS appointments (all organizations)"

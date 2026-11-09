@@ -11,6 +11,7 @@ const SETTINGS = [
   { value: "ambulatory", label: "Ambulatory Care" },
   { value: "emergency", label: "Emergency Care" },
   { value: "acute", label: "Acute Care" },
+  { value: "surgery", label: "Surgery" },
 ];
 
 const authConfig = async (extra = {}) => {

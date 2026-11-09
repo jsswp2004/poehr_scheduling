@@ -316,7 +316,7 @@ def _as_date(text):
         "query": {"type": "string", "description": "Name, MRN (like MRN-000123) or date of birth."},
         "care_setting": {
             "type": "string",
-            "enum": ["ambulatory", "emergency", "acute"],
+            "enum": ["ambulatory", "emergency", "acute", "surgery"],
             "description": "Only patients whose current visit is in this care setting.",
         },
         "limit": {"type": "integer", "description": f"How many to return (default 10, at most {MAX_ROWS})."},
@@ -336,7 +336,7 @@ def search_patients(user, args):
         params["dob"] = dob.isoformat()
     else:
         params["search"] = max(tokens, key=len)
-    if args.get("care_setting") in ("ambulatory", "emergency", "acute"):
+    if args.get("care_setting") in ("ambulatory", "emergency", "acute", "surgery"):
         params["care_setting"] = args["care_setting"]
     rows = _as_list(_call(get_patients, user, params))
     rows = [r for r in rows if r.get("organization") == user.organization_id]

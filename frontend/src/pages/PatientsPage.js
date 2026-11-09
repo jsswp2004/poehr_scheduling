@@ -276,7 +276,7 @@ function PatientsPage() {
   useEffect(() => {
     if (!searchOpen || handledSearch.current === searchOpen.nonce) return;
     handledSearch.current = searchOpen.nonce;
-    if (["ambulatory", "emergency", "acute"].includes(searchOpen.care) && searchOpen.care !== patients.careSetting) {
+    if (["ambulatory", "emergency", "acute", "surgery"].includes(searchOpen.care) && searchOpen.care !== patients.careSetting) {
       openedOnChart.current = true; // the module change must not move the tab we are about to open
       patients.setCareSetting(searchOpen.care);
     }
@@ -638,6 +638,7 @@ function PatientsPage() {
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
             if (current === "patient_list") {
               const acute = patients.careSetting === "acute";
+              const surgery = patients.careSetting === "surgery";
               const emergency = patients.careSetting === "emergency";
               if (emergency) {
                 return (
@@ -657,8 +658,15 @@ function PatientsPage() {
               }
               return (
             <>
-            {acute && <AcuteViewTabs value={acuteView} onChange={setAcuteView} />}
-            {acute && acuteView === "beds" ? (
+            {surgery && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 0.5 }}>
+                <Button size="small" variant="outlined" onClick={() => navigate("/surgery")} data-testid="open-surgical-care">
+                  Open Surgical Care
+                </Button>
+              </Box>
+            )}
+            {(acute || surgery) && <AcuteViewTabs value={acuteView} onChange={setAcuteView} />}
+            {(acute || surgery) && acuteView === "beds" ? (
               <BedBoard
                 userRole={userRole}
                 refreshKey={boardKey}

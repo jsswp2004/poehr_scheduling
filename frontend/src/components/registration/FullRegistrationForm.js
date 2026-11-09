@@ -1830,6 +1830,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     <MenuItem value="ambulatory">Ambulatory Care</MenuItem>
                     <MenuItem value="emergency">Emergency Care</MenuItem>
                     <MenuItem value="acute">Acute Care</MenuItem>
+                    <MenuItem value="surgery">Surgery</MenuItem>
                   </MUISelect>
                 </FormControl>
                 {show("logistics", "arrival_time") && (

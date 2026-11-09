@@ -1487,3 +1487,106 @@ class UnitFilterTests(SurgeryBase):
         d = self.planner()
         self.assertEqual((d["units"], d["unit"], d["all_units"]), ([], None, True))
         self.assertEqual([r["name"] for r in d["rooms"]], ["OR-1", "OR-2"])
+
+
+class SurgeryCareSettingTests(SurgeryBase):
+    """Surgery is the fourth care setting: a visit is in it from PreOp to PACU, then goes back to where it was."""
+
+    def setUp(self):
+        super().setUp()
+        from appointments.models import Bed, Room, Unit
+        self.sunit = Unit.objects.create(facility=self.hospital, name="Perioperative", care_type="outpatient", is_surgical=True)
+        self.or_room = Room.objects.create(unit=self.sunit, name="OR 9")
+        self.or9 = SurgeryRoom.objects.create(facility=self.hospital, name="OR 9", location_room=self.or_room)
+        self.preop = Room.objects.create(unit=self.sunit, name="Pre-op")
+        self.pre1 = Bed.objects.create(room=self.preop, name="1")
+        self.ed_unit = self.ed
+        self.ed_room = Room.objects.create(unit=self.ed_unit, name="ED 1")
+        self.ed_bed = Bed.objects.create(room=self.ed_room, name="A")
+
+    def case_for(self, visit):
+        case = self.make_case(room=self.or9.pk)
+        SurgeryCase.objects.filter(pk=case["id"]).update(visit=visit)
+        return case
+
+    def setting(self, visit):
+        visit.refresh_from_db()
+        return visit.care_setting
+
+    def listed(self, setting):
+        r = self.as_(self.nurse).get("/api/users/patients/", {"care_setting": setting})
+        self.assertEqual(r.status_code, 200, r.content)
+        rows = r.json().get("results", r.json())
+        return [p["id"] for p in rows]
+
+    def test_a_unit_that_is_an_operating_room_unit_is_surgery(self):
+        self.assertEqual(self.sunit.care_setting, "surgery")
+        self.assertEqual(self.ed_unit.care_setting, "emergency")
+
+    def test_ambulatory_visit_is_surgery_from_preop_and_back_to_ambulatory_after_discharge(self):
+        r = self.book(create_visit=True)
+        case = r.json()
+        visit = SurgeryCase.objects.get(pk=case["id"]).visit
+        self.assertEqual(self.setting(visit), "ambulatory")
+        self.assertEqual(self.move(case["id"], "preop", bed=self.pre1.pk).status_code, 200)
+        self.assertEqual(self.setting(visit), "surgery")
+        self.assertIn(self.patient.pk, self.listed("surgery"))
+        self.assertNotIn(self.patient.pk, self.listed("ambulatory"))
+        for s in ("or", "pacu"):
+            self.assertEqual(self.move(case["id"], s).status_code, 200)
+            self.assertEqual(self.setting(visit), "surgery")
+        self.assertEqual(self.move(case["id"], "discharged").status_code, 200)
+        self.assertEqual(self.setting(visit), "ambulatory")
+        self.assertIn(self.patient.pk, self.listed("ambulatory"))
+        self.assertNotIn(self.patient.pk, self.listed("surgery"))
+
+    def test_an_inpatient_has_surgery_and_goes_back_to_acute_in_their_bed(self):
+        visit = Registration.objects.create(patient=self.patient, organization=self.org, bed=self.bed_a)
+        self.assertEqual(self.setting(visit), "acute")
+        case = self.case_for(visit)
+        self.move(case["id"], "preop", bed=self.pre1.pk)
+        self.assertEqual(self.setting(visit), "surgery")
+        self.assertNotIn(self.patient.pk, self.listed("acute"))
+        self.move(case["id"], "or")
+        self.move(case["id"], "pacu")
+        self.move(case["id"], "discharged")
+        visit.refresh_from_db()
+        self.assertEqual((visit.care_setting, visit.bed_id), ("acute", self.bed_a.pk))
+        self.assertIn(self.patient.pk, self.listed("acute"))
+
+    def test_an_ed_patient_has_surgery_and_goes_back_to_emergency(self):
+        visit = Registration.objects.create(patient=self.patient, organization=self.org, bed=self.ed_bed)
+        self.assertEqual(self.setting(visit), "emergency")
+        case = self.case_for(visit)
+        self.move(case["id"], "preop")
+        self.assertEqual(self.setting(visit), "surgery")
+        for s in ("or", "pacu", "discharged"):
+            self.move(case["id"], s)
+        visit.refresh_from_db()
+        self.assertEqual((visit.care_setting, visit.bed_id), ("emergency", self.ed_bed.pk))
+
+    def test_a_visit_with_no_unit_gets_its_setting_back_when_surgery_ends(self):
+        visit = Registration.objects.create(patient=self.patient, organization=self.org, facility=self.hospital, admission_type="scheduled")
+        case = self.case_for(visit)
+        self.move(case["id"], "preop")
+        self.assertEqual(self.setting(visit), "surgery")
+        self.move(case["id"], "cancelled", reason="Patient ate")
+        self.assertEqual(self.setting(visit), "ambulatory")
+
+    def test_transfer_to_inpatient_is_acute(self):
+        visit = Registration.objects.create(patient=self.patient, organization=self.org, facility=self.hospital, admission_type="scheduled")
+        case = self.case_for(visit)
+        for s in ("preop", "or", "pacu", "transferred"):
+            self.move(case["id"], s)
+        visit.refresh_from_db()
+        self.assertEqual((visit.care_setting, visit.admission_type), ("acute", "direct"))
+        self.assertIn(self.patient.pk, self.listed("acute"))
+        self.assertNotIn(self.patient.pk, self.listed("surgery"))
+
+    def test_a_user_limited_to_another_facility_does_not_see_the_surgery_patient(self):
+        visit = Registration.objects.create(patient=self.patient, organization=self.org, facility=self.hospital)
+        case = self.case_for(visit)
+        self.move(case["id"], "preop")
+        other = Facility.objects.create(organization=self.org, name="Other Site")
+        self.nurse.facilities.add(other)
+        self.assertNotIn(self.patient.pk, self.listed("surgery"))
