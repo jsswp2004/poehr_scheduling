@@ -658,14 +658,19 @@ function PatientsPage() {
               }
               return (
             <>
-            {surgery && (
-              <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 0.5 }}>
-                <Button size="small" variant="outlined" onClick={() => navigate("/surgery")} data-testid="open-surgical-care">
-                  Open Surgical Care
-                </Button>
-              </Box>
+            {(acute || surgery) && (
+              <AcuteViewTabs
+                value={acuteView}
+                onChange={setAcuteView}
+                action={
+                  surgery ? (
+                    <Button size="small" variant="outlined" onClick={() => navigate("/surgery")} data-testid="open-surgical-care" sx={{ whiteSpace: "nowrap" }}>
+                      Open Surgical Care
+                    </Button>
+                  ) : null
+                }
+              />
             )}
-            {(acute || surgery) && <AcuteViewTabs value={acuteView} onChange={setAcuteView} />}
             {(acute || surgery) && acuteView === "beds" ? (
               <BedBoard
                 userRole={userRole}
