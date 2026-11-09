@@ -33,7 +33,6 @@ test("Acute Care shows location and attending with Transfer and Discharge, not A
   const onDischarge = jest.fn();
   show({ careSetting: "acute", onTransfer, onDischarge });
   expect(screen.getByTestId("patient-location-10")).toHaveTextContent(/^312 › A$/);
-  expect(screen.getByTestId("patient-unit-10")).toHaveTextContent(/^3 West$/);
   expect(screen.getByText("Dr. Jeffrey Lee")).toBeInTheDocument();
   expect(screen.queryByText("b@x.com")).toBeNull();
   expect(screen.queryByRole("button", { name: "Admit Bob Ray" })).toBeNull();
@@ -91,39 +90,39 @@ test("the Location column shows only the room and the bed", () => {
   });
 });
 
-test("Acute Care has a Unit column before Name, the other lists do not", () => {
-  show({ careSetting: "acute" });
+test("Acute Care has no Unit column; the unit is a filter beside the search box", () => {
+  show({ careSetting: "acute", units: [{ id: 7, name: "3 West" }] });
   const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
-  expect(headers.slice(0, 3)).toEqual(["Unit", "Name", "Location"]);
-  expect(screen.getByTestId("patient-unit-10")).toHaveTextContent("3 West");
-  expect(screen.getAllByRole("row")[1].querySelectorAll("td")[0]).toHaveTextContent("3 West");
+  expect(headers.slice(0, 2)).toEqual(["Name", "Location"]);
+  expect(headers).not.toContain("Unit");
+  expect(screen.queryByTestId("patient-unit-10")).toBeNull();
+  expect(screen.getByRole("combobox", { name: /Filter by unit/i })).toBeInTheDocument();
 });
 
-test("other lists have no Unit column", () => {
+test("other lists have no unit filter", () => {
   show({ careSetting: "ambulatory" });
   expect(screen.queryByTestId("unit-filter")).toBeNull();
-  expect(screen.queryByTestId("patient-unit-10")).toBeNull();
   expect(screen.getAllByRole("columnheader")[0]).toHaveTextContent("Name");
 });
 
-test("the Unit header filters: it lists every unit, and picking one calls setUnit", () => {
+test("the Unit filter: it lists every unit, and picking one calls setUnit", () => {
   const setUnit = jest.fn();
   const units = [{ id: 7, name: "3 West" }, { id: 8, name: "4 East" }];
   show({ careSetting: "acute", units, setUnit, unit: "" });
   fireEvent.mouseDown(screen.getByRole("combobox", { name: /Filter by unit/i }));
   const options = screen.getAllByRole("option").map((o) => o.textContent);
-  expect(options).toEqual(["All units", "3 West", "4 East"]);
+  expect(options).toEqual(["All Units", "3 West", "4 East"]);
   fireEvent.click(screen.getByRole("option", { name: "4 East" }));
   expect(setUnit).toHaveBeenCalledWith("8");
 });
 
-test("an active unit filter shows in the header, and All units clears it", () => {
+test("an active unit filter shows beside the search, and All Units clears it", () => {
   const setUnit = jest.fn();
   const units = [{ id: 7, name: "3 West" }];
   show({ careSetting: "acute", units, setUnit, unit: "7" });
-  expect(screen.getByRole("combobox", { name: /Filter by unit/i })).toHaveTextContent("Unit: 3 West");
+  expect(screen.getByRole("combobox", { name: /Filter by unit/i })).toHaveTextContent("3 West");
   fireEvent.mouseDown(screen.getByRole("combobox", { name: /Filter by unit/i }));
-  fireEvent.click(screen.getByRole("option", { name: "All units" }));
+  fireEvent.click(screen.getByRole("option", { name: "All Units" }));
   expect(setUnit).toHaveBeenCalledWith("");
 });
 
@@ -134,20 +133,20 @@ test("with several facilities the closed filter shows only the unit's name; the 
   ];
   show({ careSetting: "acute", units, setUnit: jest.fn(), unit: "7" });
   const filter = screen.getByRole("combobox", { name: /Filter by unit/i });
-  expect(filter).toHaveTextContent("Unit: Medicine");
+  expect(filter).toHaveTextContent("Medicine");
   expect(filter).not.toHaveTextContent("Riverside");
   fireEvent.mouseDown(filter);
-  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["All units", "Medicine (Riverside Hospital)", "Medicine (Harbor Hospital)"]);
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["All Units", "Medicine (Riverside Hospital)", "Medicine (Harbor Hospital)"]);
 });
 
 test("a unit with no short name still shows its full name", () => {
   show({ careSetting: "acute", units: [{ id: 7, name: "3 West" }], setUnit: jest.fn(), unit: "7" });
-  expect(screen.getByRole("combobox", { name: /Filter by unit/i })).toHaveTextContent("Unit: 3 West");
+  expect(screen.getByRole("combobox", { name: /Filter by unit/i })).toHaveTextContent("3 West");
 });
 
 test("an empty filtered list spans the whole table", () => {
   show({ careSetting: "acute", patients: [], unit: "7", units: [{ id: 7, name: "3 West" }] });
-  expect(screen.getByText(/No inpatients right now/).closest("td")).toHaveAttribute("colspan", "6");
+  expect(screen.getByText(/No inpatients right now/).closest("td")).toHaveAttribute("colspan", "5");
 });
 
 test("Acute and Emergency lists offer Attending; other lists and roles do not", () => {
