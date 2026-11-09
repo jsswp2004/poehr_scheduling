@@ -149,6 +149,9 @@ function SurgeryPage() {
       />
       <Box sx={{ flex: 1, minWidth: 0 }}>
     <Container maxWidth={false} sx={{ py: 2 }}>
+      {/* The same patient banner as the chart, at the very top, for the case that is selected (reads "No patient selected" until one is) */}
+      <PatientChartHeader persistent patientId={headerRow ? headerRow.patient.user_id : null} visitId={headerRow && headerRow.visit ? headerRow.visit.id : null} />
+
       <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
         <Typography variant="h5" sx={{ mr: 1 }}>
           Surgical Care
@@ -206,9 +209,6 @@ function SurgeryPage() {
           {problem}
         </Alert>
       )}
-
-      {/* The same patient banner as the chart, for the case that is selected (reads "No patient selected" until one is) */}
-      <PatientChartHeader persistent patientId={headerRow ? headerRow.patient.user_id : null} visitId={headerRow && headerRow.visit ? headerRow.visit.id : null} />
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 1.5 }}>
         <Tab value="list" label="Case List" />
