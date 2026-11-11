@@ -169,6 +169,9 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     return () => setUnsaved("note", false);
   }, [holdsUnsavedNote]);
   const [amendsId, setAmendsId] = useState(null); // set when writing an addendum
+  // True while editing a note written before its type became a Note Builder template: it keeps the plain
+  // Subjective / Objective / Assessment / Plan form it was written on.
+  const [legacySoap, setLegacySoap] = useState(false);
   const [activeTab, setActiveTab] = useState("documentation");
 
   // A new note (not an edited draft or an addendum) always belongs to the header's visit.
@@ -309,10 +312,9 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     if (activeTemplates === null) {
       options = [...DOCUMENTATION_TYPES];
     } else {
-      options = [
-        ...DOCUMENTATION_TYPES.filter((dt) => !TEMPLATE_DRIVEN_TYPES.has(dt.value)),
-        ...activeTemplates.map((t) => ({ value: t.code, label: t.name })),
-      ];
+      // Once the list is loaded it is the whole list: every type is a Note Builder template, already narrowed by
+      // Document ownership on the server. The built-ins above only stand in until (or if) it cannot be loaded.
+      options = activeTemplates.map((t) => ({ value: t.code, label: t.name }));
     }
     const current = form.documentation_type;
     if (current && !options.some((o) => o.value === current)) {
@@ -327,6 +329,16 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     return options;
   }, [activeTemplates, templatesByCode, form.documentation_type]);
 
+  // A new note starts on a type this user is offered: when the starting one is not in their list (a nurse is not
+  // offered the physician's Initial Assessment), move to the first one that is.
+  useEffect(() => {
+    if (!activeTemplates || activeTemplates.length === 0 || draftId || amendsId) return;
+    if (activeTemplates.some((t) => t.code === form.documentation_type)) return;
+    const first = activeTemplates[0];
+    setForm((f) => ({ ...f, documentation_type: first.code, template: null, structured_data: {}, ...(first.note_type && noteTypeAllowed(first.note_type) ? { note_type: first.note_type } : {}) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTemplates, form.documentation_type, draftId, amendsId]);
+
   const documentationTypeLabel = (code) =>
     documentationTypeOptions.find((o) => o.value === code)?.label || "";
 
@@ -337,7 +349,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   // switching between types repeatedly doesn't keep re-fetching.
   useEffect(() => {
     const code = form.documentation_type;
-    if (!isTemplateType(code)) {
+    if (!isTemplateType(code) || legacySoap) {
       if (form.template !== null) {
         setForm((f) => ({ ...f, template: null }));
       }
@@ -377,7 +389,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     userRole
   );
 
-  const isTemplateDriven = isTemplateType(form.documentation_type);
+  const isTemplateDriven = isTemplateType(form.documentation_type) && !legacySoap;
   const currentTemplate = templatesByCode[form.documentation_type] || null;
 
   // Feeds the live preview pane (and its Print button) alongside the form --
@@ -581,6 +593,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     });
     setDraftId(note.id);
     setAmendsId(null);
+    setLegacySoap(!note.template);
     setActiveTab("documentation");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -655,13 +668,14 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
 
   // Picking a documentation type also defaults the Note Type to the one assigned to that template when it was built
   // in the Note Builder -- as long as the author is allowed to use that type. It can still be changed afterwards.
+  const noteTypeAllowed = (value) =>
+    (noteTypes && noteTypes.length ? noteTypes : [{ value: "doctor_assessment" }, { value: "nursing_assessment" }]).some((t) => t.value === value);
+
   const handleDocumentationTypeChange = (e) => {
     const code = e.target.value;
     const assigned = ((activeTemplates || []).find((t) => t.code === code) || {}).note_type || "";
-    const allowed = (noteTypes && noteTypes.length
-      ? noteTypes
-      : [{ value: "doctor_assessment" }, { value: "nursing_assessment" }]
-    ).some((t) => t.value === assigned);
+    const allowed = noteTypeAllowed(assigned);
+    setLegacySoap(false);
     setForm((f) => ({
       ...f,
       documentation_type: code,
@@ -689,6 +703,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     setForm({ ...EMPTY_FORM, note_type: defaultType });
     setDraftId(null);
     setAmendsId(null);
+    setLegacySoap(false);
   };
 
   const validateTemplateRequiredFields = () => {
@@ -730,6 +745,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     });
     setDraftId(null);
     setAmendsId(note.id);
+    setLegacySoap(!note.template);
     setActiveTab("documentation");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };

@@ -177,11 +177,17 @@ class CanAuthorClinicalNoteType(permissions.BasePermission):
         if role not in ("nurse", "doctor"):
             return False
         # The template's Document ownership must be the user's own discipline (or not set yet).
-        template_id = request.data.get("template")
-        if str(template_id or "").isdigit():
-            from .models import NoteTemplate
+        from .models import NoteTemplate
 
-            owner = NoteTemplate.objects.filter(pk=int(template_id)).values_list("ownership", flat=True).first()
+        template_id = request.data.get("template")
+        templates = NoteTemplate.objects.none()
+        if str(template_id or "").isdigit():
+            templates = NoteTemplate.objects.filter(pk=int(template_id))
+        # The documentation type names a template too (the server attaches it), so check that one as well.
+        doc_type = request.data.get("documentation_type")
+        if doc_type:
+            templates = templates | NoteTemplate.objects.filter(code=doc_type, is_active=True, kind="note")
+        for owner in templates.values_list("ownership", flat=True):
             if owner and owner != ownership_for_role(role):
                 return False
         # The note types dictionary says who may write each type (blank = any doctor or nurse).
