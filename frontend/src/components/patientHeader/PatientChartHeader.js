@@ -84,6 +84,13 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
     load();
   }, [load, refreshKey]);
 
+  // Allergies were changed somewhere else on the chart (e.g. the Allergy Manager inside a note).
+  useEffect(() => {
+    const reload = () => load();
+    window.addEventListener("patient-header-changed", reload);
+    return () => window.removeEventListener("patient-header-changed", reload);
+  }, [load]);
+
   // The always-visible banner on the Patients page: say so when no patient is chosen or it cannot load.
   if (persistent && (!patientId || (failed && !data))) {
     return (
@@ -236,7 +243,7 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
   );
 }
 
-function HeaderEditDialog({ patientId, data, onChanged, onClose }) {
+export function HeaderEditDialog({ patientId, data, onChanged, onClose }) {
   const [values, setValues] = useState(() => Object.fromEntries(data.custom_fields.map((f) => [f.key, f.value])));
   const [busy, setBusy] = useState(false);
 

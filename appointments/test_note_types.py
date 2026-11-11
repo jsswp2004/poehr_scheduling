@@ -10,7 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.models import Organization
 
-from .models import NOTE_TYPES_DICTIONARY_CODE, Dictionary, DictionaryItem, NoteTemplate
+from .models import NOTE_TYPES_DICTIONARY_CODE, Dictionary, DictionaryItem, NoteFieldDefinition, NoteTemplate
 
 
 def client_for(user):
@@ -411,3 +411,52 @@ class NoteTypeAuthoringTests(TestCase):
         self.assertFalse(allowed(self.nurse, "not_a_type"))
         DictionaryItem.objects.filter(dictionary=self.types, value="triage").update(author_role="nurse")
         self.assertFalse(allowed(self.doctor, "triage"))
+
+
+class AllergyListInNotesMigrationTests(TestCase):
+    """The Admission Note's blank allergy text box gains the chart's allergy list above it."""
+
+    def _run(self):
+        import importlib
+
+        from django.apps import apps
+
+        importlib.import_module("appointments.migrations.0097_allergy_chart_field_in_notes").add_allergy_list(apps, None)
+
+    def _template(self, with_chart=False):
+        t = NoteTemplate.objects.create(code="adm_x", name="Adm X", kind="note", is_active=True)
+        NoteFieldDefinition.objects.create(template=t, key="hpi", label="HPI", field_type="textarea", sort_order=0)
+        NoteFieldDefinition.objects.create(
+            template=t, key="allergies", label="Allergies", field_type="textarea", required=True,
+            section_label="History", sort_order=1,
+        )
+        NoteFieldDefinition.objects.create(template=t, key="plan", label="Plan", field_type="textarea", sort_order=2)
+        if with_chart:
+            NoteFieldDefinition.objects.create(
+                template=t, key="al", label="Al", field_type="chart_data", calc={"source": "allergies"}, sort_order=3
+            )
+        return t
+
+    def test_chart_allergy_list_is_added_above_the_text_box(self):
+        t = self._template()
+        self._run()
+        keys = [f.key for f in t.fields.order_by("sort_order", "id")]
+        self.assertEqual(keys, ["hpi", "allergy_list", "allergies", "plan"])
+        lst = t.fields.get(key="allergy_list")
+        self.assertEqual((lst.field_type, lst.calc, lst.section_label), ("chart_data", {"source": "allergies"}, "History"))
+        text = t.fields.get(key="allergies")
+        self.assertFalse(text.required)
+        self.assertEqual(text.label, "Allergy comments")
+
+    def test_rerun_and_templates_that_already_show_allergies_are_left_alone(self):
+        t = self._template()
+        self._run()
+        self._run()
+        self.assertEqual(t.fields.filter(key="allergy_list").count(), 1)
+        NoteTemplate.objects.create(code="has_chart", name="Has chart", kind="note", is_active=True)
+        t3 = NoteTemplate.objects.get(code="has_chart")
+        NoteFieldDefinition.objects.create(template=t3, key="al", label="Al", field_type="chart_data", calc={"source": "allergies"}, sort_order=0)
+        NoteFieldDefinition.objects.create(template=t3, key="allergies", label="Allergies", field_type="text", required=True, sort_order=1)
+        self._run()
+        self.assertEqual(list(t3.fields.order_by("sort_order").values_list("key", flat=True)), ["al", "allergies"])
+        self.assertTrue(t3.fields.get(key="allergies").required)
