@@ -56,6 +56,8 @@ const FIELD_TYPES = [
     { value: "date", label: "Date" },
     { value: "calculated", label: "Calculated (total / result)" },
     { value: "chart_data", label: "Chart data (read-only)" },
+    // A chart-data field pinned to the patient's allergies, with the Allergy Manager button shown in the note.
+    { value: "allergy_manager", label: "Allergy Manager (chart allergies)" },
     { value: "icd10", label: "Diagnosis codes (ICD-10)" },
 ];
 // How much of a line a field takes on wide screens (phones always show one field per line).
@@ -65,6 +67,7 @@ const FIELD_WIDTHS = [
     { value: "third", label: "Third of a row" },
     { value: "quarter", label: "Quarter of a row" },
 ];
+const isAllergyManager = (f) => f.field_type === "chart_data" && !!f.calc && f.calc.source === "allergies";
 const DICTIONARY_FIELD_TYPES = new Set(["radio", "dropdown", "multiselect"]);
 
 let tempIdCounter = 0;
@@ -234,6 +237,30 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
         });
     };
 
+    // The Allergy Manager tool: the chart's allergies, read-only, with the Allergy Manager button, added after the
+    // last field in its section.
+    const addAllergyManager = () => {
+        const newId = nextTempId();
+        setOpenFieldId(newId);
+        setFields((prev) => {
+            const last = prev.length ? prev[prev.length - 1] : null;
+            return [
+                ...prev,
+                {
+                    ...blankField(),
+                    clientId: newId,
+                    tab_label: last ? last.tab_label : "",
+                    section_label: last ? last.section_label : "",
+                    key: uniqueKey("allergy_list", prev),
+                    label: "Allergies",
+                    field_type: "chart_data",
+                    required: false,
+                    calc: { source: "allergies" },
+                },
+            ];
+        });
+    };
+
     // Switching a field to "Calculated" starts it as a total of the scored or
     // numeric fields above it in its section; switching away drops the
     // calculation. A calculated field is never typed in, so it is never required.
@@ -248,6 +275,9 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                     return { ...f, field_type: newType, dictionary: null, required: false, calc };
                 }
                 // Chart data shows part of the patient's chart, read-only: nothing to fill in, so never required.
+                if (newType === "allergy_manager") {
+                    return { ...f, field_type: "chart_data", dictionary: null, required: false, calc: { source: "allergies" } };
+                }
                 if (newType === "chart_data") {
                     const source = f.calc && f.calc.source ? f.calc.source : CHART_SOURCES[0].value;
                     return { ...f, field_type: newType, dictionary: null, required: false, calc: { source } };
@@ -626,6 +656,9 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                     Drag to reorder. Keep a Calculated field below the fields it uses.
                 </Typography>
                 <Box sx={{ flexGrow: 1 }} />
+                <Button size="small" variant="outlined" onClick={addAllergyManager}>
+                    Add Allergy Manager
+                </Button>
                 <Button size="small" variant="outlined" onClick={addCalculatedField}>
                     Add calculated field
                 </Button>
@@ -705,7 +738,9 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                             (prevField.tab_label || "") !== (f.tab_label || "") ||
                             (prevField.section_label || "") !== (f.section_label || "");
                         const isOpen = openFieldId === f.clientId;
-                        const typeLabel = (FIELD_TYPES.find((t) => t.value === f.field_type) || {}).label || f.field_type;
+                        const typeLabel =
+                            (FIELD_TYPES.find((t) => t.value === (isAllergyManager(f) ? "allergy_manager" : f.field_type)) || {}).label ||
+                            f.field_type;
                         const dic = f.dictionary ? dictionaries.find((d) => d.id === f.dictionary) : null;
                         const detail =
                             f.field_type === "calculated"
@@ -846,7 +881,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                         select
                                         label="Field Type"
                                         fullWidth
-                                        value={f.field_type}
+                                        value={isAllergyManager(f) ? "allergy_manager" : f.field_type}
                                         onChange={(e) => changeFieldType(index, e.target.value)}
                                     >
                                         {FIELD_TYPES.map((t) => (
