@@ -529,3 +529,18 @@ class AdmissionAlignAndIcd10MigrationTests(TestCase):
         self.assertEqual(t.fields.get(key="dx_primary").field_type, "icd10")
         self.assertEqual(t.fields.get(key="dx_other").field_type, "icd10")
         self.assertEqual(t.fields.get(key="diagnostic_results").field_type, "textarea")
+
+
+class PhysicianAdmissionNoteAlignmentTests(AdmissionAlignAndIcd10MigrationTests):
+    def test_physician_admission_note_code_is_aligned_too(self):
+        import importlib
+
+        from django.apps import apps
+
+        hp, adm = self._templates()
+        adm.code = "admission_note_2"
+        adm.save()
+        importlib.import_module("appointments.migrations.0100_align_physician_admission_note").forwards(apps, None)
+        keys = set(adm.fields.values_list("key", flat=True))
+        self.assertIn("history_source", keys)
+        self.assertIn("legacy_only", keys)
