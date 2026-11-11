@@ -37,7 +37,7 @@ import { CHART_SOURCES, chartSourceLabel } from "../../utils/chartSources";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
 import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
 import { BUILDER_STICKY_TOP, BuilderToolbar } from "../builders/BuilderShell";
-import ToolsPane, { ALLERGY_MANAGER_TOOL } from "../builders/ToolsPane";
+import ToolsPane, { ALLERGY_MANAGER_TOOL, ICD10_TOOL } from "../builders/ToolsPane";
 
 // The shared `api` axios instance carries no Authorization header of its
 // own (App.js's interceptors are only wired to the default `axios` import,
@@ -257,6 +257,29 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                     field_type: "chart_data",
                     required: false,
                     calc: { source: "allergies" },
+                },
+            ];
+        });
+    };
+
+    // The ICD-10 tool: a diagnosis picker (automatic ICD-10-CM lookup), added after the last field in its section.
+    const addIcd10 = () => {
+        const newId = nextTempId();
+        setOpenFieldId(newId);
+        setFields((prev) => {
+            const last = prev.length ? prev[prev.length - 1] : null;
+            return [
+                ...prev,
+                {
+                    ...blankField(),
+                    clientId: newId,
+                    tab_label: last ? last.tab_label : "",
+                    section_label: last ? last.section_label : "",
+                    key: uniqueKey("diagnoses", prev),
+                    label: "Diagnoses (ICD-10)",
+                    field_type: "icd10",
+                    required: false,
+                    calc: {},
                 },
             ];
         });
@@ -1061,6 +1084,16 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                         added: fields.some(isAllergyManager),
                         onAdd: () => {
                             addAllergyManager();
+                            setTab("fields");
+                        },
+                    },
+                    {
+                        ...ICD10_TOOL,
+                        noun: "note",
+                        added: fields.some((f) => f.field_type === "icd10"),
+                        addedText: `${fields.filter((f) => f.field_type === "icd10").length} in this note`,
+                        onAdd: () => {
+                            addIcd10();
                             setTab("fields");
                         },
                     },
