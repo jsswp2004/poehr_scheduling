@@ -98,10 +98,21 @@ class Command(BaseCommand):
         return p
 
     def visit(self, patient, provider, when, title, status, arrived=True):
-        appt, _ = Appointment.all_objects.get_or_create(
-            organization=self.org, patient=patient, provider=provider, appointment_datetime=when,
-            defaults={"title": title, "status": status, "duration_minutes": 30, "arrived": arrived},
+        # The times are relative to today, so matching on the time made every new day (every deploy) a "new" visit:
+        # one more copy of each demo visit and flowsheet. Match on who and what instead, and just refresh the time.
+        appt = (
+            Appointment.all_objects.filter(organization=self.org, patient=patient, provider=provider, title=title)
+            .order_by("-pk")
+            .first()
         )
+        if appt is None:
+            return Appointment.all_objects.create(
+                organization=self.org, patient=patient, provider=provider, appointment_datetime=when,
+                title=title, status=status, duration_minutes=30, arrived=arrived,
+            )
+        if appt.appointment_datetime != when:
+            appt.appointment_datetime = when
+            appt.save(update_fields=["appointment_datetime"])
         return appt
 
     def chart(self, appt, patient, when, values, by):
