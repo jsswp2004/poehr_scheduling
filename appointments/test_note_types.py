@@ -544,3 +544,28 @@ class PhysicianAdmissionNoteAlignmentTests(AdmissionAlignAndIcd10MigrationTests)
         keys = set(adm.fields.values_list("key", flat=True))
         self.assertIn("history_source", keys)
         self.assertIn("legacy_only", keys)
+
+
+class TrimAdmissionAlignmentTests(AdmissionAlignAndIcd10MigrationTests):
+    def test_trim_removes_only_the_new_sections(self):
+        import importlib
+
+        from django.apps import apps
+
+        hp, adm = self._templates()
+        self._f(hp, "pe_head_status", "radio", tab="Physical Exam", section="Physical Exam: Head", order=7)
+        self._f(hp, "hpi_onset", tab="Visit", section="History of Present Illness", order=8)
+        adm.code = "admission_note_2"
+        adm.save()
+        importlib.import_module("appointments.migrations.0100_align_physician_admission_note").forwards(apps, None)
+        self.assertTrue(adm.fields.filter(key="problem_1_name").exists())
+        importlib.import_module("appointments.migrations.0101_trim_admission_note_alignment").trim(apps, None)
+        keys = set(adm.fields.values_list("key", flat=True))
+        self.assertNotIn("history_source", keys)
+        self.assertNotIn("problem_1_name", keys)
+        self.assertNotIn("pe_head_status", keys)
+        self.assertIn("hpi_onset", keys)
+        self.assertIn("pmh_conditions", keys)
+        self.assertIn("legacy_only", keys)
+        self.assertIn("ros_skin_status", keys)
+        self.assertIn("chief_complaint", keys)
