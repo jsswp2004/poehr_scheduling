@@ -589,18 +589,17 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit, fillHeig
       <Stack direction="row" spacing={2} sx={{ mb: 1.5, flex: "none" }}>
         {!fixedVisit && (
           <FormControl size="small" sx={{ minWidth: 320 }}>
-            <InputLabel id="flowsheet-appt-label">Appointment / Registration</InputLabel>
+            <InputLabel id="flowsheet-appt-label">Visit</InputLabel>
             <Select
               labelId="flowsheet-appt-label"
-              label="Appointment / Registration"
+              label="Visit"
               value={appointmentId}
               onChange={(e) => setAppointmentId(e.target.value)}
               disabled={loadingAppointments}
             >
               {appointments.map((a) => (
                 <MenuItem key={a.id} value={a.id}>
-                  {visitNumbers[a.id] ? `${visitNumbers[a.id]} - ` : ""}
-                  {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
+                  {visitNumbers[a.id] || `${a.title} - ${new Date(a.appointment_datetime).toLocaleString()}`}
                 </MenuItem>
               ))}
             </Select>
