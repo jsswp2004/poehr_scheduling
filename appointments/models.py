@@ -1001,6 +1001,10 @@ class NoteFieldDefinition(models.Model):
         return f"{self.template.code}.{self.key}"
 
 
+# Tools a flowsheet type can carry (Flowsheet Builder > Tools pane). Each is shown above the grid.
+FLOWSHEET_TOOLS = ["allergy_manager"]
+
+
 class FlowsheetTemplate(models.Model):
     """
     Defines a flowsheet type -- e.g. "Vital Signs" -- as an ordered set of
@@ -1035,6 +1039,8 @@ class FlowsheetTemplate(models.Model):
     sort_order = models.PositiveIntegerField(
         default=0, help_text="Controls this type's position in the Flowsheet dropdown"
     )
+    # Builder "Tools" added to this flowsheet, shown above the grid (see FLOWSHEET_TOOLS), e.g. ["allergy_manager"].
+    tools = models.JSONField(default=list, blank=True, help_text="Tools shown above the grid, e.g. allergy_manager")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

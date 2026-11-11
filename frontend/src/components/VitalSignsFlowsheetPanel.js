@@ -44,6 +44,7 @@ import { toast } from "./SimpleToast";
 import PanelTitle from "./patients/PanelTitle";
 import { applyCalculations } from "../utils/calculations";
 import IntakeOutputSummary from "./IntakeOutputSummary";
+import ChartDataField from "./ChartDataField";
 import IntakeOutputEntryDrawer from "./IntakeOutputEntryDrawer";
 import { IO_TEMPLATE_CODE, convertVolumeText, formatMl } from "../utils/ioHelpers";
 
@@ -616,6 +617,13 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
             : "Select a visit to view or start its flowsheet."}
         </Typography>
       ) : (
+        <>
+        {/* Builder Tools on this flowsheet type: the chart's allergies, with the Allergy Manager button */}
+        {(selectedTemplate?.tools || []).includes("allergy_manager") && (
+          <Box sx={{ mb: 2 }}>
+            <ChartDataField field={{ key: "allergy_list", label: "Allergies", calc: { source: "allergies" } }} patientId={patientId} disabled={!canAuthor} />
+          </Box>
+        )}
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, maxHeight: "70vh" }}>
           <Table size="small" stickyHeader>
             <TableHead>
@@ -858,6 +866,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
             </TableBody>
           </Table>
         </TableContainer>
+        </>
       )}
 
       {cautionLines.length > 0 && (

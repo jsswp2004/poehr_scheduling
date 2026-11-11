@@ -132,6 +132,21 @@ class FlowsheetBuilderTests(Base):
             format="json",
         )
 
+    def test_flowsheet_tools_are_saved_validated_and_returned(self):
+        body = {"code": "tool_fs", "name": "Tool FS", "is_active": True, "sort_order": 0, "rows": self.rows_payload(),
+                "tools": ["allergy_manager", "allergy_manager"]}
+        r = self.admin_client.post("/api/admin/flowsheet-templates/", body, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(FlowsheetTemplate.objects.get(code="tool_fs").tools, ["allergy_manager"])
+        self.assertEqual(self.admin_client.get("/api/admin/flowsheet-templates/tool_fs/").json()["tools"], ["allergy_manager"])
+        bad = dict(body, code="tool_bad", tools=["nope"])
+        self.assertEqual(self.admin_client.post("/api/admin/flowsheet-templates/", bad, format="json").status_code, 400)
+        # a template saved without `tools` has none
+        plain = dict(body, code="tool_plain")
+        plain.pop("tools")
+        self.assertEqual(self.admin_client.post("/api/admin/flowsheet-templates/", plain, format="json").status_code, 201)
+        self.assertEqual(FlowsheetTemplate.objects.get(code="tool_plain").tools, [])
+
     def test_builder_saves_and_returns_the_calculation(self):
         r = self.create()
         self.assertEqual(r.status_code, 201, r.content)

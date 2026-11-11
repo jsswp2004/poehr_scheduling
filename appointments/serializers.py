@@ -1089,7 +1089,7 @@ class FlowsheetTemplateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlowsheetTemplate
-        fields = ["id", "code", "name", "version", "is_active", "sort_order", "row_definitions"]
+        fields = ["id", "code", "name", "version", "is_active", "sort_order", "tools", "row_definitions"]
 
     def get_row_definitions(self, obj):
         return _grouped_row_definitions(obj.rows.all())
@@ -1157,8 +1157,15 @@ class FlowsheetTemplateAdminSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlowsheetTemplate
-        fields = ["id", "code", "name", "organization", "is_active", "sort_order", "version", "rows"]
+        fields = ["id", "code", "name", "organization", "is_active", "sort_order", "tools", "version", "rows"]
         read_only_fields = ["id", "version"]
+
+    def validate_tools(self, value):
+        from .models import FLOWSHEET_TOOLS
+
+        if not isinstance(value, list) or any(t not in FLOWSHEET_TOOLS for t in value):
+            raise serializers.ValidationError("Unknown tool. Available: " + ", ".join(FLOWSHEET_TOOLS))
+        return list(dict.fromkeys(value))
 
     def validate_rows(self, value):
         if not value:
