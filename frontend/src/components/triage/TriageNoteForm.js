@@ -7,7 +7,7 @@ import { apiEndpoints } from "../../config/api";
 import { authHeader, errorText } from "../prescriptions/rxShared";
 import DynamicNoteForm from "../DynamicNoteForm";
 import AllergyManagerButton from "../patientHeader/AllergyManagerButton";
-import { LEVEL_NAMES, answersFromValues, checklist, filterTemplate, fmtVital, suicideAction } from "./triageHelpers";
+import { CHILD_SECTION, LEVEL_NAMES, answersFromValues, checklist, filterTemplate, fmtVital, suicideAction } from "./triageHelpers";
 
 const FLAG = { bg: "#FEF7E0", border: "#F0C36D", fg: "#7A2E0E" };
 const OK = "#054F31";
@@ -225,12 +225,13 @@ function Checklist({ items }) {
 }
 
 /** The triage note: the generic form for most fields, with the ESI helper, vitals, history and screening beside it. */
-export default function TriageNoteForm({ template, values, onChange, disabled, patientId, visitId }) {
+export default function TriageNoteForm({ template, values, onChange, disabled, patientId, visitId, rail = false }) {
   const [ctx, setCtx] = useState(null);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [suggestion, setSuggestion] = useState(null);
   const [suggesting, setSuggesting] = useState(false);
+  const [railPage, setRailPage] = useState(0);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
@@ -278,6 +279,76 @@ export default function TriageNoteForm({ template, values, onChange, disabled, p
   if (!ctx) return <Box sx={{ p: 2 }}><CircularProgress size={22} aria-label="Loading triage details" /></Box>;
   if (ctx.problem) return <Alert severity="warning" data-testid="triage-problem">{ctx.problem_text}</Alert>;
 
+  const unsafeHome = String(values.screen_unsafe_home || "").toLowerCase() === "yes" && (
+    <Alert severity="warning" data-testid="triage-unsafe-home">
+      The patient feels unsafe at home or was hurt by someone else. Ask privately. Signing this note sends a safety alert to the people your clinic chose.
+    </Alert>
+  );
+
+  if (rail) {
+    // Left-rail layout (note modal): one page per part of the triage, the checklist under the rail.
+    const items = checklist(values, ctx, suggestion);
+    const sectionFields = (...labels) => (filtered.fields || []).filter((f) => labels.includes(f.section_label));
+    const fieldsOf = (...labels) => {
+      const fs = sectionFields(...labels);
+      return fs.length ? <DynamicNoteForm template={{ ...filtered, fields: fs }} values={values} onChange={onChange} disabled={disabled} /> : null;
+    };
+    const anyValue = (...labels) =>
+      sectionFields(...labels).some((f) => {
+        const v = values[f.key];
+        return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && v !== "" && v !== false;
+      });
+    const itemDone = (...names) => items.filter((i) => names.includes(i.label)).every((i) => i.done);
+    const itemMissing = (...names) => items.filter((i) => names.includes(i.label) && i.blocking && !i.done).length;
+    const pages = [
+      { key: "arrival", label: "Arrival", body: fieldsOf("Arrival"), done: anyValue("Arrival") },
+      { key: "first", label: "Critical first look", body: fieldsOf("Critical first look"), done: anyValue("Critical first look") },
+      { key: "cc", label: "Chief complaint & history", body: fieldsOf("Chief complaint and history"), missing: itemMissing("Chief complaint"), done: itemDone("Chief complaint") },
+      { key: "vitals", label: "Vital signs", body: <>{<VitalsBlock ctx={ctx} onRefresh={loadContext} refreshing={refreshing} />}{fieldsOf("Vital signs")}</>, missing: itemMissing("Vital signs"), done: itemDone("Vital signs") },
+      { key: "history", label: "Allergies & medicines", body: <><HistoryBlock ctx={ctx} patientId={patientId} disabled={disabled} onChanged={loadContext} />{fieldsOf("History")}</>, done: !!values.allergies_confirmed && !!values.medications_confirmed },
+      ctx.patient.is_child && { key: "child", label: "Child details", body: fieldsOf(CHILD_SECTION), missing: itemMissing("Child's weight in kg"), done: itemDone("Child's weight in kg") },
+      { key: "safety", label: "Safety screening", body: <>{fieldsOf("Safety screenings")}{unsafeHome}{ctx.patient.show_suicide_screen && <SuicideScreen ctx={ctx} values={values} onChange={onChange} disabled={disabled} />}</>, done: anyValue("Safety screenings") },
+      {
+        key: "level",
+        label: "Triage level",
+        body: <><EsiHelper values={values} onChange={onChange} suggestion={suggestion} suggesting={suggesting} disabled={disabled} />{fieldsOf("Started at triage")}</>,
+        missing: itemMissing("Triage level", "Reason for a level different from the suggestion"),
+        done: itemDone("Triage level"),
+      },
+    ].filter(Boolean);
+    const page = pages[Math.min(railPage, pages.length - 1)];
+    return (
+      <Box data-testid="triage-note-form" sx={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
+        <Box component="nav" aria-label="Note sections" sx={{ width: 250, flex: "none", position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 0.5 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>Sections</Typography>
+          {pages.map((pg, idx) => {
+            const active = pg === page;
+            return (
+              <Button
+                key={pg.key}
+                onClick={() => setRailPage(idx)}
+                aria-current={active ? "true" : undefined}
+                sx={{ justifyContent: "flex-start", textTransform: "none", gap: 1.25, px: 1.25, py: 1, color: active ? "primary.main" : "text.primary", bgcolor: active ? "action.selected" : "transparent", fontWeight: active ? 700 : 500 }}
+              >
+                <Box aria-hidden="true" sx={{ width: 18, height: 18, borderRadius: "50%", flex: "none", boxSizing: "border-box", border: 2, borderColor: pg.done ? "success.main" : active ? "primary.main" : "grey.400", bgcolor: pg.done ? "success.main" : "transparent" }} />
+                <Box component="span" sx={{ flex: 1, textAlign: "left" }}>{pg.label}</Box>
+                {pg.missing > 0 && <Typography variant="caption" color="error">{pg.missing} required</Typography>}
+              </Button>
+            );
+          })}
+          <Box sx={{ mt: 2 }}><Checklist items={items} /></Box>
+        </Box>
+        <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
+          {error && <Alert severity="error" onClose={() => setError("")}>{error}</Alert>}
+          {ctx.patient.is_child && (
+            <Alert severity="info" data-testid="triage-child-note">Child version of the form ({ctx.band.label.toLowerCase()}). Weight in kg is required.</Alert>
+          )}
+          {page.body}
+        </Stack>
+      </Box>
+    );
+  }
+
   return (
     <Box data-testid="triage-note-form" sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "flex-start" }}>
       {error && <Alert severity="error" sx={{ width: "100%" }} onClose={() => setError("")}>{error}</Alert>}
@@ -288,11 +359,7 @@ export default function TriageNoteForm({ template, values, onChange, disabled, p
         <VitalsBlock ctx={ctx} onRefresh={loadContext} refreshing={refreshing} />
         <HistoryBlock ctx={ctx} patientId={patientId} disabled={disabled} onChanged={loadContext} />
         <DynamicNoteForm template={filtered} values={values} onChange={onChange} disabled={disabled} />
-        {String(values.screen_unsafe_home || "").toLowerCase() === "yes" && (
-          <Alert severity="warning" data-testid="triage-unsafe-home">
-            The patient feels unsafe at home or was hurt by someone else. Ask privately. Signing this note sends a safety alert to the people your clinic chose.
-          </Alert>
-        )}
+        {unsafeHome}
         {ctx.patient.show_suicide_screen && <SuicideScreen ctx={ctx} values={values} onChange={onChange} disabled={disabled} />}
       </Stack>
       <Stack spacing={2} sx={{ flex: "0 0 340px", maxWidth: "100%", position: "sticky", top: 8 }}>
