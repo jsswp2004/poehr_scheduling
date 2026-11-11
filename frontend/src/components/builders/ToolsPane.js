@@ -1,6 +1,7 @@
 import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import MedicalInformationOutlinedIcon from "@mui/icons-material/MedicalInformationOutlined";
 import { BUILDER_STICKY_TOP } from "./BuilderShell";
 
 /** The tools a builder can add to a note or flowsheet. More will be added here over time. */
@@ -9,6 +10,13 @@ export const ALLERGY_MANAGER_TOOL = {
     title: "Allergy Manager",
     description: "Shows the patient's chart allergies, with the Allergy Manager button to add or change one.",
     icon: <WarningAmberIcon fontSize="small" color="error" />,
+};
+
+export const ICD10_TOOL = {
+    key: "icd10",
+    title: "ICD-10 Diagnosis",
+    description: "Automatic ICD-10-CM lookup: search by code or name and pick the diagnoses. Add it again for each diagnosis box.",
+    icon: <MedicalInformationOutlinedIcon fontSize="small" color="primary" />,
 };
 
 /**
@@ -38,7 +46,7 @@ export default function ToolsPane({ tools }) {
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                     {t.title}
                                 </Typography>
-                                {t.added && <Chip size="small" color="success" variant="outlined" label="Added" />}
+                                {t.added && <Chip size="small" color="success" variant="outlined" label={t.addedText || "Added"} />}
                             </Stack>
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                                 {t.description}

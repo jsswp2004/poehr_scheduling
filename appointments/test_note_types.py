@@ -460,3 +460,72 @@ class AllergyListInNotesMigrationTests(TestCase):
         self._run()
         self.assertEqual(list(t3.fields.order_by("sort_order").values_list("key", flat=True)), ["al", "allergies"])
         self.assertTrue(t3.fields.get(key="allergies").required)
+
+
+class AdmissionAlignAndIcd10MigrationTests(TestCase):
+    """Admission Note gains the H&P's sections without losing anything; diagnosis text boxes become ICD-10 pickers."""
+
+    def _mod(self):
+        import importlib
+
+        return importlib.import_module("appointments.migrations.0099_align_admission_note_and_icd10_fields")
+
+    def _run(self):
+        from django.apps import apps
+
+        self._mod().forwards(apps, None)
+
+    def _f(self, t, key, ftype="text", tab="", section="", order=0, **kw):
+        return NoteFieldDefinition.objects.create(template=t, key=key, label=key, field_type=ftype, tab_label=tab, section_label=section, sort_order=order, **kw)
+
+    def _templates(self):
+        hp = NoteTemplate.objects.create(code="new_patient_hp", name="H&P", kind="note", is_active=True)
+        self._f(hp, "history_source", tab="Visit", section="Visit Information", order=0)
+        self._f(hp, "chief_complaint", tab="Visit", section="Chief Complaint", order=1)
+        self._f(hp, "pmh_conditions", "textarea", tab="History", section="Past Medical History", order=2)
+        self._f(hp, "ros_skin_status", tab="Review of Systems", section="Review of Systems: Skin", order=3)
+        self._f(hp, "allergy_status", tab="Medications & Allergies", section="Allergies", order=4)
+        self._f(hp, "problem_1_name", tab="Assessment & Plan", section="Problem 1", order=5)
+        self._f(hp, "problem_1_icd10", tab="Assessment & Plan", section="Problem 1", order=6)
+        adm = NoteTemplate.objects.create(code="admission_note", name="Admission", kind="note", is_active=True)
+        self._f(adm, "chief_complaint", tab="Visit", section="Visit", order=0, required=True)
+        self._f(adm, "past_medical_history", "textarea", tab="History", section="History", order=1)
+        self._f(adm, "ros_skin_status", tab="ROS", section="Review of Systems: Skin", order=2)
+        self._f(adm, "legacy_only", "textarea", tab="Intake", section="Intake", order=3)
+        self._f(adm, "plan", "textarea", tab="Assessment / Plan", section="Assessment / Plan", order=4)
+        return hp, adm
+
+    def test_admission_gains_hp_sections_and_loses_nothing(self):
+        hp, adm = self._templates()
+        before = set(adm.fields.values_list("key", flat=True))
+        self._run()
+        keys = list(adm.fields.order_by("sort_order").values_list("key", flat=True))
+        self.assertTrue(before <= set(keys))
+        self.assertIn("history_source", keys)
+        self.assertIn("problem_1_name", keys)
+        self.assertNotIn("allergy_status", keys)
+        self.assertEqual(adm.fields.get(key="chief_complaint").section_label, "Chief Complaint")
+        self.assertEqual(adm.fields.get(key="past_medical_history").section_label, "Past Medical History")
+        self.assertEqual(adm.fields.get(key="ros_skin_status").tab_label, "Review of Systems")
+        self.assertTrue(adm.fields.get(key="chief_complaint").required)
+        self.assertLess(keys.index("history_source"), keys.index("chief_complaint"))
+        self.assertLess(keys.index("chief_complaint"), keys.index("past_medical_history"))
+        self.assertLess(keys.index("problem_1_name"), keys.index("plan") + 5)
+
+    def test_problem_icd_code_becomes_the_picker_and_rerun_is_safe(self):
+        hp, adm = self._templates()
+        self._run()
+        self._run()
+        for t in (hp, adm):
+            self.assertEqual(t.fields.get(key="problem_1_icd10").field_type, "icd10")
+        self.assertEqual(adm.fields.filter(key="history_source").count(), 1)
+
+    def test_other_diagnosis_boxes_become_icd10_and_missing_hp_is_a_no_op(self):
+        t = NoteTemplate.objects.create(code="general_ambulatory_note", name="GA", kind="note", is_active=True)
+        self._f(t, "dx_primary")
+        self._f(t, "dx_other", "textarea")
+        self._f(t, "diagnostic_results", "textarea")
+        self._run()
+        self.assertEqual(t.fields.get(key="dx_primary").field_type, "icd10")
+        self.assertEqual(t.fields.get(key="dx_other").field_type, "icd10")
+        self.assertEqual(t.fields.get(key="diagnostic_results").field_type, "textarea")
