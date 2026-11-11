@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import EditIcon from "@mui/icons-material/Edit";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
@@ -161,9 +161,13 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
         <Stack alignItems="flex-end" spacing={0.5} sx={{ flexShrink: 0 }}>
           <Stack direction="row" alignItems="center" spacing={1}>
             {data.can_growth_chart && <GrowthChartButton patientId={patientId} ageMonths={data.age_months} size="small" />}
-            <Tooltip title="Update allergies and header details">
+            <Tooltip title="Allergy Manager: update allergies and header details">
               <IconButton size="small" onClick={() => setEditing(true)} aria-label="Update allergies and header details">
-                <EditIcon fontSize="small" />
+                {/* red while the patient has an active allergy on the chart, gray otherwise */}
+                <WarningAmberIcon
+                  fontSize="small"
+                  sx={{ color: (data.allergies?.records || []).some((a) => a.status === "active") ? "error.main" : "text.secondary" }}
+                />
               </IconButton>
             </Tooltip>
           </Stack>

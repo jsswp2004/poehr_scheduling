@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@mui/material";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
@@ -41,7 +42,7 @@ export default function AllergyManagerButton({ patientId, onChanged }) {
 
   return (
     <>
-      <Button size="small" variant="outlined" onClick={open} disabled={!patientId || busy}>
+      <Button size="small" variant="outlined" startIcon={<WarningAmberIcon fontSize="small" />} onClick={open} disabled={!patientId || busy}>
         Allergy Manager
       </Button>
       {data && <HeaderEditDialog patientId={patientId} data={data} onChanged={changed} onClose={() => setData(null)} />}
