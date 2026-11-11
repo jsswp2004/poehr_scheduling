@@ -15,6 +15,7 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { chartSourceLabel } from "../utils/chartSources";
+import AllergyManagerButton from "./patientHeader/AllergyManagerButton";
 
 /**
  * A "Chart data" note field: part of the patient's chart (problem list, allergies, medications,
@@ -25,10 +26,11 @@ import { chartSourceLabel } from "../utils/chartSources";
  * shows what the chart said then; `value` is that stored snapshot and is what shows when the chart
  * can't be read (no patient, a failed request, or the Preview tab of the template editor).
  */
-export default function ChartDataField({ field, value, patientId }) {
+export default function ChartDataField({ field, value, patientId, disabled = false }) {
   const source = field.calc && field.calc.source;
   const [live, setLive] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!patientId || !source) return undefined;
@@ -49,7 +51,7 @@ export default function ChartDataField({ field, value, patientId }) {
     return () => {
       cancelled = true;
     };
-  }, [patientId, source]);
+  }, [patientId, source, reloadKey]);
 
   const data = live || (value && typeof value === "object" ? value : null);
   const title = (data && data.title) || field.label;
@@ -108,6 +110,11 @@ export default function ChartDataField({ field, value, patientId }) {
       <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1.5, py: 0.75, bgcolor: "action.hover" }}>
         <Typography variant="subtitle2">{title}</Typography>
         <Chip size="small" label="From chart" color="info" variant="outlined" />
+        {source === "allergies" && patientId && !disabled && (
+          <Box sx={{ ml: "auto !important" }}>
+            <AllergyManagerButton patientId={patientId} onChanged={() => setReloadKey((k) => k + 1)} />
+          </Box>
+        )}
         {field.help_text && (
           <Typography variant="caption" color="text.secondary">
             {field.help_text}

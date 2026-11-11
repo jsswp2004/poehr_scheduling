@@ -446,7 +446,7 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId, rail
         );
 
       case "chart_data":
-        return <ChartDataField key={field.key} field={field} value={value} patientId={patientId} />;
+        return <ChartDataField key={field.key} field={field} value={value} patientId={patientId} disabled={disabled} />;
 
       case "calculated": {
         const result = computeCalc(field.calc, values);
