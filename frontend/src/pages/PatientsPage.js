@@ -835,6 +835,7 @@ function PatientsPage() {
                     patientId={selectedPatient.id}
                     patientName={selectedPatient.name}
                     chartVisit={chartVisit}
+                    fillHeight="calc(100vh - 300px)"
                   />
                 </Box>
               );

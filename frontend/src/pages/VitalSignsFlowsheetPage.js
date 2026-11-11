@@ -63,7 +63,7 @@ function VitalSignsFlowsheetPage() {
                 boxShadow: 2,
                 borderRadius: 2,
                 bgcolor: "background.paper",
-                p: 3,
+                p: 1.5,
             }}
         >
             <PatientChartHeader patientId={patient.user_id || patient.id} />
@@ -71,6 +71,7 @@ function VitalSignsFlowsheetPage() {
             <VitalSignsFlowsheetPanel
                 patientId={patient.user_id || patient.id}
                 patientName={`${patient.first_name} ${patient.last_name}`}
+                fillHeight="calc(100vh - 230px)"
             />
         </Box>
         <DocumentationAssistantDock
