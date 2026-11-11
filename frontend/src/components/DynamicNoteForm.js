@@ -506,12 +506,23 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId, rail
   const useRail = rail && !!railGroups;
 
   return (
-    <Box sx={useRail ? { display: "flex", gap: 3, alignItems: "flex-start" } : undefined}>
+    <Box sx={useRail ? { display: "flex", gap: 3, alignItems: "flex-start" } : rail ? { pt: 2.5 } : undefined}>
       {useRail && (
         <Box
           component="nav"
           aria-label="Note sections"
-          sx={{ width: 220, flex: "none", position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 0.5 }}
+          sx={{
+            width: 220,
+            flex: "none",
+            position: "sticky",
+            top: 0,
+            pt: 2.5,
+            maxHeight: "calc(90vh - 300px)",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.5,
+          }}
         >
           <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>
             Sections
@@ -562,7 +573,7 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId, rail
           })}
         </Box>
       )}
-      <Box sx={useRail ? { flex: 1, minWidth: 0 } : undefined}>
+      <Box sx={useRail ? { flex: 1, minWidth: 0, pt: 2.5 } : undefined}>
       {hasTabs && !useRail && (
         <Tabs
           value={safeActiveTab}

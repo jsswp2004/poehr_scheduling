@@ -1066,11 +1066,15 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
             </Box>
           )}
         </DialogTitle>
-        <DialogContent dividers>
+        {/* No padding above the body: the left section rail is pinned to its top edge, so any gap would
+            scroll away first and the rail would appear to move. Pages add their own top spacing. */}
+        <DialogContent dividers sx={{ pt: 0 }}>
           {modalView === "preview" ? (
-            <NotePreviewPane embedded title={previewTitle} meta={previewMeta} sections={previewSections} />
+            <Box sx={{ pt: 2.5 }}>
+              <NotePreviewPane embedded title={previewTitle} meta={previewMeta} sections={previewSections} />
+            </Box>
           ) : (
-            <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <Stack spacing={2} sx={{ pt: isTemplateDriven ? 0 : 2.5 }}>
             {isTemplateDriven ? (
               templateLoading && !currentTemplate ? (
                 <Typography variant="body2" color="text.secondary">

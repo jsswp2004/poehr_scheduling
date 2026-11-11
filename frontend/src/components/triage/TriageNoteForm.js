@@ -319,7 +319,7 @@ export default function TriageNoteForm({ template, values, onChange, disabled, p
     const page = pages[Math.min(railPage, pages.length - 1)];
     return (
       <Box data-testid="triage-note-form" sx={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
-        <Box component="nav" aria-label="Note sections" sx={{ width: 250, flex: "none", position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 0.5 }}>
+        <Box component="nav" aria-label="Note sections" sx={{ width: 250, flex: "none", position: "sticky", top: 0, pt: 2.5, maxHeight: "calc(90vh - 300px)", overflowY: "auto", display: "flex", flexDirection: "column", gap: 0.5 }}>
           <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>Sections</Typography>
           {pages.map((pg, idx) => {
             const active = pg === page;
@@ -338,7 +338,7 @@ export default function TriageNoteForm({ template, values, onChange, disabled, p
           })}
           <Box sx={{ mt: 2 }}><Checklist items={items} /></Box>
         </Box>
-        <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
+        <Stack spacing={2} sx={{ flex: 1, minWidth: 0, pt: 2.5 }}>
           {error && <Alert severity="error" onClose={() => setError("")}>{error}</Alert>}
           {ctx.patient.is_child && (
             <Alert severity="info" data-testid="triage-child-note">Child version of the form ({ctx.band.label.toLowerCase()}). Weight in kg is required.</Alert>
