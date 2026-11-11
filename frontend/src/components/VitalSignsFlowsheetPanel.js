@@ -102,6 +102,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit, fillHeig
   const [userName, setUserName] = useState("");
 
   const [appointments, setAppointments] = useState([]);
+  const [visitNumbers, setVisitNumbers] = useState({});
   const [appointmentId, setAppointmentId] = useState(requestedAppointmentId || "");
   const [loadingAppointments, setLoadingAppointments] = useState(true);
   useEffect(() => {
@@ -278,6 +279,20 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit, fillHeig
       const res = await api.get(`/api/appointments/?patient=${patientId}`, { headers });
       const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
       setAppointments(list);
+      // The visits (with their numbers) behind those appointments, and which one is the current visit.
+      let visitByAppointment = {};
+      let currentAppointmentId = null;
+      try {
+        const vres = await api.get(apiEndpoints.patientVisits(patientId), { headers });
+        (vres.data?.visits || []).forEach((v) => {
+          if (!v.appointment) return;
+          visitByAppointment[v.appointment] = v.visit_number || `Visit #${v.id}`;
+          if (v.is_current) currentAppointmentId = v.appointment;
+        });
+      } catch (err) {
+        visitByAppointment = {};
+      }
+      setVisitNumbers(visitByAppointment);
       // Default to the most recent visit so the panel isn't blank on load,
       // unless a specific visit was requested via ?appointment= (a deep link
       // from Note History's Edit action) and it's actually in this patient's
@@ -292,7 +307,10 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit, fillHeig
         setAppointmentId((current) => {
           if (fixedVisitRef.current) return current;
           if (requestedIsValid) return requestedAppointmentId;
-          return current || sorted[0].id;
+          if (current) return current;
+          // default to the current visit, else the most recent appointment
+          if (currentAppointmentId && list.some((a) => a.id === currentAppointmentId)) return currentAppointmentId;
+          return sorted[0].id;
         });
       }
     } catch (err) {
@@ -581,6 +599,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit, fillHeig
             >
               {appointments.map((a) => (
                 <MenuItem key={a.id} value={a.id}>
+                  {visitNumbers[a.id] ? `${visitNumbers[a.id]} - ` : ""}
                   {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
                 </MenuItem>
               ))}

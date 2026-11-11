@@ -435,6 +435,7 @@ def _visit_row(v, latest_id):
     provider = v.attending_provider
     return {
         "id": v.pk,
+        "appointment": v.appointment_id,
         "visit_number": v.visit_number or "",
         "admit": v.arrival_time or v.created_at,
         "discharge": v.discharge_datetime,
