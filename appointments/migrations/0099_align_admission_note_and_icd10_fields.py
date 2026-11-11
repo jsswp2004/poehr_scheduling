@@ -73,11 +73,11 @@ def to_icd10(apps, schema_editor):
         t.save(update_fields=["version"])
 
 
-def align_admission_note(apps, schema_editor):
+def align_admission_note(apps, schema_editor, admission_code=ADMISSION_CODE):
     NoteTemplate = apps.get_model("appointments", "NoteTemplate")
     NoteFieldDefinition = apps.get_model("appointments", "NoteFieldDefinition")
     hp = NoteTemplate.objects.filter(code=HP_CODE).first()
-    adm = NoteTemplate.objects.filter(code=ADMISSION_CODE).first()
+    adm = NoteTemplate.objects.filter(code=admission_code).first()
     if hp is None or adm is None:
         return
     hp_fields = list(hp.fields.order_by("sort_order", "id"))
