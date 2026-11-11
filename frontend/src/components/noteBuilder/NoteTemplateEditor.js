@@ -31,6 +31,7 @@ import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
 import DynamicNoteForm from "../DynamicNoteForm";
 import { OWNERSHIP_OPTIONS } from "./ownership";
+import LocationsField from "./LocationsField";
 import { describeCalc } from "../../utils/calculations";
 import { CHART_SOURCES, chartSourceLabel } from "../../utils/chartSources";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
@@ -134,6 +135,9 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
     // Value of an item in the note_types dictionary ("" = not set). Only note templates have one.
     const [noteType, setNoteType] = useState("");
     const [ownership, setOwnership] = useState("");
+    // Where the template may be used: every location, or the chosen Location Manager units.
+    const [allLocations, setAllLocations] = useState(true);
+    const [unitIds, setUnitIds] = useState([]);
     // A new template starts on Details (it needs a code and name first); an existing one on Fields.
     const [tab, setTab] = useState(templateCode === null ? "details" : "fields");
     const [previewValues, setPreviewValues] = useState({});
@@ -174,6 +178,8 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 setVersion(tpl.version);
                 setNoteType(tpl.note_type || "");
                 setOwnership(tpl.ownership || "");
+                setAllLocations(tpl.all_locations !== false);
+                setUnitIds(tpl.location_ids || []);
 
                 const loaded = tpl.fields.map(fieldFromApi);
                 const keyToClientId = {};
@@ -348,7 +354,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
             is_active: isActive,
             // Only set when creating: a template's kind never changes afterwards.
             ...(isNew ? { kind } : {}),
-            ...(kind === "note" ? { note_type: noteType, ownership } : {}),
+            ...(kind === "note" ? { note_type: noteType, ownership, all_locations: allLocations, location_ids: allLocations ? [] : unitIds } : {}),
             fields: fields.map((f) => ({
                 client_id: f.clientId,
                 tab_label: f.tab_label || "",
@@ -544,6 +550,19 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                         </MenuItem>
                                     ))}
                                 </TextField>
+                            </Grid>
+                        )}
+                        {kind === "note" && (
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <LocationsField
+                                    allLocations={allLocations}
+                                    unitIds={unitIds}
+                                    onChange={({ allLocations: all, unitIds: ids }) => {
+                                        setAllLocations(all);
+                                        setUnitIds(ids);
+                                    }}
+                                    helperText="Where this note can be used. All locations = every unit; or pick one or more units"
+                                />
                             </Grid>
                         )}
                         <Grid size={{ xs: 12, sm: 2 }}>

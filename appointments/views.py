@@ -2327,6 +2327,11 @@ class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
         qs = super().get_queryset()
         if self.action != "list":
             return qs
+        # Location: a template limited to certain units is offered only where the patient is (?unit=<id>);
+        # "All locations" templates are offered everywhere. No unit given = no narrowing.
+        unit = self.request.query_params.get("unit")
+        if unit and str(unit).isdigit():
+            qs = qs.filter(Q(all_locations=True) | Q(locations__id=int(unit))).distinct()
         owned = ownership_for_role(getattr(self.request.user, "role", None))
         return qs if owned is None else qs.filter(ownership__in=["", owned])
 

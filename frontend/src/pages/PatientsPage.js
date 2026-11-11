@@ -777,6 +777,7 @@ function PatientsPage() {
               loading: !headerReady,
               appointmentId: headerReady ? headerData.appointment || null : null,
               visitId: headerReady ? headerData.visit || null : null,
+              unitId: headerReady ? headerData.unit || null : null,
             };
             if (current === "vaccines") {
               return <VaccineManager key={selectedPatient.id} patient={selectedPatient} chartVisit={chartVisit} />;

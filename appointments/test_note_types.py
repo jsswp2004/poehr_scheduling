@@ -286,6 +286,48 @@ class NoteTypeAuthoringTests(TestCase):
         self.assertEqual(self._codes(self.doctor), {"own_physician", "own_blank"})
         self.assertEqual(self._codes(self.admin), {"own_nursing", "own_physician", "own_ancillary", "own_blank"})
 
+    def _units(self):
+        from .models import Facility, Unit
+
+        fac = Facility.objects.create(organization=self.org, name="General Hospital", kind="hospital")
+        return Unit.objects.create(facility=fac, name="3 West", care_type="inpatient"), Unit.objects.create(
+            facility=fac, name="ICU", care_type="inpatient"
+        )
+
+    def test_template_can_be_limited_to_chosen_locations(self):
+        west, icu = self._units()
+        body = {"code": "loc_note", "name": "Loc Note", "kind": "note", "is_active": True, "fields": [field()],
+                "all_locations": False, "location_ids": [west.id]}
+        res = self.api.post("/api/admin/note-templates/", body, format="json")
+        self.assertEqual(res.status_code, 201, res.content)
+        self.assertFalse(res.json()["all_locations"])
+        self.assertEqual(res.json()["location_ids"], [west.id])
+        # offered where it is assigned, hidden elsewhere, and everywhere when no unit is asked about
+        codes = lambda q: {r["code"] for r in (lambda d: d["results"] if isinstance(d, dict) else d)(self.api.get(f"/api/note-templates/{q}").json())}
+        self.assertIn("loc_note", codes(f"?unit={west.id}"))
+        self.assertNotIn("loc_note", codes(f"?unit={icu.id}"))
+        self.assertIn("loc_note", codes(""))
+
+    def test_all_locations_template_is_offered_in_every_unit(self):
+        west, icu = self._units()
+        NoteTemplate.objects.create(code="everywhere", name="Everywhere", kind="note", is_active=True)
+        res = self.api.get(f"/api/note-templates/?unit={icu.id}").json()
+        rows = res["results"] if isinstance(res, dict) else res
+        self.assertIn("everywhere", {r["code"] for r in rows})
+
+    def test_limiting_to_no_unit_is_refused_and_all_locations_clears_units(self):
+        west, icu = self._units()
+        body = {"code": "loc2", "name": "Loc 2", "kind": "note", "is_active": True, "fields": [field()], "all_locations": False, "location_ids": []}
+        self.assertEqual(self.api.post("/api/admin/note-templates/", body, format="json").status_code, 400)
+        body.update(all_locations=False, location_ids=[west.id, icu.id])
+        made = self.api.post("/api/admin/note-templates/", body, format="json")
+        self.assertEqual(made.status_code, 201)
+        same_field = dict(field(), client_id=str(made.json()["fields"][0]["id"]))
+        body.update(all_locations=True, location_ids=[west.id], fields=[same_field])
+        res = self.api.put("/api/admin/note-templates/loc2/", body, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(res.json()["location_ids"], [])
+
     def test_initial_assessment_and_progress_note_become_physician_templates(self):
         mod = importlib.import_module("appointments.migrations.0095_seed_soap_note_templates")
         mod.seed(apps, None)

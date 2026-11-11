@@ -283,7 +283,9 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     const loadTemplateList = async () => {
       try {
         const headers = await authHeader();
-        const res = await api.get(apiEndpoints.noteTemplates, { headers });
+        // Templates assigned to certain units are offered only where the visit is; All-locations ones everywhere.
+        const unitQuery = chartVisit?.unitId ? `?unit=${chartVisit.unitId}` : "";
+        const res = await api.get(`${apiEndpoints.noteTemplates}${unitQuery}`, { headers });
         if (cancelled) return;
         const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
         setActiveTemplates(list.map((t) => ({ code: t.code, name: t.name, note_type: t.note_type || "" })));
@@ -296,7 +298,8 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     return () => {
       cancelled = true;
     };
-  }, [userRole]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userRole, chartVisit?.unitId]);
 
   // True when `code` is rendered from a NoteTemplate rather than the SOAP form.
   const isTemplateType = (code) =>

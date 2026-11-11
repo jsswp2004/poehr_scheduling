@@ -1,6 +1,7 @@
 from django.db import models, transaction
 from rest_framework import serializers
 from .models import (
+    Unit,
     Appointment,
     Availability,
     EnvironmentSetting,
@@ -336,9 +337,15 @@ class NoteTemplateAdminReadSerializer(NoteTemplateSerializer):
     """
 
     note_type_label = serializers.SerializerMethodField()
+    location_ids = serializers.SerializerMethodField()
+
+    def get_location_ids(self, obj):
+        return sorted(u.id for u in obj.locations.all())
 
     class Meta(NoteTemplateSerializer.Meta):
-        fields = NoteTemplateSerializer.Meta.fields + ["kind", "note_type", "note_type_label", "ownership"]
+        fields = NoteTemplateSerializer.Meta.fields + [
+            "kind", "note_type", "note_type_label", "ownership", "all_locations", "location_ids",
+        ]
 
     def get_note_type_label(self, obj):
         return NoteTemplateAdminSerializer.get_note_type_label(None, obj)
@@ -352,7 +359,7 @@ class NoteTemplatePickerSerializer(NoteTemplateSerializer):
     """
 
     class Meta(NoteTemplateSerializer.Meta):
-        fields = NoteTemplateSerializer.Meta.fields + ["note_type", "ownership"]
+        fields = NoteTemplateSerializer.Meta.fields + ["note_type", "ownership", "all_locations"]
 
 
 # --- Phase 2: note-builder configuration UI (admin-only write access) -----
@@ -580,10 +587,14 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
 
     fields = NoteFieldDefinitionAdminSerializer(many=True)
     note_type_label = serializers.SerializerMethodField()
+    # Unit ids from the Location Manager this template is limited to (ignored while all_locations is true).
+    location_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Unit.objects.all(), many=True, required=False, source="locations"
+    )
 
     class Meta:
         model = NoteTemplate
-        fields = ["id", "code", "name", "kind", "note_type", "note_type_label", "ownership", "organization", "is_active", "version", "fields"]
+        fields = ["id", "code", "name", "kind", "note_type", "note_type_label", "ownership", "all_locations", "location_ids", "organization", "is_active", "version", "fields"]
         read_only_fields = ["id", "version", "note_type_label"]
 
     def get_note_type_label(self, obj):
@@ -729,14 +740,23 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
 
         return client_id_to_key
 
+    def validate(self, attrs):
+        if attrs.get("all_locations") is False and not attrs.get("locations"):
+            raise serializers.ValidationError({"location_ids": "Pick at least one location, or choose All locations."})
+        return attrs
+
     def create(self, validated_data):
         fields_data = validated_data.pop("fields")
+        locations = validated_data.pop("locations", [])
         template = NoteTemplate.objects.create(**validated_data)
+        if not template.all_locations:
+            template.locations.set(locations)
         self._save_fields(template, fields_data)
         return template
 
     def update(self, instance, validated_data):
         fields_data = validated_data.pop("fields", None)
+        locations = validated_data.pop("locations", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
@@ -748,6 +768,10 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
                 instance.version += 1
 
         instance.save()
+        if instance.all_locations:
+            instance.locations.clear()
+        elif locations is not None:
+            instance.locations.set(locations)
         return instance
 
 
