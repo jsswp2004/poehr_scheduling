@@ -71,3 +71,34 @@ class DedupeDemoVisitsTests(TestCase):
         for _ in range(3):
             call_command("seed_demo_data", stdout=StringIO(), stderr=StringIO())
         self.assertEqual(Appointment.all_objects.count(), count)
+
+
+class DeleteFlowsheetsWithoutVnTests(TestCase):
+    def test_deletes_only_no_vn_flowsheets_and_keeps_newest_well_visit_per_patient(self):
+        from django.contrib.auth import get_user_model
+
+        from users.models import Organization, Registration
+
+        org = Organization.objects.create(name="Org")
+        user = get_user_model().objects.create_user(username="p1", password="x", role="patient", organization=org)
+        tmpl = FlowsheetTemplate.objects.create(code="vital_signs", name="Vital Signs", is_active=True)
+
+        def sheet(title, vn=None):
+            appt = Appointment.all_objects.create(
+                organization=org, patient=user, title=title, appointment_datetime=timezone.now(), status="completed",
+            )
+            if vn:
+                Registration.objects.create(patient=user.patient_profile, organization=org, appointment=appt, visit_number=vn)
+            return VitalSignsFlowsheet.objects.create(organization=org, template=tmpl, appointment=appt, patient=user)
+
+        a = sheet("Sick Visit")
+        old_well = sheet("2-month well visit")
+        new_well = sheet("2-month well visit")
+        with_vn = sheet("Follow-up Visit", vn="VN-000001")
+        call_command("delete_flowsheets_without_vn", stdout=StringIO())
+        self.assertEqual(VitalSignsFlowsheet.objects.count(), 4)
+        call_command("delete_flowsheets_without_vn", "--apply", stdout=StringIO())
+        left = set(VitalSignsFlowsheet.objects.values_list("pk", flat=True))
+        self.assertEqual(left, {new_well.pk, with_vn.pk})
+        self.assertNotIn(a.pk, left)
+        self.assertNotIn(old_well.pk, left)
