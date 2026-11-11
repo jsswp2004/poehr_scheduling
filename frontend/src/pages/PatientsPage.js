@@ -71,6 +71,9 @@ import useChartParam from "../hooks/useChartParam";
 // Chart tab content sits right under the tab strip: panels bring their own top margin
 // (a Paper with mt: 3), which left a big empty band, so it is cancelled here.
 const TIGHT_PANEL = { p: 0.5, "& > .MuiPaper-root": { mt: 0, pt: 2 } };
+// Documents keeps its Documentation / Note History tabs pinned at the top of the pane, so nothing may sit above
+// them: any padding there would scroll away first and make the tabs move a little with the body.
+const PINNED_TABS_PANEL = { px: 0.5, pb: 0.5, pt: 0, "& > .MuiPaper-root": { mt: 0, pt: 0 } };
 
 // Team, Appointments, Analytics and Register sit right next to the side bar, so their title and
 // content get a small gap on both sides (the chart tabs bring their own spacing).
@@ -814,7 +817,7 @@ function PatientsPage() {
             }
             if (current === "documents") {
               return (
-                <Box sx={TIGHT_PANEL}>
+                <Box sx={PINNED_TABS_PANEL}>
                   <ClinicalNotesPanel
                     key={selectedPatient.id}
                     patientId={selectedPatient.id}
