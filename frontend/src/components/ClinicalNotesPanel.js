@@ -31,6 +31,7 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
 import { jwtDecode } from "jwt-decode";
 import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
@@ -173,6 +174,11 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   // Subjective / Objective / Assessment / Plan form it was written on.
   const [legacySoap, setLegacySoap] = useState(false);
   const [activeTab, setActiveTab] = useState("documentation");
+  // A note is written in a modal opened from the Documentation tab; "preview" swaps its body for the preview.
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [modalView, setModalView] = useState("form");
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [typeSearch, setTypeSearch] = useState("");
 
   // A new note (not an edited draft or an addendum) always belongs to the header's visit.
   useEffect(() => {
@@ -598,7 +604,8 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     setAmendsId(null);
     setLegacySoap(!note.template);
     setActiveTab("documentation");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setModalView("form");
+    setNoteModalOpen(true);
   };
 
   const confirmDeleteHistoryItem = async () => {
@@ -674,18 +681,6 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   const noteTypeAllowed = (value) =>
     (noteTypes && noteTypes.length ? noteTypes : [{ value: "doctor_assessment" }, { value: "nursing_assessment" }]).some((t) => t.value === value);
 
-  const handleDocumentationTypeChange = (e) => {
-    const code = e.target.value;
-    const assigned = ((activeTemplates || []).find((t) => t.code === code) || {}).note_type || "";
-    const allowed = noteTypeAllowed(assigned);
-    setLegacySoap(false);
-    setForm((f) => ({
-      ...f,
-      documentation_type: code,
-      ...(assigned && allowed && !amendsId ? { note_type: assigned } : {}),
-    }));
-  };
-
   // Dictation: the fields "Dictate whole note" may fill (never calculated items or hidden ones),
   // how to read a field's current value, and how to write accepted values back.
   const dictationFields = isTemplateDriven
@@ -707,6 +702,37 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     setDraftId(null);
     setAmendsId(null);
     setLegacySoap(false);
+    setNoteModalOpen(false);
+    setConfirmClose(false);
+    setModalView("form");
+  };
+
+  // Start a brand-new note of the chosen type in the modal.
+  const openNewNote = (code) => {
+    if (!form.appointment) {
+      toast.error("Please select an appointment/registration for this note.");
+      return;
+    }
+    const assigned = ((activeTemplates || []).find((t) => t.code === code) || {}).note_type || "";
+    const defaultType = defaultNoteType(noteTypes, userRole);
+    setForm({
+      ...EMPTY_FORM,
+      appointment: form.appointment,
+      note_type: assigned && noteTypeAllowed(assigned) ? assigned : defaultType,
+      documentation_type: code,
+    });
+    setDraftId(null);
+    setAmendsId(null);
+    setLegacySoap(false);
+    setModalView("form");
+    setNoteModalOpen(true);
+  };
+
+  // Closing with typed-in text that was never saved asks first; anything else just closes.
+  const requestCloseModal = () => {
+    if (saving) return;
+    if (holdsUnsavedNote) setConfirmClose(true);
+    else resetForm();
   };
 
   const validateTemplateRequiredFields = () => {
@@ -750,7 +776,8 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     setAmendsId(note.id);
     setLegacySoap(!note.template);
     setActiveTab("documentation");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setModalView("form");
+    setNoteModalOpen(true);
   };
 
   const saveDraft = async () => {
@@ -866,7 +893,6 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
         {showTabs && (
           <Tabs value={currentTab} onChange={(e, newValue) => setActiveTab(newValue)}>
             <Tab label="Documentation" value="documentation" />
-            <Tab label="Preview" value="preview" />
             <Tab label="Note History" value="history" />
           </Tabs>
         )}
@@ -875,64 +901,149 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
       <SafetyAlertNotice alert={safetyAlert} onClose={() => setSafetyAlert(null)} />
 
       {currentTab === "documentation" && canAuthor && (
-        <Grid container spacing={3} sx={{ mb: 1 }}>
-        <Grid size={{ xs: 12 }}>
-          {amendsId && (
-            <Chip
-              label="Writing an addendum to a signed note"
-              color="warning"
-              size="small"
-              onDelete={resetForm}
-              sx={{ mb: 2 }}
-            />
-          )}
+        <Box sx={{ mb: 1 }}>
           <Stack spacing={2}>
             {fixedVisit && !chartVisit.loading && !chartVisit.appointmentId && (
               <Typography variant="body2" color="text.secondary">
                 This patient has no visit yet. Register a visit to document on.
               </Typography>
             )}
-            <Stack direction="row" spacing={2}>
-              {!fixedVisit && (
-              <FormControl size="small" sx={{ width: "50%" }}>
+            {!fixedVisit && (
+              <FormControl size="small" sx={{ width: { xs: "100%", md: "50%" } }}>
                 <InputLabel id="appt-select-label">Appointment / Registration</InputLabel>
                 <Select
                   labelId="appt-select-label"
                   label="Appointment / Registration"
                   value={form.appointment}
                   onChange={handleFieldChange("appointment")}
-                  disabled={!!amendsId}
                 >
                   {appointments.map((a) => (
                     <MenuItem key={a.id} value={a.id}>
-                      {a.title} -{" "}
-                      {new Date(a.appointment_datetime).toLocaleString()}
+                      {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              )}
+            )}
 
-              <FormControl size="small" sx={{ width: fixedVisit ? "100%" : "50%" }}>
-                <InputLabel id="doc-type-select-label">Documentation Type</InputLabel>
-                <Select
-                  labelId="doc-type-select-label"
-                  label="Documentation Type"
-                  value={form.documentation_type}
-                  onChange={handleDocumentationTypeChange}
-                >
-                  {documentationTypeOptions.map((dt) => (
-                    <MenuItem key={dt.value} value={dt.value}>
-                      {dt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 8 }}>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+                  <Typography variant="h6" sx={{ whiteSpace: "nowrap" }}>
+                    Start a new note
+                  </Typography>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Search note types"
+                    value={typeSearch}
+                    onChange={(e) => setTypeSearch(e.target.value)}
+                    inputProps={{ "aria-label": "Search note types" }}
+                  />
+                </Stack>
+                <Grid container spacing={2}>
+                  {documentationTypeOptions
+                    .filter((dt) => dt.label.toLowerCase().includes(typeSearch.trim().toLowerCase()))
+                    .map((dt) => {
+                      const assigned = ((activeTemplates || []).find((t) => t.code === dt.value) || {}).note_type || "";
+                      return (
+                        <Grid key={dt.value} size={{ xs: 12, sm: 6, lg: 4 }}>
+                          <Paper
+                            variant="outlined"
+                            sx={{ p: 2, height: "100%", borderRadius: 2, "&:hover": { borderColor: "primary.main" } }}
+                          >
+                            <Stack spacing={1} sx={{ height: "100%" }}>
+                              {assigned && <Chip size="small" label={noteTypeLabel(assigned)} sx={{ alignSelf: "flex-start" }} />}
+                              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                                {dt.label}
+                              </Typography>
+                              <Box sx={{ flex: 1 }} />
+                              <Button size="small" onClick={() => openNewNote(dt.value)} sx={{ alignSelf: "flex-start", px: 0 }}>
+                                Open note
+                              </Button>
+                            </Stack>
+                          </Paper>
+                        </Grid>
+                      );
+                    })}
+                </Grid>
+              </Grid>
 
-            {/* The note type is not chosen here: it is set in the background from the documentation type
-                (the type assigned when the template was built) and saved with the note. */}
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  Drafts in progress
+                </Typography>
+                {notes.filter((n) => n.status !== "signed").length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No drafts. Notes you save as drafts show up here to resume.
+                  </Typography>
+                ) : (
+                  <Stack spacing={1}>
+                    {notes
+                      .filter((n) => n.status !== "signed")
+                      .map((n) => (
+                        <Paper key={n.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: "#fffaf0" }}>
+                          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {n.documentation_type_display || documentationTypeLabel(n.documentation_type)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Draft · {new Date(n.created_at).toLocaleString()}
+                              </Typography>
+                            </Box>
+                            <Button size="small" onClick={() => startEditDraft(n)}>
+                              Resume
+                            </Button>
+                          </Stack>
+                        </Paper>
+                      ))}
+                  </Stack>
+                )}
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+                  Signed notes are under Note History.
+                </Typography>
+              </Grid>
+            </Grid>
+          </Stack>
+        </Box>
+      )}
 
+      <Dialog
+        open={noteModalOpen && canAuthor}
+        onClose={requestCloseModal}
+        fullWidth
+        maxWidth={isTemplateDriven ? "lg" : "sm"}
+        scroll="paper"
+        aria-labelledby="note-modal-title"
+        PaperProps={{ sx: { height: isTemplateDriven ? "90vh" : "auto", maxHeight: "90vh", borderRadius: 2 } }}
+      >
+        <DialogTitle id="note-modal-title" sx={{ pb: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
+              {documentationTypeLabel(form.documentation_type)}
+            </Typography>
+            <Chip size="small" label={draftId ? "Draft saved" : "Draft"} color={draftId ? "success" : "warning"} />
+            {amendsId && <Chip size="small" label="Addendum to a signed note" color="warning" />}
+            <Box sx={{ flex: 1 }} />
+            <Button size="small" onClick={() => setModalView(modalView === "form" ? "preview" : "form")}>
+              {modalView === "form" ? "Preview" : "Back to editing"}
+            </Button>
+            <IconButton aria-label="Close note" onClick={requestCloseModal} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+          {patientName && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {patientName}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          {modalView === "preview" ? (
+            <NotePreviewPane embedded title={previewTitle} meta={previewMeta} sections={previewSections} />
+          ) : (
+            <Stack spacing={2} sx={{ pt: 0.5 }}>
             <DictationProvider>
               <DictateNoteBar
                 fields={dictationFields}
@@ -1008,38 +1119,34 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
               </>
             )}
             </DictationProvider>
-
-            <Stack direction="row" spacing={2}>
-              <Button
-                variant="outlined"
-                onClick={saveDraft}
-                disabled={saving}
-              >
-                Save Draft
-              </Button>
-              <Button
-                variant="contained"
-                color="success"
-                onClick={startSign}
-                disabled={saving}
-              >
-                Sign &amp; Lock
-              </Button>
-              {(draftId || amendsId) && (
-                <Button variant="text" onClick={resetForm} disabled={saving}>
-                  Cancel
-                </Button>
-              )}
             </Stack>
-          </Stack>
-        </Grid>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          <Button onClick={requestCloseModal} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="outlined" onClick={saveDraft} disabled={saving}>
+            Save Draft
+          </Button>
+          <Button variant="contained" color="success" onClick={startSign} disabled={saving}>
+            Sign &amp; Lock
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        </Grid>
-      )}
-
-      {currentTab === "preview" && canAuthor && (
-        <NotePreviewPane embedded title={previewTitle} meta={previewMeta} sections={previewSections} />
-      )}
+      <Dialog open={confirmClose} onClose={() => setConfirmClose(false)}>
+        <DialogTitle>Close without saving?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>This note has text that has not been saved. Save it as a draft first, or discard it.</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmClose(false)}>Keep writing</Button>
+          <Button color="error" onClick={resetForm}>
+            Discard
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {currentTab === "history" && (
         <Box>
