@@ -104,7 +104,7 @@ function VisitHistory({ patientId, openVisitId, onOpenVisit }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }} data-testid="visit-history">
-      <TableContainer sx={{ flex: 1, minHeight: 120, border: 1, borderColor: "divider", borderRadius: 1 }}>
+      <TableContainer sx={{ flex: 1, minHeight: 0, overflow: "auto", border: 1, borderColor: "divider", borderRadius: 1 }}>
         <Table stickyHeader aria-label="Visit history">
           <TableHead>
             <TableRow>
@@ -160,7 +160,7 @@ function VisitHistory({ patientId, openVisitId, onOpenVisit }) {
         </Table>
       </TableContainer>
 
-      <Box sx={{ display: "flex", gap: 1, pt: 1, flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", gap: 1, pt: 1, flexWrap: "wrap", flex: "none" }} data-testid="visit-actions">
         <Button size="small" variant="contained" disabled={!canOpen} onClick={() => onOpenVisit(selected)} data-testid="visit-open">
           Open Visit
         </Button>
@@ -261,7 +261,19 @@ export default function PatientInfoPanel({ patient, openVisitId = null, onOpenVi
   const open = useCallback((v) => onOpenVisit(v), [onOpenVisit]);
 
   return (
-    <Box sx={{ display: "flex", gap: 1, p: 0.5, minHeight: 0, flex: 1, height: "100%" }} data-testid="patient-info-panel">
+    <Box
+      sx={{
+        display: "flex",
+        gap: 1,
+        p: 0.5,
+        // A fixed-height panel: the Visit History list on the left stays put and the table scrolls inside,
+        // so the buttons under the table are always visible.
+        height: "calc(100vh - 300px)",
+        minHeight: 360,
+        overflow: "hidden",
+      }}
+      data-testid="patient-info-panel"
+    >
       <Box sx={{ width: 190, flexShrink: 0, border: 1, borderColor: "divider", borderRadius: 1, alignSelf: "flex-start" }}>
         <List dense disablePadding aria-label="Patient info views">
           {VIEWS.map((x) => (
@@ -271,7 +283,7 @@ export default function PatientInfoPanel({ patient, openVisitId = null, onOpenVi
           ))}
         </List>
       </Box>
-      <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "auto" }}>
+      <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", overflow: view === "visit_history" ? "hidden" : "auto" }}>
         {view === "visit_history" ? (
           <VisitHistory patientId={patient.id} openVisitId={openVisitId} onOpenVisit={open} />
         ) : (
