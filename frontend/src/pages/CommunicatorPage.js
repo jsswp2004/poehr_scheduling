@@ -23,6 +23,7 @@ import { CommunicatorToolbarSlotContext } from "../components/communicator/Commu
 import CommunicatorAssistantDock, { COMMUNICATOR_CHANGED_EVENT } from "../components/CommunicatorAssistantDock";
 import AutoEmailSetUpPage from "./AutoEmailSetUpPage";
 import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
+import ActivityTab from "../components/communicator/ActivityTab";
 
 /**
  * Refactored CommunicatorPage with modular components and hooks
@@ -37,6 +38,7 @@ import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
  */
 function CommunicatorPage() {
   const [tab, setTab] = useState("contacts");
+  const [selectedIds, setSelectedIds] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const token = localStorage.getItem("access_token");
@@ -87,6 +89,8 @@ function CommunicatorPage() {
   const bulkMessaging = useBulkMessaging(token);
   const utils = useCommunicatorUtils();
   const optedOutCount = contacts.contacts.filter((c) => utils.hasPhone(c) && c.opted_out).length;
+  // Drop selections for contacts that no longer exist (deleted, or the list reloaded).
+  const selectedContactIds = selectedIds.filter((id) => contacts.contacts.some((c) => c.id === id));
 
   // The assistant dispatches this after a confirmed change (a contact it added, a message it sent).
   const refreshRef = useRef(null);
@@ -101,7 +105,7 @@ function CommunicatorPage() {
   const handleAssistantNavigate = (route) => {
     if (route === "contacts") setTab("contacts");
     else if (route === "send") setTab("message");
-    else if (route === "logs") navigate("/messages");
+    else if (route === "logs") setTab("activity");
   };
 
   // Page-level feedback shows as dismissible inline alerts (same as the Staffing Center).
@@ -171,11 +175,12 @@ function CommunicatorPage() {
   };
 
   // Handle bulk message sending
-  const handleSendBulkMessage = async () => {
-    const result = await bulkMessaging.sendBulkMessage();
+  const handleSendBulkMessage = async (contactIds) => {
+    const result = await bulkMessaging.sendBulkMessage(contactIds);
     if (result && result.success) {
       setPageError("");
       setNotice(`Message sent to ${result.sentCount} contacts.`);
+      if (contactIds) setSelectedIds([]);
       setTab("contacts");
     } else {
       setNotice("");
@@ -227,6 +232,9 @@ function CommunicatorPage() {
           formatDate={utils.formatDate}
           hasPhone={utils.hasPhone}
           hasEmail={utils.hasEmail}
+          selectedIds={selectedContactIds}
+          onSelectionChange={setSelectedIds}
+          onMessageSelected={() => setTab("message")}
         />
       )}
 
@@ -234,6 +242,7 @@ function CommunicatorPage() {
       {tab === "message" && (
         <BulkMessageForm
           contacts={contacts.contacts}
+          selectedIds={selectedContactIds}
           messageForm={bulkMessaging.messageForm}
           sending={bulkMessaging.sending}
           error={bulkMessaging.error}
@@ -243,11 +252,16 @@ function CommunicatorPage() {
         />
       )}
 
-      {/* Email Tab (admin-only, same auto-messaging setup as the Messages page) */}
-      {tab === "email" && isAdmin && <AutoEmailSetUpPage embedded />}
+      {/* Activity: sent texts, sent emails and replies */}
+      {tab === "activity" && <ActivityTab />}
 
-      {/* SMS Tab (admin-only, same auto-messaging setup as the Messages page) */}
-      {tab === "sms" && isAdmin && <AutoSMSSetUpPage embedded />}
+      {/* Automations (admin-only): the automatic text and email schedules, same settings as the Messages page */}
+      {tab === "automations" && isAdmin && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, alignItems: "flex-start" }}>
+          <Box sx={{ flex: "1 1 440px", minWidth: 0 }}><AutoSMSSetUpPage embedded hideLog /></Box>
+          <Box sx={{ flex: "1 1 440px", minWidth: 0 }}><AutoEmailSetUpPage embedded hideLog /></Box>
+        </Box>
+      )}
 
       </CommunicatorToolbarSlotContext.Provider>
 

@@ -145,7 +145,7 @@ function MessageLogTable({ type }) {
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
     // const currentMonth = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    const logType = type === "sms" ? "SMS" : "Email";
+    const logType = type === "sms" ? "SMS" : type === "webhook" ? "Replies" : "Email";
     const orgSuffix = !isSystemAdmin && (userRole === 'admin' || userRole === 'registrar')
       ? " (Organization Messages)"
       : isSystemAdmin
@@ -221,7 +221,7 @@ function MessageLogTable({ type }) {
   };
 
   const handleDownloadCSV = () => {
-    const logType = type === "sms" ? "SMS" : "Email";
+    const logType = type === "sms" ? "SMS" : type === "webhook" ? "Replies" : "Email";
     const currentDate = new Date().toISOString().split("T")[0];
     const orgSuffix = !isSystemAdmin && (userRole === 'admin' || userRole === 'registrar')
       ? "_Organization"
@@ -309,7 +309,7 @@ function MessageLogTable({ type }) {
           </Stack>
           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ pb: 0.5, minHeight: 32 }}>
             <Typography variant="body2" color="text.secondary">
-              Showing {paginatedLogs.length} of {filtered.length} {type === "sms" ? "texts" : "emails"}
+              Showing {paginatedLogs.length} of {filtered.length} {type === "sms" ? "texts" : type === "webhook" ? "replies" : "emails"}
               {!isSystemAdmin && (userRole === "admin" || userRole === "registrar") ? " (your organization)" : ""}
               {isSystemAdmin ? " (all organizations)" : ""}
             </Typography>
@@ -327,7 +327,7 @@ function MessageLogTable({ type }) {
         {" "}
         <TableHead>
           <TableRow>
-            <TableCell sx={headCell}>Recipient</TableCell>
+            <TableCell sx={headCell}>{type === "webhook" ? "From" : "Recipient"}</TableCell>
             <TableCell sx={headCell}>Organization</TableCell>
             {type === "email" && <TableCell sx={headCell}>Subject</TableCell>}
             <TableCell sx={headCell}>Body</TableCell>
@@ -396,7 +396,7 @@ function MessageLogTable({ type }) {
     <Paper sx={{ p: 2, flex: 1 }}>
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
         <Typography variant="h6" sx={{ minWidth: "fit-content" }}>
-          {type === "sms" ? "SMS Logs" : "Email Logs"}
+          {type === "sms" ? "SMS Logs" : type === "webhook" ? "Reply Logs" : "Email Logs"}
           {!isSystemAdmin && (userRole === 'admin' || userRole === 'registrar') && (
             <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 'normal' }}>
               (Organization Messages Only)

@@ -38,9 +38,9 @@ const CommunicatorHeader = ({
                 }}
             >
                 <Tab value="contacts" label="Contacts" />
-                <Tab value="message" label="Send Message" />
-                {isAdmin && <Tab value="email" label="Email" />}
-                {isAdmin && <Tab value="sms" label="SMS" />}
+                <Tab value="message" label="Compose" />
+                <Tab value="activity" label="Activity" />
+                {isAdmin && <Tab value="automations" label="Automations" />}
             </Tabs>
         </Box>
     );
