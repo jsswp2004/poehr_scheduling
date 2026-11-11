@@ -273,8 +273,12 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId, rail
   // only groups, never re-sorts.
   const tabGroups = groupByTab(fields);
   const hasTabs = tabGroups.length > 1;
-  const safeActiveTab = Math.min(activeTab, tabGroups.length - 1);
-  const activeFields = hasTabs ? tabGroups[safeActiveTab].fields : fields;
+  // In the note modal's left rail, a note with no tabs but several sections (e.g. the Admission Note) gets one
+  // rail entry per section, so every note with sections has the rail like the General Pediatric Note.
+  const allSections = groupBySection(fields);
+  const railGroups = hasTabs ? tabGroups : rail && allSections.length > 1 ? allSections : null;
+  const safeActiveTab = railGroups ? Math.min(activeTab, railGroups.length - 1) : 0;
+  const activeFields = railGroups ? railGroups[safeActiveTab].fields : fields;
   const sections = groupBySection(activeFields);
 
   // Left-rail layout (used in the note modal): how many required, visible fields in a tab are still empty.
@@ -499,7 +503,7 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId, rail
     }
   };
 
-  const useRail = rail && hasTabs;
+  const useRail = rail && !!railGroups;
 
   return (
     <Box sx={useRail ? { display: "flex", gap: 3, alignItems: "flex-start" } : undefined}>
@@ -512,7 +516,7 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId, rail
           <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>
             Sections
           </Typography>
-          {tabGroups.map((tab, idx) => {
+          {railGroups.map((tab, idx) => {
             const missing = missingIn(tab.fields);
             const done = missing === 0 && hasAnyValue(tab.fields);
             const active = idx === safeActiveTab;
