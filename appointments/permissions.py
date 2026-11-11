@@ -139,6 +139,18 @@ class IsFlowsheetTemplateAdmin(permissions.BasePermission):
         )
 
 
+# Document ownership (set per template in the Note Builder) that each clinical role writes. Ancillary documents
+# belong to roles this app does not have yet, so only admins can write them for now.
+OWNERSHIP_BY_ROLE = {"nurse": "nursing", "doctor": "physician"}
+
+
+def ownership_for_role(role):
+    """The ownership a doctor or nurse writes, or None for roles that see every template (admins)."""
+    if role in ("admin", "system_admin"):
+        return None
+    return OWNERSHIP_BY_ROLE.get(role, "none")
+
+
 class CanAuthorClinicalNoteType(permissions.BasePermission):
     """
     Enforces who may author each note type, using the Author role set on the
@@ -164,6 +176,14 @@ class CanAuthorClinicalNoteType(permissions.BasePermission):
             return True
         if role not in ("nurse", "doctor"):
             return False
+        # The template's Document ownership must be the user's own discipline (or not set yet).
+        template_id = request.data.get("template")
+        if str(template_id or "").isdigit():
+            from .models import NoteTemplate
+
+            owner = NoteTemplate.objects.filter(pk=int(template_id)).values_list("ownership", flat=True).first()
+            if owner and owner != ownership_for_role(role):
+                return False
         # The note types dictionary says who may write each type (blank = any doctor or nurse).
         from .models import DictionaryItem, NOTE_TYPES_DICTIONARY_CODE
 
