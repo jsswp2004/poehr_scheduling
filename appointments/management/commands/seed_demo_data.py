@@ -182,6 +182,12 @@ class Command(BaseCommand):
                 patient = random.choice(patients)
                 doctor = random.choice(doctors)
                 when = day.replace(hour=slot_hour)
+                # One demo visit per slot. The patient and doctor are picked at random, so without this every
+                # deploy added another random visit to the same slot and the demo patients piled up copies.
+                if Appointment.all_objects.filter(
+                    organization=org, appointment_datetime=when, patient__in=patients
+                ).exists():
+                    continue
                 status = "completed" if day_offset < 0 else "scheduled"
                 _, created = Appointment.all_objects.get_or_create(
                     organization=org,
