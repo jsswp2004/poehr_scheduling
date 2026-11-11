@@ -881,6 +881,14 @@ class NoteTemplate(models.Model):
         default="",
         help_text="Document ownership: physician, nursing or ancillary; blank = not set",
     )
+    # Where this template may be used. "All locations" (the default, so every existing template keeps working
+    # everywhere) or a chosen set of units from the Location Manager.
+    all_locations = models.BooleanField(
+        default=True, help_text="True = available in every location; otherwise only in `locations`"
+    )
+    locations = models.ManyToManyField(
+        "Unit", blank=True, related_name="note_templates", help_text="Units this template is limited to"
+    )
     version = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

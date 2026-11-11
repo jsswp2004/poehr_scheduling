@@ -377,6 +377,8 @@ def build_header(patient, visit_id=None):
         "visit": visit.pk if visit else None,
         # the chart record (an Appointment) that Orders, Documents and Flowsheets are filed against for this visit
         "appointment": _chart_appointment_id(visit),
+        # the visit's unit, so Documentation offers only the note templates assigned to that location
+        "unit": getattr(visit, "unit_id", None) if visit else None,
         "items": items,
         "allergies": {
             "no_known_allergies": allergy_text == "No known allergies",
