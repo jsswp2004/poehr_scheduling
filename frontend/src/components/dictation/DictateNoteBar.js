@@ -146,7 +146,7 @@ function ReviewDialog({ open, transcript, result, fields, getValue, onApply, onC
  *   onApply     ({ key: value }) => void
  * Renders nothing unless dictation and AI cleanup are both on for this organization.
  */
-export default function DictateNoteBar({ fields, getValue, onApply, disabled }) {
+export default function DictateNoteBar({ fields, getValue, onApply, disabled, compact = false }) {
   const { enabled, cleanup } = useDictationConfig();
   const [transcript, setTranscript] = useState("");
   const [busy, setBusy] = useState(false);
@@ -192,7 +192,7 @@ export default function DictateNoteBar({ fields, getValue, onApply, disabled }) 
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <Paper variant="outlined" sx={{ p: compact ? 1 : 2 }}>
       <Stack spacing={1.5}>
         <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
           <Button
@@ -209,6 +209,8 @@ export default function DictateNoteBar({ fields, getValue, onApply, disabled }) 
               ? dictation.partial
                 ? `${dictation.partial} ...`
                 : "Listening... say \"new paragraph\" or \"stop dictation\""
+              : compact
+              ? "Speak freely, then clean up and structure it into the note."
               : "Speak freely, then clean up and structure it into the fields below."}
           </Typography>
         </Stack>

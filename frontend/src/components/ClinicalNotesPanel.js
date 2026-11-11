@@ -1018,6 +1018,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
         aria-labelledby="note-modal-title"
         PaperProps={{ sx: { height: isTemplateDriven ? "90vh" : "auto", maxHeight: "90vh", borderRadius: 2 } }}
       >
+        <DictationProvider>
         <DialogTitle id="note-modal-title" sx={{ pb: 1 }}>
           <Stack direction="row" alignItems="center" spacing={1.5}>
             <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
@@ -1052,19 +1053,24 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
               ))}
             </Stack>
           )}
+          {/* Dictation sits with the patient header so it is the same on every note */}
+          {modalView === "form" && (
+            <Box sx={{ mt: 1, maxHeight: "40vh", overflow: "auto" }}>
+              <DictateNoteBar
+                compact
+                fields={dictationFields}
+                getValue={dictationValue}
+                onApply={applyDictation}
+                disabled={saving}
+              />
+            </Box>
+          )}
         </DialogTitle>
         <DialogContent dividers>
           {modalView === "preview" ? (
             <NotePreviewPane embedded title={previewTitle} meta={previewMeta} sections={previewSections} />
           ) : (
             <Stack spacing={2} sx={{ pt: 0.5 }}>
-            <DictationProvider>
-              <DictateNoteBar
-                fields={dictationFields}
-                getValue={dictationValue}
-                onApply={applyDictation}
-                disabled={saving}
-              />
             {isTemplateDriven ? (
               templateLoading && !currentTemplate ? (
                 <Typography variant="body2" color="text.secondary">
@@ -1134,10 +1140,10 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                 />
               </>
             )}
-            </DictationProvider>
             </Stack>
           )}
         </DialogContent>
+        </DictationProvider>
         <DialogActions sx={{ px: 3, py: 1.5 }}>
           <Button onClick={requestCloseModal} disabled={saving}>
             Cancel
