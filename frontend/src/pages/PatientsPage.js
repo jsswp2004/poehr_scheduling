@@ -778,6 +778,10 @@ function PatientsPage() {
               appointmentId: headerReady ? headerData.appointment || null : null,
               visitId: headerReady ? headerData.visit || null : null,
               unitId: headerReady ? headerData.unit || null : null,
+              // age/sex, MRN, visit and allergies for the note modal's patient strip
+              strip: headerReady
+                ? (headerData.items || []).filter((it) => ["age_sex", "mrn", "visit_id", "allergies"].includes(it.key) && it.value)
+                : [],
             };
             if (current === "vaccines") {
               return <VaccineManager key={selectedPatient.id} patient={selectedPatient} chartVisit={chartVisit} />;

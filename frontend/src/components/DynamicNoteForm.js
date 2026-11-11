@@ -184,7 +184,7 @@ export function sectionDefault(sectionFields) {
   return null;
 }
 
-function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
+function DynamicNoteForm({ template, values, onChange, disabled, patientId, rail = false }) {
   const fields = template?.fields || [];
   const [activeTab, setActiveTab] = useState(0);
 
@@ -276,6 +276,20 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
   const safeActiveTab = Math.min(activeTab, tabGroups.length - 1);
   const activeFields = hasTabs ? tabGroups[safeActiveTab].fields : fields;
   const sections = groupBySection(activeFields);
+
+  // Left-rail layout (used in the note modal): how many required, visible fields in a tab are still empty.
+  const missingIn = (tabFields) =>
+    tabFields.filter((f) => {
+      if (!f.required || !isFieldVisible(f, values)) return false;
+      const v = values[f.key];
+      if (Array.isArray(v)) return v.length === 0;
+      return (v === undefined || v === null || v === "") && v !== false;
+    }).length;
+  const hasAnyValue = (tabFields) =>
+    tabFields.some((f) => {
+      const v = values[f.key];
+      return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && v !== "" && v !== false;
+    });
 
   const renderField = (field) => {
     const value = values[field.key] ?? (field.field_type === "checkbox" ? false : "");
@@ -485,9 +499,67 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
     }
   };
 
+  const useRail = rail && hasTabs;
+
   return (
-    <Box>
-      {hasTabs && (
+    <Box sx={useRail ? { display: "flex", gap: 3, alignItems: "flex-start" } : undefined}>
+      {useRail && (
+        <Box
+          component="nav"
+          aria-label="Note sections"
+          sx={{ width: 220, flex: "none", position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 0.5 }}
+        >
+          <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>
+            Sections
+          </Typography>
+          {tabGroups.map((tab, idx) => {
+            const missing = missingIn(tab.fields);
+            const done = missing === 0 && hasAnyValue(tab.fields);
+            const active = idx === safeActiveTab;
+            return (
+              <Button
+                key={tab.label || `tab-${idx}`}
+                onClick={() => setActiveTab(idx)}
+                aria-current={active ? "true" : undefined}
+                sx={{
+                  justifyContent: "flex-start",
+                  textTransform: "none",
+                  gap: 1.25,
+                  px: 1.25,
+                  py: 1,
+                  color: active ? "primary.main" : "text.primary",
+                  bgcolor: active ? "action.selected" : "transparent",
+                  fontWeight: active ? 700 : 500,
+                }}
+              >
+                <Box
+                  aria-hidden="true"
+                  sx={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    flex: "none",
+                    boxSizing: "border-box",
+                    border: 2,
+                    borderColor: done ? "success.main" : active ? "primary.main" : "grey.400",
+                    bgcolor: done ? "success.main" : "transparent",
+                  }}
+                />
+                <Box component="span" sx={{ flex: 1, textAlign: "left" }}>
+                  {tab.label || "General"}
+                </Box>
+                {missing > 0 && (
+                  <Typography variant="caption" color="error">
+                    {missing} required
+                  </Typography>
+                )}
+              </Button>
+            );
+          })}
+        </Box>
+      )}
+      <Box sx={useRail ? { flex: 1, minWidth: 0 } : undefined}>
+      {hasTabs && !useRail && (
         <Tabs
           value={safeActiveTab}
           onChange={(e, newValue) => setActiveTab(newValue)}
@@ -537,6 +609,7 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
           </Box>
         ))}
       </Stack>
+      </Box>
     </Box>
   );
 }

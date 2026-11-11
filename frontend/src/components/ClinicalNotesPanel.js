@@ -1033,10 +1033,24 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
               <CloseIcon />
             </IconButton>
           </Stack>
-          {patientName && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {patientName}
-            </Typography>
+          {(patientName || (chartVisit?.strip || []).length > 0) && (
+            <Stack direction="row" spacing={2.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+              {patientName && (
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {patientName}
+                </Typography>
+              )}
+              {(chartVisit?.strip || []).map((it) => (
+                <Typography
+                  key={it.key}
+                  variant="body2"
+                  color={it.emphasis === "alert" ? "error" : "text.secondary"}
+                  sx={it.emphasis === "alert" ? { fontWeight: 600 } : undefined}
+                >
+                  {it.key === "allergies" ? `Allergies: ${it.value}` : it.value}
+                </Typography>
+              ))}
+            </Stack>
           )}
         </DialogTitle>
         <DialogContent dividers>
@@ -1075,6 +1089,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                     onChange={handleStructuredFieldChange}
                     disabled={saving}
                     patientId={patientId}
+                    rail
                   />
                 )
               )
