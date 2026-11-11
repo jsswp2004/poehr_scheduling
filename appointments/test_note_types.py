@@ -589,3 +589,21 @@ class RestoreAdmissionSectionsTests(AdmissionAlignAndIcd10MigrationTests):
         self.assertIn("history_source", keys)
         self.assertIn("legacy_only", keys)
         self.assertEqual(adm.fields.get(key="problem_1_icd10").field_type, "icd10")
+
+
+class AdmissionRosTabTests(AdmissionAlignAndIcd10MigrationTests):
+    def test_blank_tab_review_of_systems_gets_its_own_tab_in_order(self):
+        import importlib
+
+        from django.apps import apps
+
+        t = NoteTemplate.objects.create(code="admission_note_2", name="Adm", kind="note", is_active=True)
+        self._f(t, "chief_complaint", tab="Visit", section="Chief Complaint", order=0)
+        self._f(t, "vital_bp", tab="Physical Exam", section="Vital Signs", order=10)
+        self._f(t, "plan", tab="Assessment & Plan", section="Plan", order=20)
+        self._f(t, "ros_a", section="Review of Systems: General", order=30)
+        self._f(t, "ros_b", section="Review of Systems: Skin", order=40)
+        importlib.import_module("appointments.migrations.0103_admission_note_review_of_systems_tab").forwards(apps, None)
+        keys = list(t.fields.order_by("sort_order").values_list("key", flat=True))
+        self.assertEqual(keys, ["chief_complaint", "ros_a", "ros_b", "vital_bp", "plan"])
+        self.assertEqual(t.fields.get(key="ros_a").tab_label, "Review of Systems")
