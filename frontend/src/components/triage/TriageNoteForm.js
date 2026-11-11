@@ -6,6 +6,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { authHeader, errorText } from "../prescriptions/rxShared";
 import DynamicNoteForm from "../DynamicNoteForm";
+import AllergyManagerButton from "../patientHeader/AllergyManagerButton";
 import { LEVEL_NAMES, answersFromValues, checklist, filterTemplate, fmtVital, suicideAction } from "./triageHelpers";
 
 const FLAG = { bg: "#FEF7E0", border: "#F0C36D", fg: "#7A2E0E" };
@@ -52,10 +53,13 @@ function VitalsBlock({ ctx, onRefresh, refreshing }) {
   );
 }
 
-function HistoryBlock({ ctx }) {
+function HistoryBlock({ ctx, patientId, disabled, onChanged }) {
   return (
     <Paper variant="outlined" sx={{ p: 1.5 }} data-testid="triage-history">
-      <Typography sx={{ fontWeight: 700, mb: 1 }}>Allergies and current medicines</Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+        <Typography sx={{ fontWeight: 700 }}>Allergies and current medicines</Typography>
+        {patientId && !disabled && <AllergyManagerButton patientId={patientId} onChanged={onChanged} />}
+      </Stack>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         <Box sx={{ flex: 1 }}>
           <Typography variant="caption" color="text.secondary">Allergies</Typography>
@@ -282,7 +286,7 @@ export default function TriageNoteForm({ template, values, onChange, disabled, p
           <Alert severity="info" data-testid="triage-child-note">Child version of the form ({ctx.band.label.toLowerCase()}). Weight in kg is required.</Alert>
         )}
         <VitalsBlock ctx={ctx} onRefresh={loadContext} refreshing={refreshing} />
-        <HistoryBlock ctx={ctx} />
+        <HistoryBlock ctx={ctx} patientId={patientId} disabled={disabled} onChanged={loadContext} />
         <DynamicNoteForm template={filtered} values={values} onChange={onChange} disabled={disabled} />
         {String(values.screen_unsafe_home || "").toLowerCase() === "yes" && (
           <Alert severity="warning" data-testid="triage-unsafe-home">
