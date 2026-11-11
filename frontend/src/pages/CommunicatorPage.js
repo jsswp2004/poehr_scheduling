@@ -88,7 +88,6 @@ function CommunicatorPage() {
   const contactForm = useContactForm();
   const bulkMessaging = useBulkMessaging(token);
   const utils = useCommunicatorUtils();
-  const optedOutCount = contacts.contacts.filter((c) => utils.hasPhone(c) && c.opted_out).length;
   // Drop selections for contacts that no longer exist (deleted, or the list reloaded).
   const selectedContactIds = selectedIds.filter((id) => contacts.contacts.some((c) => c.id === id));
 
@@ -198,10 +197,7 @@ function CommunicatorPage() {
           onTabChange={setTab}
           isAdmin={isAdmin}
           backTo="/login?redirect=communicator"
-          chips={[
-            { label: `${contacts.contacts.length} contacts` },
-            ...(optedOutCount > 0 ? [{ label: `${optedOutCount} opted out`, color: "error" }] : []),
-          ]}
+          chips={[]}
         />
         <Box ref={setToolbarSlot} />
       </Box>
