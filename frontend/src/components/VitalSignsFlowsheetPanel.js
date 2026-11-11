@@ -73,7 +73,8 @@ const SECTION_HEADER_BG = "#0d1b4c"; // matches the Sunrise-style dark navy sect
  * columns/data blob is written on Save (no per-keystroke autosave),
  * mirroring how Clinical Notes' Save Draft works.
  */
-function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
+function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit, fillHeight = null }) {
+  // fillHeight (a CSS height): the panel is that tall, the title, buttons and pickers stay put and only the grid scrolls.
   // On the Patients page the visit being charted is the one in the patient header (chartVisit);
   // elsewhere (the standalone flowsheet page) the visit is still picked from a list.
   const fixedVisit = chartVisit !== undefined;
@@ -519,8 +520,17 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
   });
 
   return (
-    <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+    <Paper
+      elevation={2}
+      sx={{
+        p: fillHeight ? 1.5 : 3,
+        borderRadius: 2,
+        mt: fillHeight ? 0 : 3,
+        ...(fillHeight ? { height: fillHeight, minHeight: 420, display: "flex", flexDirection: "column", overflow: "hidden" } : {}),
+      }}
+      data-testid="flowsheet-panel"
+    >
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, flex: "none" }}>
         <PanelTitle sx={{ mb: 0 }}>Flowsheets</PanelTitle>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           {isIo && (
@@ -558,7 +568,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
         </Stack>
       </Stack>
 
-      <Stack direction="row" spacing={2} sx={{ mb: 1.5 }}>
+      <Stack direction="row" spacing={2} sx={{ mb: 1.5, flex: "none" }}>
         {!fixedVisit && (
           <FormControl size="small" sx={{ minWidth: 320 }}>
             <InputLabel id="flowsheet-appt-label">Appointment / Registration</InputLabel>
@@ -624,7 +634,11 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
             <ChartDataField field={{ key: "allergy_list", label: "Allergies", calc: { source: "allergies" } }} patientId={patientId} disabled={!canAuthor} />
           </Box>
         )}
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, maxHeight: "70vh" }}>
+        <TableContainer
+          component={Paper}
+          variant="outlined"
+          sx={{ borderRadius: 2, ...(fillHeight ? { flex: 1, minHeight: 0 } : { maxHeight: "70vh" }) }}
+        >
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
