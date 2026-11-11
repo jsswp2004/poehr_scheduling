@@ -1079,6 +1079,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                       onChange={handleStructuredFieldChange}
                       disabled={saving}
                       patientId={patientId}
+                      rail
                     />
                     <ReassessmentPanel patientId={patientId} canAdd={canAuthor} refreshKey={saving ? 1 : 0} />
                   </>
