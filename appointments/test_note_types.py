@@ -268,6 +268,42 @@ class NoteTypeAuthoringTests(TestCase):
         admin = {i["value"] for i in self.api.get("/api/clinical-notes/note-types/").json()}
         self.assertTrue({"nursing_assessment", "doctor_assessment", "triage"} <= admin)
 
+    # ---- Document ownership decides which templates each role is offered and may use
+    def _owned_templates(self):
+        for code, owner in (("own_nursing", "nursing"), ("own_physician", "physician"), ("own_ancillary", "ancillary"), ("own_blank", "")):
+            NoteTemplate.objects.create(code=code, name=code, kind="note", ownership=owner, is_active=True)
+
+    def _codes(self, user):
+        res = client_for(user).get("/api/note-templates/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        rows = data["results"] if isinstance(data, dict) else data
+        return {r["code"] for r in rows if r["code"].startswith("own_")}
+
+    def test_templates_listed_by_document_ownership(self):
+        self._owned_templates()
+        self.assertEqual(self._codes(self.nurse), {"own_nursing", "own_blank"})
+        self.assertEqual(self._codes(self.doctor), {"own_physician", "own_blank"})
+        self.assertEqual(self._codes(self.admin), {"own_nursing", "own_physician", "own_ancillary", "own_blank"})
+
+    def test_create_refuses_another_disciplines_template(self):
+        from .permissions import CanAuthorClinicalNoteType
+
+        self._owned_templates()
+        ids = {t.code: t.pk for t in NoteTemplate.objects.filter(code__startswith="own_")}
+
+        def allowed(user, code):
+            req = self.ns(user=user, data={"note_type": "triage", "template": ids[code]})
+            return CanAuthorClinicalNoteType().has_permission(req, self.ns(action="create"))
+
+        self.assertTrue(allowed(self.nurse, "own_nursing"))
+        self.assertTrue(allowed(self.nurse, "own_blank"))
+        self.assertFalse(allowed(self.nurse, "own_physician"))
+        self.assertFalse(allowed(self.nurse, "own_ancillary"))
+        self.assertTrue(allowed(self.doctor, "own_physician"))
+        self.assertFalse(allowed(self.doctor, "own_nursing"))
+        self.assertTrue(allowed(self.admin, "own_ancillary"))
+
     def test_create_permission_uses_the_dictionary(self):
         from .permissions import CanAuthorClinicalNoteType
 

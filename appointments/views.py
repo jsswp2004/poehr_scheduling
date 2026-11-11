@@ -81,6 +81,7 @@ from .permissions import (
     IsAdminOrSystemAdmin,
     CanAccessClinicalNotes,
     CanAuthorClinicalNoteType,
+    ownership_for_role,
     IsNoteTemplateAdmin,
     CanAccessVitalSignsFlowsheets,
     IsFlowsheetTemplateAdmin,
@@ -2317,6 +2318,17 @@ class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NoteTemplatePickerSerializer
     permission_classes = [permissions.IsAuthenticated, CanAccessClinicalNotes]
     lookup_field = "code"
+
+    def get_queryset(self):
+        """The list (the Documentation Type dropdown) follows Document ownership from the Note Builder: a nurse
+        is offered Nursing documents and a doctor Physician documents; a template with no ownership set yet is
+        offered to both. Admins see all. Opening one template by its code is not narrowed, so a nurse can still
+        read a physician's signed note."""
+        qs = super().get_queryset()
+        if self.action != "list":
+            return qs
+        owned = ownership_for_role(getattr(self.request.user, "role", None))
+        return qs if owned is None else qs.filter(ownership__in=["", owned])
 
 
 class NoteTemplateAdminViewSet(viewsets.ModelViewSet):
