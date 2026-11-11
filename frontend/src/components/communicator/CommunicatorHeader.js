@@ -29,6 +29,10 @@ const CommunicatorHeader = ({
                 <BackButton to={backTo} sx={{ mb: 0 }} />
             </Box>
 
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                Text and email your contacts. Only people who agreed to receive texts are messaged.
+            </Typography>
+
             <Tabs
                 value={currentTab}
                 onChange={(_, newValue) => onTabChange(newValue)}
