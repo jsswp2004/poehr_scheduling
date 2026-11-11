@@ -898,9 +898,13 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             current = getattr(self.instance, "documentation_type", "")
             if code:
                 template = NoteTemplate.objects.filter(code=code, is_active=True, kind="note").first()
-                if template is not None:
+                # A note written before this type became a template keeps its plain SOAP form.
+                legacy_soap = (
+                    self.instance is not None and code == current and self.instance.template_id is None and not data.get("template")
+                )
+                if template is not None and not legacy_soap:
                     data["template"] = template
-                elif code not in dict(ClinicalNote.DOCUMENTATION_TYPE_CHOICES) and code != current:
+                elif template is None and code not in dict(ClinicalNote.DOCUMENTATION_TYPE_CHOICES) and code != current:
                     raise serializers.ValidationError(
                         {
                             "documentation_type": (

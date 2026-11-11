@@ -286,6 +286,55 @@ class NoteTypeAuthoringTests(TestCase):
         self.assertEqual(self._codes(self.doctor), {"own_physician", "own_blank"})
         self.assertEqual(self._codes(self.admin), {"own_nursing", "own_physician", "own_ancillary", "own_blank"})
 
+    def test_initial_assessment_and_progress_note_become_physician_templates(self):
+        mod = importlib.import_module("appointments.migrations.0095_seed_soap_note_templates")
+        mod.seed(apps, None)
+        mod.seed(apps, None)  # running it again changes nothing
+        for code in ("initial_assessment", "progress_note"):
+            tpl = NoteTemplate.objects.get(code=code)
+            self.assertEqual(tpl.ownership, "physician")
+            self.assertEqual(list(tpl.fields.order_by("sort_order").values_list("key", flat=True)), ["subjective", "objective", "assessment", "plan"])
+        self.assertIn("initial_assessment", {c for c in self._codes_all(self.doctor)})
+        self.assertNotIn("initial_assessment", self._codes_all(self.nurse))
+
+    def _codes_all(self, user):
+        data = client_for(user).get("/api/note-templates/").json()
+        return {r["code"] for r in (data["results"] if isinstance(data, dict) else data)}
+
+    def test_a_note_written_before_the_template_existed_keeps_its_soap_form(self):
+        from django.utils import timezone
+
+        from .models import Appointment, ClinicalNote
+
+        doctor = get_user_model().objects.create_user(
+            username="doc2", email="d2@x.com", password="pw-12345-xyz", role="doctor", organization=self.nurse.organization
+        )
+        pat = get_user_model().objects.create_user(
+            username="pat2", email="p2@x.com", password="pw-12345-xyz", role="patient", organization=self.nurse.organization
+        )
+        appt = Appointment.objects.create(organization=pat.organization, patient=pat, provider=doctor, title="x", appointment_datetime=timezone.now())
+        note = ClinicalNote.objects.create(
+            organization=pat.organization, appointment=appt, patient=pat, author=doctor, note_type="doctor_assessment",
+            documentation_type="initial_assessment", subjective="old text", status="draft",
+        )
+        importlib.import_module("appointments.migrations.0095_seed_soap_note_templates").seed(apps, None)
+        res = client_for(doctor).patch(
+            f"/api/clinical-notes/{note.pk}/", {"documentation_type": "initial_assessment", "subjective": "edited"}, format="json"
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        note.refresh_from_db()
+        self.assertIsNone(note.template_id)
+        self.assertEqual(note.subjective, "edited")
+
+    def test_documentation_type_alone_cannot_sidestep_ownership(self):
+        from .permissions import CanAuthorClinicalNoteType
+
+        importlib.import_module("appointments.migrations.0095_seed_soap_note_templates").seed(apps, None)
+        req = lambda user: self.ns(user=user, data={"note_type": "triage", "documentation_type": "initial_assessment"})
+        view = self.ns(action="create")
+        self.assertFalse(CanAuthorClinicalNoteType().has_permission(req(self.nurse), view))
+        self.assertTrue(CanAuthorClinicalNoteType().has_permission(req(self.doctor), view))
+
     def test_create_refuses_another_disciplines_template(self):
         from .permissions import CanAuthorClinicalNoteType
 
