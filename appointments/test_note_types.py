@@ -569,3 +569,23 @@ class TrimAdmissionAlignmentTests(AdmissionAlignAndIcd10MigrationTests):
         self.assertIn("legacy_only", keys)
         self.assertIn("ros_skin_status", keys)
         self.assertIn("chief_complaint", keys)
+
+
+class RestoreAdmissionSectionsTests(AdmissionAlignAndIcd10MigrationTests):
+    def test_sections_come_back_and_own_fields_stay(self):
+        import importlib
+
+        from django.apps import apps
+
+        hp, adm = self._templates()
+        adm.code = "admission_note_2"
+        adm.save()
+        importlib.import_module("appointments.migrations.0100_align_physician_admission_note").forwards(apps, None)
+        importlib.import_module("appointments.migrations.0101_trim_admission_note_alignment").trim(apps, None)
+        self.assertFalse(adm.fields.filter(key="problem_1_name").exists())
+        importlib.import_module("appointments.migrations.0102_restore_physician_admission_note_sections").forwards(apps, None)
+        keys = set(adm.fields.values_list("key", flat=True))
+        self.assertIn("problem_1_name", keys)
+        self.assertIn("history_source", keys)
+        self.assertIn("legacy_only", keys)
+        self.assertEqual(adm.fields.get(key="problem_1_icd10").field_type, "icd10")
