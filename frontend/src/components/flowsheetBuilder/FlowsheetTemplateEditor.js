@@ -27,6 +27,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
 import { BuilderToolbar } from "../builders/BuilderShell";
+import ToolsPane, { ALLERGY_MANAGER_TOOL } from "../builders/ToolsPane";
 import { describeCalc } from "../../utils/calculations";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
 import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
@@ -103,6 +104,8 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
     const [sortOrder, setSortOrder] = useState(0);
     const [version, setVersion] = useState(null);
     const [rows, setRows] = useState([]);
+    // Builder Tools on this flowsheet type, shown above the grid (e.g. "allergy_manager").
+    const [tools, setTools] = useState([]);
     const [dictionaries, setDictionaries] = useState([]);
 
     const dragIndex = useRef(null);
@@ -129,6 +132,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                 setName(tpl.name);
                 setIsActive(tpl.is_active);
                 setSortOrder(tpl.sort_order || 0);
+                setTools(tpl.tools || []);
                 setVersion(tpl.version);
 
                 // row_definitions arrives grouped by section (for the
@@ -263,6 +267,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
             name,
             is_active: isActive,
             sort_order: sortOrder,
+            tools,
             rows: rows.map((r) => ({
                 client_id: r.clientId,
                 section_label: r.section_label,
@@ -327,6 +332,8 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                     Save Flowsheet Type
                 </Button>
             </BuilderToolbar>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
 
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
@@ -512,6 +519,21 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
             <Button startIcon={<AddIcon />} onClick={addCalculatedRow} sx={{ mb: 3, ml: 1 }}>
                 Add Calculated Row (total / result)
             </Button>
+            </Box>
+            <ToolsPane
+                tools={[
+                    {
+                        ...ALLERGY_MANAGER_TOOL,
+                        noun: "flowsheet",
+                        description:
+                            "Shows the patient's chart allergies above the flowsheet grid, with the Allergy Manager button to add or change one.",
+                        added: tools.includes("allergy_manager"),
+                        onAdd: () => setTools((t) => (t.includes("allergy_manager") ? t : [...t, "allergy_manager"])),
+                        onRemove: () => setTools((t) => t.filter((x) => x !== "allergy_manager")),
+                    },
+                ]}
+            />
+            </Box>
         </Box>
     );
 }

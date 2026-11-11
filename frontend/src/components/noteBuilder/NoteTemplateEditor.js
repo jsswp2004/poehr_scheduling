@@ -37,6 +37,7 @@ import { CHART_SOURCES, chartSourceLabel } from "../../utils/chartSources";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
 import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
 import { BUILDER_STICKY_TOP, BuilderToolbar } from "../builders/BuilderShell";
+import ToolsPane, { ALLERGY_MANAGER_TOOL } from "../builders/ToolsPane";
 
 // The shared `api` axios instance carries no Authorization header of its
 // own (App.js's interceptors are only wired to the default `axios` import,
@@ -490,6 +491,8 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                     Save Template
                 </Button>
             </BuilderToolbar>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
             <Box
                 data-testid="editor-sticky-header"
                 sx={{
@@ -656,9 +659,6 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                     Drag to reorder. Keep a Calculated field below the fields it uses.
                 </Typography>
                 <Box sx={{ flexGrow: 1 }} />
-                <Button size="small" variant="outlined" onClick={addAllergyManager}>
-                    Add Allergy Manager
-                </Button>
                 <Button size="small" variant="outlined" onClick={addCalculatedField}>
                     Add calculated field
                 </Button>
@@ -1052,6 +1052,21 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
 
                 </Box>
             )}
+            </Box>
+            <ToolsPane
+                tools={[
+                    {
+                        ...ALLERGY_MANAGER_TOOL,
+                        noun: "note",
+                        added: fields.some(isAllergyManager),
+                        onAdd: () => {
+                            addAllergyManager();
+                            setTab("fields");
+                        },
+                    },
+                ]}
+            />
+            </Box>
         </Box>
     );
 }
