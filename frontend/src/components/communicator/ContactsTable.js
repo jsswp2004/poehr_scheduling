@@ -3,6 +3,7 @@ import {
     Avatar,
     Box,
     Button,
+    Checkbox,
     Chip,
     IconButton,
     LinearProgress,
@@ -44,7 +45,10 @@ const ContactsTable = ({
     onPrintContacts,
     formatDate,
     hasPhone,
-    hasEmail
+    hasEmail,
+    selectedIds = [],
+    onSelectionChange = () => {},
+    onMessageSelected = () => {}
 }) => {
     const [search, setSearch] = useState('');
     const [smsFilter, setSmsFilter] = useState('all'); // all | can | out | none
@@ -76,6 +80,20 @@ const ContactsTable = ({
     const safePage = Math.min(page, lastPage);
     const pageRows = filtered.slice(safePage * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE + ROWS_PER_PAGE);
     const filtersActive = search.trim() !== '' || smsFilter !== 'all' || infoFilter !== 'all';
+
+    // Selection (ids persist across pages and filters; the header box acts on everything the filters show)
+    const selectedSet = new Set(selectedIds);
+    const filteredIds = filtered.map((c) => c.id);
+    const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedSet.has(id));
+    const someFilteredSelected = filteredIds.some((id) => selectedSet.has(id));
+    const toggleAll = () =>
+        onSelectionChange(
+            allFilteredSelected
+                ? selectedIds.filter((id) => !filteredIds.includes(id))
+                : Array.from(new Set([...selectedIds, ...filteredIds]))
+        );
+    const toggleOne = (id) =>
+        onSelectionChange(selectedSet.has(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
 
     const resetFilters = () => {
         setSearch('');
@@ -179,6 +197,16 @@ const ContactsTable = ({
                         />
                     )}
                 </Stack>
+                {selectedIds.length > 0 && (
+                    <Stack direction="row" spacing={1.5} alignItems="center" role="status" sx={{ flexWrap: 'wrap', rowGap: 1, py: 0.75, px: 1.5, mb: 0.5, borderRadius: 1, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedIds.length} selected</Typography>
+                        <Button size="small" variant="contained" color="inherit" sx={{ color: 'primary.main', bgcolor: '#fff', '&:hover': { bgcolor: '#e2e8f0' } }} onClick={onMessageSelected}>
+                            Message selected
+                        </Button>
+                        <Box sx={{ flex: 1 }} />
+                        <Button size="small" color="inherit" onClick={() => onSelectionChange([])}>Clear selection</Button>
+                    </Stack>
+                )}
             </ToolbarPortal>
 
             {loading && <LinearProgress sx={{ mb: 1 }} />}
@@ -188,6 +216,16 @@ const ContactsTable = ({
                 <Table size="small" sx={{ minWidth: 760 }}>
                     <TableHead>
                         <TableRow>
+                            <TableCell padding="checkbox" sx={headCell}>
+                                <Checkbox
+                                    size="small"
+                                    checked={allFilteredSelected}
+                                    indeterminate={someFilteredSelected && !allFilteredSelected}
+                                    onChange={toggleAll}
+                                    disabled={filteredIds.length === 0}
+                                    inputProps={{ 'aria-label': 'Select all contacts shown' }}
+                                />
+                            </TableCell>
                             <TableCell sx={headCell}>Name</TableCell>
                             <TableCell sx={headCell}>Phone</TableCell>
                             <TableCell sx={headCell}>Email</TableCell>
@@ -199,7 +237,7 @@ const ContactsTable = ({
                     <TableBody>
                         {pageRows.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6}>
+                                <TableCell colSpan={7}>
                                     <Typography variant="body2" color="text.secondary">
                                         {contacts.length === 0
                                             ? 'No contacts yet. Add recipients manually or upload a CSV file.'
@@ -209,7 +247,15 @@ const ContactsTable = ({
                             </TableRow>
                         )}
                         {pageRows.map((contact) => (
-                            <TableRow key={contact.id} hover>
+                            <TableRow key={contact.id} hover selected={selectedSet.has(contact.id)}>
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        size="small"
+                                        checked={selectedSet.has(contact.id)}
+                                        onChange={() => toggleOne(contact.id)}
+                                        inputProps={{ 'aria-label': `Select ${contact.name}` }}
+                                    />
+                                </TableCell>
                                 <TableCell>
                                     <Avatar sx={{ width: 26, height: 26, mr: 1, display: 'inline-flex', verticalAlign: 'middle', fontSize: 11, fontWeight: 700, bgcolor: 'action.selected', color: 'primary.main' }}>
                                         {initials(contact.name)}

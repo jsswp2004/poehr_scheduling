@@ -22,6 +22,7 @@ import ToolbarPortal, { STICKY_TOP } from './CommunicatorToolbarSlot';
  */
 const BulkMessageForm = ({
     contacts,
+    selectedIds = [],
     messageForm,
     sending,
     error,
@@ -30,33 +31,38 @@ const BulkMessageForm = ({
     onSendMessage
 }) => {
     const [confirmOpen, setConfirmOpen] = useState(false);
+    // Opens on "Selected" when people were ticked on the Contacts tab; falls back to everyone if the selection empties.
+    const [audience, setAudience] = useState(selectedIds.length > 0 ? 'selected' : 'all');
+    const audienceMode = audience === 'selected' && selectedIds.length > 0 ? 'selected' : 'all';
+    const pool = audienceMode === 'selected' ? contacts.filter((c) => selectedIds.includes(c.id)) : contacts;
 
     const counts = useMemo(() => {
         const hasPhone = (c) => !!(c.phone && c.phone.trim());
         const hasEmail = (c) => !!(c.email && c.email.trim());
-        const textable = contacts.filter((c) => hasPhone(c) && !c.opted_out);
-        const emailable = contacts.filter(hasEmail);
-        const reached = contacts.filter(
+        const textable = pool.filter((c) => hasPhone(c) && !c.opted_out);
+        const emailable = pool.filter(hasEmail);
+        const reached = pool.filter(
             (c) =>
                 (messageForm.send_sms && hasPhone(c) && !c.opted_out) ||
                 (messageForm.send_email && hasEmail(c))
         );
         return {
-            total: contacts.length,
+            total: pool.length,
             text: textable.length,
             email: emailable.length,
-            optedOut: contacts.filter((c) => hasPhone(c) && c.opted_out).length,
-            noPhone: contacts.filter((c) => !hasPhone(c)).length,
+            optedOut: pool.filter((c) => hasPhone(c) && c.opted_out).length,
+            noPhone: pool.filter((c) => !hasPhone(c)).length,
             reached: reached.length
         };
-    }, [contacts, messageForm.send_sms, messageForm.send_email]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pool.length, contacts, selectedIds.join(','), audienceMode, messageForm.send_sms, messageForm.send_email]);
 
     const nothingChosen = !messageForm.send_sms && !messageForm.send_email;
     const canSend = !sending && counts.reached > 0 && messageForm.message.trim() !== '' && !nothingChosen;
     const length = messageForm.message.length;
 
     const handleConfirm = async () => {
-        await onSendMessage();
+        await onSendMessage(audienceMode === 'selected' ? selectedIds : undefined);
         setConfirmOpen(false);
     };
 
@@ -95,6 +101,18 @@ const BulkMessageForm = ({
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'flex-start' }}>
                 <Stack spacing={2} sx={{ flex: '999 1 520px', minWidth: 0, maxWidth: 760 }}>
+                    <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.75 }}>Send to</Typography>
+                        <ToggleButtonGroup exclusive size="small" value={audienceMode} onChange={(_, v) => v && setAudience(v)} aria-label="Who gets this message">
+                            <ToggleButton value="all" sx={{ textTransform: 'none', px: 1.75 }}>Everyone ({contacts.length})</ToggleButton>
+                            <ToggleButton value="selected" disabled={selectedIds.length === 0} sx={{ textTransform: 'none', px: 1.75 }}>Selected ({selectedIds.length})</ToggleButton>
+                        </ToggleButtonGroup>
+                        {selectedIds.length === 0 && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                Tick people on the Contacts tab to send to just them.
+                            </Typography>
+                        )}
+                    </Box>
                     {messageForm.send_email && (
                         <TextField
                             fullWidth
@@ -142,7 +160,7 @@ const BulkMessageForm = ({
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>Recipients</Typography>
                     <Stack spacing={1}>
                         {[
-                            ['All contacts', counts.total],
+                            [audienceMode === 'selected' ? 'Selected contacts' : 'All contacts', counts.total],
                             ['Will get a text', counts.text],
                             ['Will get an email', counts.email]
                         ].map(([label, value]) => (

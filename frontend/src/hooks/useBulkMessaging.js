@@ -49,7 +49,7 @@ export const useBulkMessaging = (token) => {
     };
 
     // Send bulk message
-    const sendBulkMessage = async () => {
+    const sendBulkMessage = async (contactIds) => {
         const validationError = validateMessage();
         if (validationError) {
             setError(validationError);
@@ -67,7 +67,7 @@ export const useBulkMessaging = (token) => {
         try {
             const response = await axios.post(
                 `${API_BASE_URL}/api/communicator/send/`,
-                messageForm,
+                Array.isArray(contactIds) ? { ...messageForm, contact_ids: contactIds } : messageForm,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 

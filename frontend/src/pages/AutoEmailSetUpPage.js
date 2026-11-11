@@ -21,7 +21,7 @@ import MessageLogTable from "../components/MessageLogTable";
 import AutoSetupBar from "../components/communicator/AutoSetupBar";
 import { BuilderToolbar } from "../components/builders/BuilderShell";
 
-function AutoEmailSetUpPage({ embedded = false, inShell = false }) {
+function AutoEmailSetUpPage({ embedded = false, inShell = false, hideLog = false }) {
   const [frequency, setFrequency] = useState("weekly");
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [startDate, setStartDate] = useState(new Date());
@@ -166,7 +166,7 @@ function AutoEmailSetUpPage({ embedded = false, inShell = false }) {
           monthlyTotal={monthlyEmailTotal}
           result={result}
         />
-        <MessageLogTable type="email" />
+        {!hideLog && <MessageLogTable type="email" />}
       </Box>
     );
   }
