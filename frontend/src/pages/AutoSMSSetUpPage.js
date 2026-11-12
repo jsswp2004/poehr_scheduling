@@ -30,6 +30,7 @@ function AutoSMSSetUpPage({ embedded = false, inShell = false, hideLog = false }
   const [loading, setLoading] = useState(true);
   const [runNowStatus, setRunNowStatus] = useState("");
   const [monthlySMSTotal, setMonthlySMSTotal] = useState(0);
+  const [lastSent, setLastSent] = useState(null);
   const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
@@ -83,6 +84,8 @@ function AutoSMSSetUpPage({ embedded = false, inShell = false, hideLog = false }
       );
 
       setMonthlySMSTotal(res.data.length);
+      const newest = res.data.reduce((m, l) => (!m || new Date(l.created_at) > m ? new Date(l.created_at) : m), null);
+      setLastSent(newest);
     } catch (err) {
       console.error("Failed to fetch monthly SMS total:", err);
     }
@@ -161,6 +164,7 @@ function AutoSMSSetUpPage({ embedded = false, inShell = false, hideLog = false }
           onSave={handleSave}
           onRunNow={handleRunNow}
           monthlyTotal={monthlySMSTotal}
+          lastSent={lastSent}
           result={result}
         />
         {!hideLog && <MessageLogTable type="sms" />}

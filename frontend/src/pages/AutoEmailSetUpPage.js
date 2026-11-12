@@ -30,6 +30,7 @@ function AutoEmailSetUpPage({ embedded = false, inShell = false, hideLog = false
   const [loading, setLoading] = useState(true);
   const [runNowStatus, setRunNowStatus] = useState("");
   const [monthlyEmailTotal, setMonthlyEmailTotal] = useState(0);
+  const [lastSent, setLastSent] = useState(null);
   const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
@@ -86,6 +87,8 @@ function AutoEmailSetUpPage({ embedded = false, inShell = false, hideLog = false
       );
 
       setMonthlyEmailTotal(res.data.length);
+      const newest = res.data.reduce((m, l) => (!m || new Date(l.created_at) > m ? new Date(l.created_at) : m), null);
+      setLastSent(newest);
     } catch (err) {
       console.error("Failed to fetch monthly email total:", err);
     }
@@ -164,6 +167,7 @@ function AutoEmailSetUpPage({ embedded = false, inShell = false, hideLog = false
           onSave={handleSave}
           onRunNow={handleRunNow}
           monthlyTotal={monthlyEmailTotal}
+          lastSent={lastSent}
           result={result}
         />
         {!hideLog && <MessageLogTable type="email" />}
