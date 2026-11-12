@@ -1,5 +1,8 @@
 import React from "react";
-import { LegalPage, LegalSection } from "../components/LegalPage";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import "../LegalPage/LegalPage.css";
+import "./PrivacyPolicy.css";
 
 const UPDATED = "November 12, 2026";
 const EMAIL = "power@powerhealthit.com";
@@ -23,6 +26,7 @@ const SECTIONS = [
   },
   {
     title: "2a. In both apps",
+    level: 3,
     list: [
       "Account details: your name, work email address, phone number, role and the organization and facilities you belong to.",
       "Sign-in credentials: your username and a password stored only in protected (hashed) form.",
@@ -31,6 +35,7 @@ const SECTIONS = [
   },
   {
     title: "2b. POWER Staffing",
+    level: 3,
     list: [
       "Schedule information: shifts, assignments, availability and unit coverage settings.",
       "Time-off requests: dates, the type of request, any reason or note you choose to enter, and the decision made on it.",
@@ -39,6 +44,8 @@ const SECTIONS = [
   },
   {
     title: "2c. POWER Communicator",
+    level: 3,
+    callout: true,
     list: [
       "Contacts: the names, phone numbers and email addresses of the people your organization adds (by hand, from a CSV file or from the iPhone), the lists they belong to, and whether they have opted out of text messages. These are the organization's contacts, not the app user's.",
       "Messages: the text or email content your organization sends, who it was sent to, when, who sent it, and the result (sent, failed or skipped).",
@@ -53,6 +60,7 @@ const SECTIONS = [
   },
   {
     title: "2d. What we do not collect",
+    level: 3,
     body: [
       "In either app we do not collect your location, photos, advertising identifiers or browsing history, and we do not read other apps on your device.",
     ],
@@ -138,36 +146,63 @@ const SECTIONS = [
   },
 ];
 
+function Section({ s }) {
+  const H = `h${s.level || 2}`;
+  return (
+    <section className={`pp-sect${s.callout ? " pp-callout" : ""}`}>
+      <H>{s.title}</H>
+      {(s.body || []).map((p) => (
+        <p key={p}>{p}</p>
+      ))}
+      {s.list && (
+        <ul>
+          {s.list.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      )}
+      {s.after && <p>{s.after}</p>}
+      {s.contact && (
+        <p>
+          Email: <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
+          <br />
+          Phone: <a href="tel:+13018806015">301-880-6015</a>
+        </p>
+      )}
+    </section>
+  );
+}
+
 function PrivacyPolicy() {
   return (
-    <LegalPage
-      title="POWER Staffing and POWER Communicator Privacy Policy"
-      subtitle="POWER Healthcare IT Systems"
-      updated={UPDATED}
-    >
-      {SECTIONS.map((s) => (
-        <LegalSection key={s.title} title={s.title}>
-          {(s.body || []).map((p) => (
-            <p key={p}>{p}</p>
+    <div className="legal-page">
+      <Header />
+      <div className="pp-hero">
+        <div className="pp-hero-inner">
+          <div className="pp-eyebrow">Privacy Policy</div>
+          <h1 className="pp-title">POWER Staffing and POWER Communicator Privacy Policy</h1>
+          <p className="pp-sub">POWER Healthcare IT Systems &middot; Last updated: {UPDATED}</p>
+          <div className="pp-apps">
+            <div className="pp-app">
+              <div className="pp-app-name">POWER Staffing</div>
+              <p>Plan unit coverage, manage shifts and handle time-off requests.</p>
+            </div>
+            <div className="pp-app pp-app-blue">
+              <div className="pp-app-name">POWER Communicator</div>
+              <p>Keep a contact list, send texts and emails, and see what was sent and what came back. On the web: automatic messages, announcements and an assistant.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <main className="pp-body">
+        <div className="pp-card">
+          {SECTIONS.map((s) => (
+            <Section key={s.title} s={s} />
           ))}
-          {s.list && (
-            <ul>
-              {s.list.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          )}
-          {s.after && <p>{s.after}</p>}
-          {s.contact && (
-            <p>
-              Email: <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
-              <br />
-              Phone: <a href="tel:+13018806015">301-880-6015</a>
-            </p>
-          )}
-        </LegalSection>
-      ))}
-    </LegalPage>
+        </div>
+      </main>
+      <Footer pricingLink="/pricing" featuresLink="/features" />
+    </div>
   );
 }
 
