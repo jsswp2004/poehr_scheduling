@@ -4,6 +4,7 @@ from .models import Contact, MessageLog
 
 class ContactSerializer(serializers.ModelSerializer):
     opted_out = serializers.SerializerMethodField()
+    last_messaged = serializers.SerializerMethodField()
 
     class Meta:
         model = Contact
@@ -15,8 +16,52 @@ class ContactSerializer(serializers.ModelSerializer):
             "uploaded_by",
             "created_at",
             "opted_out",
+            "last_messaged",
         ]
-        read_only_fields = ["id", "uploaded_by", "created_at", "opted_out"]
+        read_only_fields = [
+            "id",
+            "uploaded_by",
+            "created_at",
+            "opted_out",
+            "last_messaged",
+        ]
+
+    def _last_sent_by_recipient(self):
+        """Newest accepted send per recipient (phone in +1 form, or email), loaded once per request."""
+        cache = self.context.get("_last_sent")
+        if cache is None:
+            from django.db.models import Max
+
+            request = self.context.get("request")
+            user = getattr(request, "user", None)
+            cache = {}
+            if user is not None and user.is_authenticated:
+                rows = (
+                    MessageLog.objects.filter(
+                        user=user,
+                        message_type__in=["sms", "email"],
+                        status="sent",
+                    )
+                    .values("recipient")
+                    .annotate(last=Max("created_at"))
+                )
+                cache = {r["recipient"].lower(): r["last"] for r in rows}
+            self.context["_last_sent"] = cache
+        return cache
+
+    def get_last_messaged(self, obj):
+        """When this contact was last sent something (text or email), or None."""
+        from .utils import format_phone_to_international
+
+        sent = self._last_sent_by_recipient()
+        found = []
+        if obj.phone:
+            key = (format_phone_to_international(obj.phone) or "").lower()
+            if key in sent:
+                found.append(sent[key])
+        if obj.email and obj.email.lower() in sent:
+            found.append(sent[obj.email.lower()])
+        return max(found).isoformat() if found else None
 
     def _opted_out_phones(self):
         """Phones of registered users who replied STOP, loaded once per request."""

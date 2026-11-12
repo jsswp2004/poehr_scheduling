@@ -174,16 +174,16 @@ function CommunicatorPage() {
   };
 
   // Handle bulk message sending
-  const handleSendBulkMessage = async (contactIds) => {
-    const result = await bulkMessaging.sendBulkMessage(contactIds);
+  const handleSendBulkMessage = async (contactIds, expectedCount) => {
+    const result = await bulkMessaging.sendBulkMessage(contactIds, expectedCount);
     if (result && result.success) {
       setPageError("");
       setNotice(`Message sent to ${result.sentCount} contacts.`);
       if (contactIds) setSelectedIds([]);
-      setTab("contacts");
+      setTab("activity");
     } else {
       setNotice("");
-      setPageError(bulkMessaging.error || "Failed to send message.");
+      setPageError((result && result.error) || bulkMessaging.error || "Failed to send message.");
     }
   };
 
@@ -250,7 +250,7 @@ function CommunicatorPage() {
       )}
 
       {/* Activity: sent texts, sent emails and replies */}
-      {tab === "activity" && <ActivityTab />}
+      {tab === "activity" && <ActivityTab contacts={contacts.contacts} />}
 
       {/* Automations (admin-only): the automatic text and email schedules, same settings as the Messages page */}
       {tab === "automations" && isAdmin && (

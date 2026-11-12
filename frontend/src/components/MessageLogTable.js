@@ -54,14 +54,10 @@ function MessageLogTable({ type }) {
       // Backend now handles organization filtering automatically based on user role
       // No need to manually add organization parameter
 
-      // Debug: Log the URL being called
-      console.log("Fetching logs with URL:", url);
-
       const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log("Logs fetched:", res.data.length);
       setLogs(res.data);
     } catch (err) {
       console.error("Failed to fetch logs", err);
@@ -79,10 +75,6 @@ function MessageLogTable({ type }) {
         const decoded = jwtDecode(token);
         const role = decoded.role;
         // const orgId = decoded.organization_id;
-
-        console.log("🔍 FULL TOKEN DECODED:", decoded);
-        console.log("Decoded token - Role:", role);
-        console.log("Available token fields:", Object.keys(decoded));
 
         setUserRole(role);
         // setUserOrgId(orgId);
