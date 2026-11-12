@@ -78,7 +78,7 @@ const BulkMessageForm = ({
     const phiFound = findPhi(`${messageForm.message} ${messageForm.send_email ? messageForm.subject : ''}`);
 
     const handleConfirm = async () => {
-        await onSendMessage(audienceMode === 'selected' ? selectedIds : undefined);
+        await onSendMessage(audienceMode === 'selected' ? selectedIds : undefined, counts.total);
         setConfirmOpen(false);
     };
 
@@ -158,7 +158,7 @@ const BulkMessageForm = ({
 
                         {/* The privacy reminder sits with the text box, where people read it */}
                         <Box role="note" sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', mt: 2, p: '12px 14px', bgcolor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '10px', color: '#78350f', fontSize: 13, lineHeight: 1.5 }}>
-                            <Box component="svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" sx={{ flexShrink: 0, mt: '1px' }}>
+                            <Box component="svg" viewBox="0 0 24 24" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" sx={{ flexShrink: 0, mt: '1px', width: 20, height: 20 }}>
                                 <path d="M12 3 2 20h20Z" /><path d="M12 10v4" /><path d="M12 17.5v.01" />
                             </Box>
                             <span><strong>Keep it generic.</strong> Text and email aren't secure. Leave out diagnoses, medical record numbers and birth dates.</span>

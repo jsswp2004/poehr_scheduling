@@ -273,6 +273,7 @@ const ContactsTable = ({
                             <TableCell sx={headCell}>Phone</TableCell>
                             <TableCell sx={headCell}>Email</TableCell>
                             <TableCell sx={headCell}>Text consent</TableCell>
+                            <TableCell sx={headCell}>Last messaged</TableCell>
                             <TableCell sx={headCell}>Added</TableCell>
                             <TableCell sx={headCell} align="right"><Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Actions</Box></TableCell>
                         </TableRow>
@@ -280,7 +281,7 @@ const ContactsTable = ({
                     <TableBody>
                         {pageRows.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={7}>
+                                <TableCell colSpan={8}>
                                     <Typography variant="body2" color="text.secondary">No contacts match your search or filters.</Typography>
                                 </TableCell>
                             </TableRow>
@@ -314,6 +315,7 @@ const ContactsTable = ({
                                     )}
                                 </TableCell>
                                 <TableCell><ConsentPill kind={smsStatus(contact)} /></TableCell>
+                                <TableCell sx={{ color: 'text.secondary' }}>{contact.last_messaged ? formatDate(contact.last_messaged) : 'Never'}</TableCell>
                                 <TableCell sx={{ color: 'text.secondary' }}>{formatDate(contact.created_at)}</TableCell>
                                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                                     <Tooltip title="Edit contact">

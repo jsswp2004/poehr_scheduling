@@ -49,7 +49,7 @@ export const useBulkMessaging = (token) => {
     };
 
     // Send bulk message
-    const sendBulkMessage = async (contactIds) => {
+    const sendBulkMessage = async (contactIds, confirmCount) => {
         const validationError = validateMessage();
         if (validationError) {
             setError(validationError);
@@ -65,9 +65,12 @@ export const useBulkMessaging = (token) => {
         setError(null);
 
         try {
+            const payload = Array.isArray(contactIds) ? { ...messageForm, contact_ids: contactIds } : { ...messageForm };
+            // Lets the server refuse if the number of recipients changed since the person reviewed it.
+            if (Number.isInteger(confirmCount)) payload.confirm_count = confirmCount;
             const response = await axios.post(
                 `${API_BASE_URL}/api/communicator/send/`,
-                Array.isArray(contactIds) ? { ...messageForm, contact_ids: contactIds } : messageForm,
+                payload,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -85,10 +88,11 @@ export const useBulkMessaging = (token) => {
             };
         } catch (err) {
             console.error('Failed to send message:', err);
-            setError('Failed to send message');
+            const msg = (err.response && err.response.data && err.response.data.error) || 'Failed to send message';
+            setError(msg);
             return {
                 success: false,
-                error: 'Failed to send message'
+                error: msg
             };
         } finally {
             setSending(false);

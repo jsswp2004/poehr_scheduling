@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
     Alert,
     Box,
+    Button,
     ButtonBase,
     LinearProgress,
     Paper,
@@ -13,26 +14,46 @@ import {
     Typography
 } from '@mui/material';
 import { API_BASE_URL } from '../../config/api';
+import ConfirmDialog from './ConfirmDialog';
 
 const TYPES = ['sms', 'email', 'webhook']; // webhook = replies from contacts
 const DAYS = 90;
 
 const whenText = (d) => d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const people = (n) => `${n} ${n === 1 ? 'person' : 'people'}`;
+const digits = (s) => String(s || '').replace(/\D/g, '').slice(-10);
 
-const pill = (bg, fg) => ({ display: 'inline-block', px: 1.25, py: 0.25, borderRadius: 999, bgcolor: bg, color: fg, fontSize: 11, fontWeight: 600 });
+// The log's status: "sent" (the provider accepted it), "failed", or "blocked_*" (skipped by the consent rules).
+const stateOf = (status) => (status === 'sent' ? 'sent' : status === 'failed' ? 'failed' : String(status || '').startsWith('blocked') ? 'skipped' : 'sent');
+const reasonOf = (status) =>
+    status === 'blocked_opted_out' ? 'Skipped: opted out'
+        : status === 'blocked_no_consent' ? 'Skipped: no consent'
+            : status === 'failed' ? 'Failed' : 'Sent';
+
+const PILL = {
+    sent: { bg: '#d1fae5', fg: '#065f46' },
+    failed: { bg: '#fee2e2', fg: '#991b1b' },
+    skipped: { bg: '#f1f5f9', fg: '#334155' },
+    reply: { bg: '#dbeafe', fg: '#1e3a8a' },
+    channel: { bg: '#f1f5f9', fg: '#334155' }
+};
+const pillSx = ({ bg, fg }) => ({ display: 'inline-block', px: 1.25, py: 0.25, borderRadius: 999, bgcolor: bg, color: fg, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' });
 
 /**
  * Sent messages and replies as one feed. Each send is shown once with everyone it went to (the log stores one row
- * per recipient, so rows with the same message at the same minute are grouped). Pick an item on the left to read it.
+ * per recipient, so rows with the same message at the same minute are grouped), with how many were sent, failed or
+ * skipped. "Sent" means the provider accepted the message; final delivery is not tracked.
  */
-const ActivityFeed = () => {
+const ActivityFeed = ({ contacts = [] }) => {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [view, setView] = useState('all'); // all | sent | replies
+    const [notice, setNotice] = useState('');
+    const [view, setView] = useState('all'); // all | sent | replies | problems
     const [search, setSearch] = useState('');
     const [selectedKey, setSelectedKey] = useState(null);
+    const [resendOpen, setResendOpen] = useState(false);
+    const [resending, setResending] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -66,7 +87,7 @@ const ActivityFeed = () => {
         logs.forEach((l) => {
             const when = new Date(l.created_at);
             if (l._type === 'webhook') {
-                out.push({ key: `r${l.id}`, kind: 'reply', title: l.recipient, body: l.body || '', when, org: l.organization_name, recipients: [] });
+                out.push({ key: `r${l.id}`, kind: 'reply', title: l.recipient, body: l.body || '', when, org: l.organization_name, recipients: [], failed: 0, skipped: 0, sent: 0 });
                 return;
             }
             const key = [l._type, l.subject || '', l.body || '', String(l.created_at).slice(0, 16)].join('|');
@@ -74,26 +95,78 @@ const ActivityFeed = () => {
             if (!g) {
                 g = {
                     key, kind: 'sent', channel: l._type === 'sms' ? 'Text' : 'Email', subject: l.subject || '',
-                    body: l.body || '', when, org: l.organization_name, recipients: [],
+                    body: l.body || '', when, org: l.organization_name, recipients: [], failed: 0, skipped: 0, sent: 0,
                     sentBy: typeof l.sent_by === 'string' ? l.sent_by : ''
                 };
                 groups.set(key, g);
                 out.push(g);
             }
-            g.recipients.push(l.recipient);
+            const state = stateOf(l.status);
+            g[state] += 1;
+            g.recipients.push({ recipient: l.recipient, state, label: reasonOf(l.status) });
         });
+        const order = { failed: 0, skipped: 1, sent: 2 };
+        out.forEach((g) => g.recipients.sort((a, b) => order[a.state] - order[b.state]));
         return out.sort((a, b) => b.when - a.when);
     }, [logs]);
 
     const replyCount = items.filter((i) => i.kind === 'reply').length;
+    const problemCount = items.filter((i) => i.kind === 'sent' && i.failed > 0).length;
     const term = search.trim().toLowerCase();
     const shown = items.filter((i) => {
         if (view === 'sent' && i.kind !== 'sent') return false;
         if (view === 'replies' && i.kind !== 'reply') return false;
+        if (view === 'problems' && !(i.kind === 'sent' && i.failed > 0)) return false;
         if (!term) return true;
-        return [i.title, i.body, i.subject, ...(i.recipients || [])].filter(Boolean).join(' ').toLowerCase().includes(term);
+        return [i.title, i.body, i.subject, ...i.recipients.map((r) => r.recipient)].filter(Boolean).join(' ').toLowerCase().includes(term);
     });
     const selected = shown.find((i) => i.key === selectedKey) || shown[0];
+
+    // Who to resend to: the failed recipients that still match a contact.
+    const resendTargets = useMemo(() => {
+        if (!selected || selected.kind !== 'sent') return { ids: [], missing: 0 };
+        const ids = new Set();
+        let missing = 0;
+        selected.recipients.filter((r) => r.state === 'failed').forEach((r) => {
+            const c = contacts.find((x) =>
+                selected.channel === 'Text'
+                    ? digits(x.phone) && digits(x.phone) === digits(r.recipient)
+                    : (x.email || '').toLowerCase() === String(r.recipient).toLowerCase()
+            );
+            if (c) ids.add(c.id); else missing += 1;
+        });
+        return { ids: Array.from(ids), missing };
+    }, [selected, contacts]);
+
+    const doResend = async () => {
+        setResending(true);
+        setError('');
+        try {
+            const token = localStorage.getItem('access_token');
+            await axios.post(
+                `${API_BASE_URL}/api/communicator/send/`,
+                {
+                    message: selected.body,
+                    subject: selected.subject || 'Notification',
+                    send_sms: selected.channel === 'Text',
+                    send_email: selected.channel === 'Email',
+                    contact_ids: resendTargets.ids,
+                    confirm_count: resendTargets.ids.length
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setNotice(`Resent to ${people(resendTargets.ids.length)}.`);
+            setResendOpen(false);
+            load();
+        } catch (err) {
+            setResendOpen(false);
+            setError((err.response && err.response.data && err.response.data.error) || 'Could not resend. Please try again.');
+        }
+        setResending(false);
+    };
+
+    const total = selected ? selected.recipients.length : 0;
+    const pct = (n) => (total ? `${(n / total) * 100}%` : '0%');
 
     return (
         <Box>
@@ -102,6 +175,7 @@ const ActivityFeed = () => {
                     <ToggleButton value="all" sx={{ textTransform: 'none', px: 2 }}>All</ToggleButton>
                     <ToggleButton value="sent" sx={{ textTransform: 'none', px: 2 }}>Sent</ToggleButton>
                     <ToggleButton value="replies" sx={{ textTransform: 'none', px: 2 }}>Replies {replyCount}</ToggleButton>
+                    <ToggleButton value="problems" sx={{ textTransform: 'none', px: 2 }}>Problems {problemCount}</ToggleButton>
                 </ToggleButtonGroup>
                 <TextField
                     size="small"
@@ -115,14 +189,15 @@ const ActivityFeed = () => {
             </Stack>
 
             {loading && <LinearProgress sx={{ mb: 1 }} />}
-            {error && <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert>}
+            {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError('')}>{error}</Alert>}
+            {notice && <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setNotice('')}>{notice}</Alert>}
 
             {!loading && !error && shown.length === 0 ? (
                 <Paper variant="outlined" sx={{ py: 7, textAlign: 'center', borderRadius: '12px' }}>
                     <Typography variant="h6" component="h2">{items.length === 0 ? 'Nothing sent yet' : 'Nothing matches'}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                         {items.length === 0
-                            ? `Messages you send and replies you get will show up here.`
+                            ? 'Messages you send and replies you get will show up here.'
                             : 'Try a different search or filter.'}
                     </Typography>
                 </Paper>
@@ -135,7 +210,7 @@ const ActivityFeed = () => {
                             return (
                                 <li key={i.key}>
                                     <ButtonBase
-                                        onClick={() => setSelectedKey(i.key)}
+                                        onClick={() => { setSelectedKey(i.key); setNotice(''); }}
                                         aria-current={active ? 'true' : undefined}
                                         sx={{ display: 'block', width: '100%', textAlign: 'left', px: 2.25, py: 1.75, borderBottom: '1px solid #eef2f7', bgcolor: active ? '#eff6ff' : 'background.paper' }}
                                     >
@@ -148,10 +223,12 @@ const ActivityFeed = () => {
                                         <Typography sx={{ mt: 0.5, fontSize: 13, lineHeight: 1.45, color: '#334155', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                             {i.kind === 'sent' && i.subject ? `${i.subject}: ` : ''}{i.body}
                                         </Typography>
-                                        <Stack direction="row" spacing={0.75} sx={{ mt: 1 }}>
+                                        <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: 'wrap', rowGap: 0.5 }}>
                                             {i.kind === 'reply'
-                                                ? <Box component="span" sx={pill('#dbeafe', '#1e3a8a')}>Reply</Box>
-                                                : <Box component="span" sx={pill('#f1f5f9', '#334155')}>{i.channel}</Box>}
+                                                ? <Box component="span" sx={pillSx(PILL.reply)}>Reply</Box>
+                                                : <Box component="span" sx={pillSx(PILL.channel)}>{i.channel}</Box>}
+                                            {i.failed > 0 && <Box component="span" sx={pillSx(PILL.failed)}>{i.failed} failed</Box>}
+                                            {i.skipped > 0 && <Box component="span" sx={pillSx(PILL.skipped)}>{i.skipped} skipped</Box>}
                                         </Stack>
                                     </ButtonBase>
                                 </li>
@@ -179,13 +256,49 @@ const ActivityFeed = () => {
 
                             {selected.kind === 'sent' && (
                                 <>
-                                    <Typography variant="subtitle2" component="h3" sx={{ mt: 3, mb: 1, fontWeight: 700 }}>
-                                        Recipients ({selected.recipients.length})
-                                    </Typography>
-                                    <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: 280, overflowY: 'auto' }}>
+                                    {/* Outcome */}
+                                    <Box sx={{ mt: 3 }}>
+                                        <Box role="img" aria-label={`${selected.sent} sent, ${selected.failed} failed, ${selected.skipped} skipped`} sx={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', bgcolor: '#e2e8f0' }}>
+                                            <Box sx={{ width: pct(selected.sent), bgcolor: '#047857' }} />
+                                            <Box sx={{ width: pct(selected.failed), bgcolor: '#b91c1c' }} />
+                                            <Box sx={{ width: pct(selected.skipped), bgcolor: '#94a3b8' }} />
+                                        </Box>
+                                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 1.5, mt: 1.75 }}>
+                                            {[['Sent', selected.sent, '#047857'], ['Failed', selected.failed, '#b91c1c'], ['Skipped', selected.skipped, '#64748b']].map(([label, n, dot]) => (
+                                                <Box key={label} sx={{ border: '1px solid #e2e8f0', borderRadius: '10px', p: '12px 14px' }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 13, fontWeight: 600, color: '#334155' }}>
+                                                        <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dot }} />{label}
+                                                    </Box>
+                                                    <Typography component="div" sx={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2, mt: 0.25 }}>{n}</Typography>
+                                                </Box>
+                                            ))}
+                                        </Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                                            Sent means the carrier or email service accepted it. Final delivery isn't tracked.
+                                        </Typography>
+                                    </Box>
+
+                                    {/* Recipients, problems first */}
+                                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mt: 3, mb: 1, flexWrap: 'wrap', rowGap: 1 }}>
+                                        <Typography variant="subtitle2" component="h3" sx={{ fontWeight: 700, flex: 1 }}>
+                                            Recipients ({selected.recipients.length})
+                                        </Typography>
+                                        {selected.failed > 0 && (
+                                            <Button size="small" variant="contained" disabled={resendTargets.ids.length === 0} onClick={() => setResendOpen(true)}>
+                                                Resend to the {resendTargets.ids.length} who failed
+                                            </Button>
+                                        )}
+                                    </Stack>
+                                    {selected.failed > 0 && resendTargets.missing > 0 && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                            {resendTargets.missing} failed recipient{resendTargets.missing === 1 ? ' is' : 's are'} no longer in your contacts and won't be included.
+                                        </Typography>
+                                    )}
+                                    <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none', border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: 300, overflowY: 'auto' }}>
                                         {selected.recipients.map((r, idx) => (
-                                            <Box component="li" key={`${r}-${idx}`} sx={{ px: 2, py: 1.1, fontSize: 14, borderBottom: idx === selected.recipients.length - 1 ? 0 : '1px solid #eef2f7' }}>
-                                                {r}
+                                            <Box component="li" key={`${r.recipient}-${idx}`} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.1, fontSize: 14, borderBottom: idx === selected.recipients.length - 1 ? 0 : '1px solid #eef2f7' }}>
+                                                <Box sx={{ flex: 1, minWidth: 0, wordBreak: 'break-all' }}>{r.recipient}</Box>
+                                                <Box component="span" sx={pillSx(PILL[r.state])}>{r.label}</Box>
                                             </Box>
                                         ))}
                                     </Box>
@@ -195,6 +308,17 @@ const ActivityFeed = () => {
                     )}
                 </Box>
             )}
+
+            <ConfirmDialog
+                open={resendOpen}
+                title={`Resend to ${people(resendTargets.ids.length)}?`}
+                confirmLabel={resending ? 'Sending...' : 'Resend'}
+                busy={resending}
+                onConfirm={doResend}
+                onClose={() => setResendOpen(false)}
+            >
+                This sends the same {selected && selected.channel === 'Text' ? 'text' : 'email'} again to the people it failed for. Contacts who opted out are still skipped.
+            </ConfirmDialog>
         </Box>
     );
 };

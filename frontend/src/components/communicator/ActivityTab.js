@@ -13,7 +13,7 @@ const VIEWS = [
  * Everything that went out or came back. "Feed" (default) groups each send into one item with a detail pane;
  * "Table" is the full per-recipient log with print and CSV export.
  */
-const ActivityTab = () => {
+const ActivityTab = ({ contacts = [] }) => {
     const [mode, setMode] = useState('feed');
     const [view, setView] = useState('sms');
     return (
@@ -32,7 +32,7 @@ const ActivityTab = () => {
                     <ToggleButton value="table" sx={{ textTransform: 'none', px: 2 }}>Table</ToggleButton>
                 </ToggleButtonGroup>
             </Stack>
-            {mode === 'feed' ? <ActivityFeed /> : <MessageLogTable key={view} type={view} />}
+            {mode === 'feed' ? <ActivityFeed contacts={contacts} /> : <MessageLogTable key={view} type={view} />}
         </Box>
     );
 };
