@@ -5,6 +5,7 @@ import { jwtDecode } from "jwt-decode";
 
 // Custom hooks
 import { useContacts } from "../hooks/useContacts";
+import { useContactLists } from "../hooks/useContactLists";
 import { useFileUpload } from "../hooks/useFileUpload";
 import { useBulkMessaging } from "../hooks/useBulkMessaging";
 import { useContactForm } from "../hooks/useContactForm";
@@ -85,6 +86,7 @@ function CommunicatorPage() {
 
   // Custom hooks for business logic
   const contacts = useContacts(token);
+  const contactLists = useContactLists(token);
   const contactForm = useContactForm();
   const bulkMessaging = useBulkMessaging(token);
   const utils = useCommunicatorUtils();
@@ -179,7 +181,7 @@ function CommunicatorPage() {
     if (result && result.success) {
       setPageError("");
       setNotice(`Message sent to ${result.sentCount} contacts.`);
-      if (contactIds) setSelectedIds([]);
+      if (Array.isArray(contactIds)) setSelectedIds([]);
       setTab("activity");
     } else {
       setNotice("");
@@ -231,6 +233,12 @@ function CommunicatorPage() {
           selectedIds={selectedContactIds}
           onSelectionChange={setSelectedIds}
           onMessageSelected={() => setTab("message")}
+          lists={contactLists.lists}
+          onCreateList={contactLists.createList}
+          onAddToList={async (listId, ids) => {
+            await contactLists.addMembers(listId, ids);
+            contacts.refreshContacts();
+          }}
         />
       )}
 
@@ -239,6 +247,7 @@ function CommunicatorPage() {
         <BulkMessageForm
           contacts={contacts.contacts}
           selectedIds={selectedContactIds}
+          lists={contactLists.lists}
           onChooseContacts={() => setTab("contacts")}
           messageForm={bulkMessaging.messageForm}
           sending={bulkMessaging.sending}

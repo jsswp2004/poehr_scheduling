@@ -65,7 +65,9 @@ export const useBulkMessaging = (token) => {
         setError(null);
 
         try {
-            const payload = Array.isArray(contactIds) ? { ...messageForm, contact_ids: contactIds } : { ...messageForm };
+            const payload = Array.isArray(contactIds)
+                ? { ...messageForm, contact_ids: contactIds }
+                : { ...messageForm, ...(contactIds && contactIds.list_id ? { list_id: contactIds.list_id } : {}) };
             // Lets the server refuse if the number of recipients changed since the person reviewed it.
             if (Number.isInteger(confirmCount)) payload.confirm_count = confirmCount;
             const response = await axios.post(
