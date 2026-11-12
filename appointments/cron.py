@@ -10,7 +10,8 @@ from .models import Appointment, AutoEmail, AutoSMS
 def send_patient_reminders():
     """Send patient reminders based on AutoEmail configuration."""
     today = timezone.now().date()
-    current_weekday = timezone.now().weekday()  # 0=Monday, 6=Sunday
+    # Saved days use DAY_OF_WEEK_CHOICES (0=Sunday ... 6=Saturday); Python's weekday() is 0=Monday.
+    current_weekday = (timezone.now().weekday() + 1) % 7
 
     # Get all active AutoEmail configurations
     active_configs = AutoEmail.objects.filter(is_active=True)
@@ -137,7 +138,8 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
         ignore_day_restrictions (bool): If True, ignores day-of-week restrictions for manual execution
     """
     today = timezone.now().date()
-    current_weekday = timezone.now().weekday()  # 0=Monday, 6=Sunday
+    # Saved days use DAY_OF_WEEK_CHOICES (0=Sunday ... 6=Saturday); Python's weekday() is 0=Monday.
+    current_weekday = (timezone.now().weekday() + 1) % 7
 
     # Get all active AutoSMS configurations
     active_configs = AutoSMS.objects.filter(is_active=True)

@@ -26,6 +26,29 @@ const formatDate = (d) =>
         ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : '';
 
+const DAY_MS = 86400000;
+const midnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+/**
+ * The next date the schedule fires, using the same rules as the server job (appointments/cron.py): the chosen weekday
+ * (0=Sunday), every other week, or every fourth week, counted in whole weeks from the start date. The job runs once a
+ * day, so today is not offered; the search starts tomorrow, or on the start date if that is later.
+ */
+export const nextRunDate = (frequency, dayOfWeek, startDate) => {
+    const today = midnight(new Date());
+    let d = new Date(today.getTime() + DAY_MS);
+    const start = startDate instanceof Date && !Number.isNaN(startDate.getTime()) ? midnight(startDate) : null;
+    if (start && start > d) d = start;
+    const step = frequency === 'bi-weekly' ? 2 : frequency === 'monthly' ? 4 : 1;
+    for (let i = 0; i < 400; i += 1) {
+        const dayOk = frequency === 'daily' || d.getDay() === dayOfWeek;
+        const weeks = start ? Math.floor((d - start) / (7 * DAY_MS)) : 0;
+        if (dayOk && (frequency === 'daily' || frequency === 'weekly' || weeks % step === 0)) return d;
+        d = new Date(d.getTime() + DAY_MS);
+    }
+    return null;
+};
+
 /**
  * The automatic Email / SMS settings as one card: an On/Paused switch, a plain sentence that says what will happen,
  * the three schedule fields, this month's total, and Save / Run now. Run now asks first because it sends immediately.
@@ -40,6 +63,7 @@ const AutoSetupBar = ({
     saving, loading,
     onSave, onRunNow,
     monthlyTotal,
+    lastSent, // Date of the newest message sent this month, or null
     result // { text, ok } | null
 }) => {
     const [confirmRun, setConfirmRun] = useState(false);
@@ -54,6 +78,9 @@ const AutoSetupBar = ({
         ? `Sends ${noun} ${when}${start ? `, starting ${start}` : ''}, to contacts who can receive them.`
         : `Paused. When turned on, sends ${noun} ${when}${start ? `, starting ${start}` : ''}.`;
     const title = `Automatic ${noun}`;
+    const next = enabled ? nextRunDate(frequency, dayOfWeek, startDate) : null;
+    const nextText = !enabled ? 'Paused' : next ? next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Not scheduled';
+    const lastText = lastSent ? lastSent.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'None this month';
     const month = new Date().toLocaleDateString('en-US', { month: 'long' });
 
     return (
@@ -102,6 +129,14 @@ const AutoSetupBar = ({
                 <Box>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Sent in {month}</Typography>
                     <Typography variant="h6" component="p" sx={{ lineHeight: 1.2 }}>{monthlyTotal}</Typography>
+                </Box>
+                <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Next run</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>{nextText}</Typography>
+                </Box>
+                <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Last message sent</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>{lastText}</Typography>
                 </Box>
                 {result && (
                     <Chip size="small" role="status" color={result.ok ? 'success' : 'error'} variant={result.ok ? 'filled' : 'outlined'} label={result.text} />
