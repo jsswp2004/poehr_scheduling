@@ -239,6 +239,7 @@ function CommunicatorPage() {
         <BulkMessageForm
           contacts={contacts.contacts}
           selectedIds={selectedContactIds}
+          onChooseContacts={() => setTab("contacts")}
           messageForm={bulkMessaging.messageForm}
           sending={bulkMessaging.sending}
           error={bulkMessaging.error}
