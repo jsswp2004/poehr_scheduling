@@ -8,6 +8,7 @@ from .assistant import (
     AssistantMessageView,
 )
 from .views import (
+    ContactListViewSet,
     ContactViewSet,
     BulkUploadView,
     SendBulkMessageView,
@@ -17,6 +18,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r"contacts", ContactViewSet, basename="contact")
+router.register(r"lists", ContactListViewSet, basename="contactlist")
 router.register(r"announcements", AnnouncementViewSet, basename="announcement")
 router.register(r"logs", MessageLogViewSet, basename="messagelog")
 

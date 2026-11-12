@@ -35,6 +35,7 @@ const card = { p: 3, borderRadius: '12px' };
 const BulkMessageForm = ({
     contacts,
     selectedIds = [],
+    lists = [],
     messageForm,
     sending,
     error,
@@ -46,8 +47,15 @@ const BulkMessageForm = ({
     const [confirmOpen, setConfirmOpen] = useState(false);
     // Opens on "Chosen people" when people were ticked on the Contacts tab; falls back to everyone if the selection empties.
     const [audience, setAudience] = useState(selectedIds.length > 0 ? 'selected' : 'all');
-    const audienceMode = audience === 'selected' && selectedIds.length > 0 ? 'selected' : 'all';
-    const pool = audienceMode === 'selected' ? contacts.filter((c) => selectedIds.includes(c.id)) : contacts;
+    const [listId, setListId] = useState('');
+    const audienceMode =
+        audience === 'list' && listId ? 'list'
+            : audience === 'selected' && selectedIds.length > 0 ? 'selected' : 'all';
+    const chosenList = lists.find((l) => String(l.id) === String(listId));
+    const pool =
+        audienceMode === 'selected' ? contacts.filter((c) => selectedIds.includes(c.id))
+            : audienceMode === 'list' ? contacts.filter((c) => (c.list_ids || []).some((id) => String(id) === String(listId)))
+                : contacts;
 
     const counts = useMemo(() => {
         const hasPhone = (c) => !!(c.phone && c.phone.trim());
@@ -68,7 +76,7 @@ const BulkMessageForm = ({
             reached: reached.length
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pool.length, contacts, selectedIds.join(','), audienceMode, messageForm.send_sms, messageForm.send_email]);
+    }, [pool.length, contacts, selectedIds.join(','), audienceMode, listId, messageForm.send_sms, messageForm.send_email]);
 
     const nothingChosen = !messageForm.send_sms && !messageForm.send_email;
     const hasMessage = messageForm.message.trim() !== '';
@@ -78,7 +86,10 @@ const BulkMessageForm = ({
     const phiFound = findPhi(`${messageForm.message} ${messageForm.send_email ? messageForm.subject : ''}`);
 
     const handleConfirm = async () => {
-        await onSendMessage(audienceMode === 'selected' ? selectedIds : undefined, counts.total);
+        await onSendMessage(
+            audienceMode === 'selected' ? selectedIds : audienceMode === 'list' ? { list_id: Number(listId) } : undefined,
+            counts.total
+        );
         setConfirmOpen(false);
     };
 
@@ -137,7 +148,25 @@ const BulkMessageForm = ({
                                 selectedIds.length > 0 ? `${selectedIds.length} chosen on the Contacts tab` : 'None chosen yet',
                                 selectedIds.length === 0
                             )}
+                            {lists.length > 0 && audienceCard('list', 'A list', chosenList ? `${chosenList.name}` : 'Pick one of your lists', false)}
                         </Box>
+                        {audience === 'list' && lists.length > 0 && (
+                            <TextField
+                                select
+                                size="small"
+                                label="List"
+                                value={listId}
+                                onChange={(e) => setListId(e.target.value)}
+                                SelectProps={{ native: true }}
+                                InputLabelProps={{ shrink: true }}
+                                sx={{ mt: 1.5, minWidth: 260 }}
+                            >
+                                <option value="">Choose a list</option>
+                                {lists.map((l) => (
+                                    <option key={l.id} value={l.id}>{l.name} ({l.contact_count})</option>
+                                ))}
+                            </TextField>
+                        )}
                         {onChooseContacts && (
                             <Button size="small" onClick={onChooseContacts} sx={{ mt: 1, fontWeight: 600 }}>
                                 {selectedIds.length > 0 ? 'Change who is chosen' : 'Choose people on the Contacts tab'}
@@ -244,7 +273,7 @@ const BulkMessageForm = ({
                         <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>Delivery</Typography>
                         <Stack spacing={1.25} sx={{ mt: 1.75, fontSize: 14 }}>
                             {[
-                                [audienceMode === 'selected' ? 'Chosen people' : 'Everyone', counts.total],
+                                [audienceMode === 'selected' ? 'Chosen people' : audienceMode === 'list' && chosenList ? chosenList.name : 'Everyone', counts.total],
                                 ...(messageForm.send_sms ? [['Will get a text', counts.text, '#065f46']] : []),
                                 ...(messageForm.send_email ? [['Will get an email', counts.email, '#065f46']] : [])
                             ].map(([label, value, color]) => (

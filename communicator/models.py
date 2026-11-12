@@ -5,6 +5,23 @@ from django.db import models
 from django.utils import timezone
 
 
+class ContactList(models.Model):
+    """A named group of contacts (for example "Evening shift") that can be messaged together."""
+
+    name = models.CharField(max_length=100)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="contact_lists"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = [("created_by", "name")]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Contact(models.Model):
     """Simple contact record for message sending."""
 
@@ -15,6 +32,7 @@ class Contact(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="contacts"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    lists = models.ManyToManyField(ContactList, blank=True, related_name="contacts")
 
     # Normalized phone (+1XXXXXXXXXX), maintained automatically in save().
     phone_e164 = models.CharField(max_length=20, blank=True, db_index=True, editable=False)

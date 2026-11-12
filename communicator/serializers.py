@@ -1,8 +1,32 @@
 from rest_framework import serializers
-from .models import Contact, MessageLog
+from .models import Contact, ContactList, MessageLog
+
+
+class ContactListSerializer(serializers.ModelSerializer):
+    contact_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ContactList
+        fields = ["id", "name", "contact_count", "created_at"]
+        read_only_fields = ["id", "contact_count", "created_at"]
+
+    def validate_name(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Name is required.")
+        request = self.context.get("request")
+        qs = ContactList.objects.filter(created_by=request.user, name__iexact=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("You already have a list with this name.")
+        return value
 
 
 class ContactSerializer(serializers.ModelSerializer):
+    list_ids = serializers.PrimaryKeyRelatedField(
+        source="lists", many=True, queryset=ContactList.objects.all(), required=False
+    )
     opted_out = serializers.SerializerMethodField()
     last_messaged = serializers.SerializerMethodField()
 
@@ -17,6 +41,7 @@ class ContactSerializer(serializers.ModelSerializer):
             "created_at",
             "opted_out",
             "last_messaged",
+            "list_ids",
         ]
         read_only_fields = [
             "id",
@@ -25,6 +50,12 @@ class ContactSerializer(serializers.ModelSerializer):
             "opted_out",
             "last_messaged",
         ]
+
+    def validate_list_ids(self, lists):
+        request = self.context.get("request")
+        if any(lst.created_by_id != request.user.id for lst in lists):
+            raise serializers.ValidationError("Unknown list.")
+        return lists
 
     def _last_sent_by_recipient(self):
         """Newest accepted send per recipient (phone in +1 form, or email), loaded once per request."""

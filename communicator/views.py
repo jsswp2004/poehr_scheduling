@@ -3,7 +3,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
 import csv
@@ -15,8 +15,8 @@ from django.utils import timezone
 
 from django_filters.rest_framework import DjangoFilterBackend
 import django_filters
-from .models import Contact, MessageLog
-from .serializers import ContactSerializer, MessageLogSerializer
+from .models import Contact, ContactList, MessageLog
+from .serializers import ContactListSerializer, ContactSerializer, MessageLogSerializer
 from .utils import send_sms, send_email
 from users.permissions import HasRight
 
@@ -74,6 +74,38 @@ def _classify_send_failure(exc):
     if "opted out" in text or "not consented" in text:
         return "skipped"
     return "failed"
+
+
+class ContactListViewSet(viewsets.ModelViewSet):
+    """The signed-in user's contact lists."""
+
+    serializer_class = ContactListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from django.db.models import Count
+
+        return ContactList.objects.filter(created_by=self.request.user).annotate(
+            contact_count=Count("contacts")
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="members")
+    def members(self, request, pk=None):
+        """Add ({"add": [ids]}) and/or remove ({"remove": [ids]}) contacts in this list."""
+        lst = self.get_object()
+        mine = Contact.objects.filter(uploaded_by=request.user)
+        add = request.data.get("add") or []
+        remove = request.data.get("remove") or []
+        if not isinstance(add, list) or not isinstance(remove, list):
+            return Response({"error": "add and remove must be lists"}, status=400)
+        if add:
+            lst.contacts.add(*mine.filter(id__in=add))
+        if remove:
+            lst.contacts.remove(*mine.filter(id__in=remove))
+        return Response({"contact_count": lst.contacts.count()})
 
 
 class ContactViewSet(viewsets.ModelViewSet):
@@ -242,6 +274,11 @@ class SendBulkMessageView(APIView):
             if not isinstance(contact_ids, list):
                 return Response({"error": "contact_ids must be a list"}, status=400)
             contacts = contacts.filter(id__in=contact_ids)
+
+        # Optional: send to everyone in one of the user's lists.
+        list_id = request.data.get("list_id")
+        if list_id not in (None, ""):
+            contacts = contacts.filter(lists__id=list_id, lists__created_by=request.user)
 
         total = contacts.count()
 

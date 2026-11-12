@@ -5,6 +5,10 @@ import {
     Button,
     ButtonBase,
     Checkbox,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     IconButton,
     LinearProgress,
     Menu,
@@ -66,12 +70,21 @@ const ContactsTable = ({
     hasEmail,
     selectedIds = [],
     onSelectionChange = () => {},
-    onMessageSelected = () => {}
+    onMessageSelected = () => {},
+    lists = [],
+    onCreateList = async () => null,
+    onAddToList = async () => {}
 }) => {
     const [search, setSearch] = useState('');
     const [smsFilter, setSmsFilter] = useState('all'); // all | can | out | none
     const [infoFilter, setInfoFilter] = useState('all'); // all | missing
     const [page, setPage] = useState(0);
+    const [listFilter, setListFilter] = useState('all');
+    const [listMenu, setListMenu] = useState(null);
+    const [newListOpen, setNewListOpen] = useState(false);
+    const [newListName, setNewListName] = useState('');
+    const [listError, setListError] = useState('');
+    const [listNote, setListNote] = useState('');
 
     const smsStatus = (c) => {
         if (!hasPhone(c)) return 'none';
@@ -82,6 +95,7 @@ const ContactsTable = ({
         const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
         return contacts.filter((c) => {
             if (smsFilter !== 'all' && smsStatus(c) !== smsFilter) return false;
+            if (listFilter !== 'all' && !(c.list_ids || []).some((id) => String(id) === String(listFilter))) return false;
             if (infoFilter === 'missing' && hasPhone(c) && hasEmail(c)) return false;
             if (terms.length === 0) return true;
             const haystack = [c.name, c.phone, c.email].filter(Boolean).join(' ').toLowerCase();
@@ -90,12 +104,12 @@ const ContactsTable = ({
             return terms.every((t) => haystack.includes(t) || (/^\d+$/.test(t) && digits.includes(t)));
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [contacts, search, smsFilter, infoFilter]);
+    }, [contacts, search, smsFilter, infoFilter, listFilter]);
 
     const lastPage = Math.max(0, Math.ceil(filtered.length / ROWS_PER_PAGE) - 1);
     const safePage = Math.min(page, lastPage);
     const pageRows = filtered.slice(safePage * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE + ROWS_PER_PAGE);
-    const filtersActive = search.trim() !== '' || smsFilter !== 'all' || infoFilter !== 'all';
+    const filtersActive = search.trim() !== '' || smsFilter !== 'all' || infoFilter !== 'all' || listFilter !== 'all';
 
     // Selection (ids persist across pages and filters; the header box acts on everything the filters show)
     const selectedSet = new Set(selectedIds);
@@ -115,7 +129,30 @@ const ContactsTable = ({
         setSearch('');
         setSmsFilter('all');
         setInfoFilter('all');
+        setListFilter('all');
         setPage(0);
+    };
+
+    const addSelectedTo = async (listId) => {
+        setListMenu(null);
+        try {
+            await onAddToList(listId, selectedIds);
+            const name = (lists.find((l) => l.id === listId) || {}).name || 'the list';
+            setListNote(`Added ${selectedIds.length} to ${name}.`);
+        } catch (err) {
+            setListNote('Could not update the list. Please try again.');
+        }
+    };
+    const createAndAdd = async () => {
+        setListError('');
+        try {
+            const created = await onCreateList(newListName.trim());
+            setNewListOpen(false);
+            setNewListName('');
+            if (created && created.id && selectedIds.length > 0) await addSelectedTo(created.id);
+        } catch (err) {
+            setListError(err.message);
+        }
     };
 
     const count = (fn) => contacts.filter(fn).length;
@@ -178,6 +215,20 @@ const ContactsTable = ({
                         inputProps={{ 'aria-label': 'Search contacts' }}
                         sx={{ minWidth: 240, flex: '1 1 240px', maxWidth: 420 }}
                     />
+                    {lists.length > 0 && (
+                        <TextField
+                            select
+                            size="small"
+                            value={listFilter}
+                            onChange={(e) => { setListFilter(e.target.value); setPage(0); }}
+                            SelectProps={{ native: true }}
+                            inputProps={{ 'aria-label': 'Filter by list' }}
+                            sx={{ minWidth: 150 }}
+                        >
+                            <option value="all">All lists</option>
+                            {lists.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.contact_count})</option>)}
+                        </TextField>
+                    )}
                     <Box sx={{ flex: 1 }} />
                     <Button variant="outlined" size="small" startIcon={<FontAwesomeIcon icon={faFileArrowUp} />} onClick={onUploadClick}>
                         Import
@@ -201,6 +252,14 @@ const ContactsTable = ({
                     <Stack direction="row" spacing={1.5} alignItems="center" role="status" sx={{ flexWrap: 'wrap', rowGap: 1, py: 0.75, px: 1.5, mb: 0.5, borderRadius: 2, bgcolor: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a' }}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedIds.length} selected</Typography>
                         <Button size="small" variant="contained" onClick={onMessageSelected}>Message selected</Button>
+                        <Button size="small" aria-haspopup="menu" onClick={(e) => setListMenu(e.currentTarget)}>Add to list</Button>
+                        <Menu anchorEl={listMenu} open={!!listMenu} onClose={() => setListMenu(null)}>
+                            {lists.map((l) => (
+                                <MenuItem key={l.id} onClick={() => addSelectedTo(l.id)}>{l.name} ({l.contact_count})</MenuItem>
+                            ))}
+                            <MenuItem onClick={() => { setListMenu(null); setListError(''); setNewListOpen(true); }}>New list...</MenuItem>
+                        </Menu>
+                        {listNote && <Typography variant="body2" role="status">{listNote}</Typography>}
                         <Box sx={{ flex: 1 }} />
                         <Button size="small" onClick={() => onSelectionChange([])}>Clear selection</Button>
                     </Stack>
@@ -337,6 +396,27 @@ const ContactsTable = ({
                 <MenuItem onClick={() => { const c = rowMenu.contact; closeRowMenu(); onEditContact(c); }}>Edit</MenuItem>
                 <MenuItem sx={{ color: 'error.main' }} onClick={() => { const c = rowMenu.contact; closeRowMenu(); onDeleteContact(c); }}>Delete</MenuItem>
             </Menu>
+
+            <Dialog open={newListOpen} onClose={() => setNewListOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>New list</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        margin="dense"
+                        label="List name"
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && newListName.trim()) createAndAdd(); }}
+                        error={!!listError}
+                        helperText={listError || (selectedIds.length > 0 ? `The ${selectedIds.length} selected will be added.` : 'You can add people to it afterwards.')}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setNewListOpen(false)}>Cancel</Button>
+                    <Button variant="contained" disabled={!newListName.trim()} onClick={createAndAdd}>Create</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
