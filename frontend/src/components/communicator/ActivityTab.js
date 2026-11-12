@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import MessageLogTable from '../MessageLogTable';
+import ActivityFeed from './ActivityFeed';
 
 const VIEWS = [
     ['sms', 'Texts'],
@@ -9,27 +10,29 @@ const VIEWS = [
 ];
 
 /**
- * Everything that went out or came back, in one place: sent texts, sent emails and replies from contacts.
- * (The log used to live on the separate Messages page.)
+ * Everything that went out or came back. "Feed" (default) groups each send into one item with a detail pane;
+ * "Table" is the full per-recipient log with print and CSV export.
  */
 const ActivityTab = () => {
+    const [mode, setMode] = useState('feed');
     const [view, setView] = useState('sms');
     return (
         <Box>
-            <ToggleButtonGroup
-                exclusive
-                size="small"
-                value={view}
-                onChange={(_, v) => v && setView(v)}
-                aria-label="Show"
-                sx={{ mb: 1.5 }}
-            >
-                {VIEWS.map(([value, label]) => (
-                    <ToggleButton key={value} value={value} sx={{ textTransform: 'none', px: 2 }}>{label}</ToggleButton>
-                ))}
-            </ToggleButtonGroup>
-            {/* key remounts the table so filters and paging start fresh for each view */}
-            <MessageLogTable key={view} type={view} />
+            <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1.5, flexWrap: 'wrap', rowGap: 1 }}>
+                {mode === 'table' && (
+                    <ToggleButtonGroup exclusive size="small" value={view} onChange={(_, v) => v && setView(v)} aria-label="Show">
+                        {VIEWS.map(([value, label]) => (
+                            <ToggleButton key={value} value={value} sx={{ textTransform: 'none', px: 2 }}>{label}</ToggleButton>
+                        ))}
+                    </ToggleButtonGroup>
+                )}
+                <Box sx={{ flex: 1 }} />
+                <ToggleButtonGroup exclusive size="small" value={mode} onChange={(_, v) => v && setMode(v)} aria-label="Layout">
+                    <ToggleButton value="feed" sx={{ textTransform: 'none', px: 2 }}>Feed</ToggleButton>
+                    <ToggleButton value="table" sx={{ textTransform: 'none', px: 2 }}>Table</ToggleButton>
+                </ToggleButtonGroup>
+            </Stack>
+            {mode === 'feed' ? <ActivityFeed /> : <MessageLogTable key={view} type={view} />}
         </Box>
     );
 };
