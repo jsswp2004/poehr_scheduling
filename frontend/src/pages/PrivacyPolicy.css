@@ -1,0 +1,30 @@
+/* Privacy page layout: title block with the two apps, then the policy in one card. Prefixed pp- so it cannot collide. */
+.pp-hero { background: #fff; border-bottom: 1px solid #e2e8f0; }
+.pp-hero-inner { max-width: 840px; margin: 0 auto; padding: 40px 24px 40px; box-sizing: border-box; }
+.pp-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #1d4ed8; }
+.pp-title { margin: 10px 0 8px; font-size: 40px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; color: #0f172a; }
+.pp-sub { margin: 0; font-size: 16px; color: #475569; }
+.pp-apps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 32px; }
+.pp-app { border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; background: #f8fafc; }
+.pp-app.pp-app-blue { border-color: #bfdbfe; background: #eff6ff; }
+.pp-app-name { font-size: 16px; font-weight: 700; color: #0f172a; }
+.pp-app p { margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: #334155; }
+.pp-body { width: 100%; max-width: 840px; margin: 0 auto; padding: 40px 24px 72px; box-sizing: border-box; flex: 1; }
+.pp-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 40px 48px; font-size: 16px; line-height: 1.7; color: #334155; }
+.pp-sect h2 { margin: 36px 0 10px; font-size: 22px; color: #0f172a; }
+.pp-sect:first-child h2 { margin-top: 0; }
+.pp-sect h3 { margin: 22px 0 8px; font-size: 17px; color: #0f172a; }
+.pp-sect p { margin: 0 0 12px; }
+.pp-sect ul { margin: 0 0 12px; padding-left: 22px; }
+.pp-sect li { margin-bottom: 6px; }
+.pp-sect a { color: #1d4ed8; }
+.pp-sect a:hover { color: #1e3a8a; }
+.pp-callout { margin: 24px 0 0; border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 12px; padding: 4px 24px 12px; }
+.pp-callout h3 { margin-top: 18px; }
+@media (max-width: 640px) {
+  .pp-hero-inner { padding: 28px 16px; }
+  .pp-title { font-size: 28px; }
+  .pp-apps { grid-template-columns: minmax(0, 1fr); }
+  .pp-body { padding: 0 0 40px; }
+  .pp-card { border-radius: 0; border-left: 0; border-right: 0; padding: 24px 20px; }
+}
