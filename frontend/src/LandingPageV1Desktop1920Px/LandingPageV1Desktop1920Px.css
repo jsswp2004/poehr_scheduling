@@ -197,6 +197,7 @@ background gradients, and overall layout structure.
   margin: 0 auto;
   min-height: 100vh;
   position: relative;
+  isolation: isolate; /* keeps the swirl behind content but above the page gradient */
   overflow-x: hidden;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   scroll-behavior: smooth;
@@ -207,10 +208,10 @@ background gradients, and overall layout structure.
   content: '';
   position: fixed;  /* or absolute if you want to scroll with content */
   top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 0; /* Behind all content - text and images at same level */
+  z-index: -1; /* behind all content, including images */
   pointer-events: none;
-  opacity: 0.2; /* further reduced opacity to make it very subtle */
-  background-image: url("data:image/svg+xml,%3Csvg width='1600' height='1000' viewBox='0 0 1600 1000' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 200 Q400 300 800 200 T1600 200' stroke='%23e9eef5' stroke-width='6' fill='none'/%3E%3Cpath d='M0 600 Q500 500 1100 700 T1600 600' stroke='%23e1edfb' stroke-width='4' fill='none' opacity='0.7'/%3E%3Cpath d='M0 400 Q300 350 900 500 T1600 400' stroke='%23e5f1fe' stroke-width='3' fill='none' opacity='.55'/%3E%3Cpath d='M0 300 Q200 350 600 250 T1600 300' stroke='%23e9f3ff' stroke-width='2' fill='none' opacity='.5'/%3E%3Cpath d='M0 500 Q400 450 800 550 T1600 500' stroke='%23e7f0fa' stroke-width='3' fill='none' opacity='.6'/%3E%3Cpath d='M0 800 Q500 700 1000 800 T1600 750' stroke='%23eaf4fe' stroke-width='4' fill='none' opacity='.45'/%3E%3Cpath d='M0 100 Q300 150 700 100 T1600 120' stroke='%23edf5fb' stroke-width='2' fill='none' opacity='.5'/%3E%3C/svg%3E");
+  opacity: 0.6;
+  background-image: url("data:image/svg+xml,%3Csvg width='1600' height='1000' viewBox='0 0 1600 1000' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 200 Q400 300 800 200 T1600 200' stroke='%2393b4e6' stroke-width='6' fill='none'/%3E%3Cpath d='M0 600 Q500 500 1100 700 T1600 600' stroke='%237fa8e8' stroke-width='4' fill='none' opacity='0.7'/%3E%3Cpath d='M0 400 Q300 350 900 500 T1600 400' stroke='%2394bdf0' stroke-width='3' fill='none' opacity='.55'/%3E%3Cpath d='M0 300 Q200 350 600 250 T1600 300' stroke='%23a5c8f5' stroke-width='2' fill='none' opacity='.5'/%3E%3Cpath d='M0 500 Q400 450 800 550 T1600 500' stroke='%2389aee0' stroke-width='3' fill='none' opacity='.6'/%3E%3Cpath d='M0 800 Q500 700 1000 800 T1600 750' stroke='%2399bcee' stroke-width='4' fill='none' opacity='.45'/%3E%3Cpath d='M0 100 Q300 150 700 100 T1600 120' stroke='%23a9c6ee' stroke-width='2' fill='none' opacity='.5'/%3E%3C/svg%3E");
   background-position: center center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -3741,7 +3742,7 @@ COMPREHENSIVE RESPONSIVE DESIGN FOR PRICING SECTION
 .landing-page-v-1-desktop-1920-px .lp-btn-secondary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 
 .landing-page-v-1-desktop-1920-px .lp-row {
-  background: #ffffff;
+  background: transparent;
   padding: 72px 64px;
   display: flex;
   flex-direction: row;
@@ -3749,7 +3750,7 @@ COMPREHENSIVE RESPONSIVE DESIGN FOR PRICING SECTION
   gap: 64px;
   align-items: center;
 }
-.landing-page-v-1-desktop-1920-px .lp-row-reverse { flex-direction: row-reverse; background: #f8fafc; }
+.landing-page-v-1-desktop-1920-px .lp-row-reverse { flex-direction: row-reverse; background: transparent; }
 .landing-page-v-1-desktop-1920-px .lp-row-image {
   flex: 1 1 480px;
   min-width: 0;
