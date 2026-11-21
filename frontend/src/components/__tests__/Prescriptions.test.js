@@ -312,6 +312,15 @@ describe("detail dialog", () => {
   };
   const SIGNED = (over = {}) => RX({ status: "signed", status_label: "Signed", signed_at: "2026-10-08T13:00:00Z", signed_by_name: "Dr Who", actions: ["print", "fax", "cancel", "revise"], ...over });
 
+  test("a pharmacist reading a prescription gets no prescriber buttons (Save as favorite hidden)", async () => {
+    show(SIGNED({ actions: [] }), { me: { role: "pharmacist", id: 7 } });
+    await screen.findByTestId("rx-status");
+    expect(screen.queryByTestId("rx-favorite")).toBeNull();
+    expect(screen.queryByTestId("rx-sign")).toBeNull();
+    expect(screen.queryByTestId("rx-edit")).toBeNull();
+    expect(screen.getByTestId("rx-preview")).toBeInTheDocument();
+  });
+
   test("signs a ready draft", async () => {
     api.post.mockResolvedValue({ data: SIGNED() });
     show(RX());

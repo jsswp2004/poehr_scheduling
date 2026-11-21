@@ -24,7 +24,7 @@ import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import PortalSection from "./PortalSection";
 import {
-  STATUS_COLOR, announceChange, authHeader, errorText, fmtDate, fmtDateTime, fmtDay, openPdf, pdfErrorText, runAction, saveFavorite,
+  RX_ROLES, STATUS_COLOR, announceChange, authHeader, errorText, fmtDate, fmtDateTime, fmtDay, openPdf, pdfErrorText, runAction, saveFavorite,
 } from "./rxShared";
 
 const EVENT_LABEL = {
@@ -330,7 +330,7 @@ export default function PrescriptionDetailDialog({ open, id, onClose, onChanged,
         {rx && actions.includes("print") && <Button onClick={() => showPdf(true)} disabled={busy} data-testid="rx-print">Print</Button>}
         {rx && actions.includes("fax") && <Button onClick={openFax} disabled={busy} data-testid="rx-fax">Record fax</Button>}
         {rx && actions.includes("renew") && <Button onClick={renew} disabled={busy} data-testid="rx-renew">Renew</Button>}
-        {rx && !rx.controlled && <Button onClick={favorite} disabled={busy} data-testid="rx-favorite">Save as favorite</Button>}
+        {rx && !rx.controlled && RX_ROLES.includes(me?.role) && <Button onClick={favorite} disabled={busy} data-testid="rx-favorite">Save as favorite</Button>}
         {rx && actions.includes("revise") && <Button onClick={revise} disabled={busy} data-testid="rx-revise">Revise</Button>}
         {rx && actions.includes("cancel") && <Button color="error" onClick={() => setPanel("cancel")} disabled={busy} data-testid="rx-cancel">Cancel prescription</Button>}
         {rx && canSign && <Button variant="contained" onClick={sign} disabled={busy || missing.length > 0} data-testid="rx-sign">Sign</Button>}

@@ -135,6 +135,13 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
 
   const canPlace = ["doctor", "nurse", "admin", "system_admin"].includes(me.role);
   const canCosign = ["doctor", "admin", "system_admin"].includes(me.role);
+  // POWER Pharmacy: pharmacists and pharmacy assistants READ orders (they hold orders.view only). Every place / edit /
+  // sign / complete / replace / discontinue control is hidden for them, not just disabled; the backend refuses those
+  // actions anyway. Drafts are the prescriber's workspace, so they don't see the Drafts tab either.
+  const viewOnly = ["pharmacist", "pharmacy_tech"].includes(me.role);
+  useEffect(() => {
+    if (viewOnly && tab === "drafts") setTab("active");
+  }, [viewOnly, tab]);
 
   // Orders and Lab Results are two tabs. The Lab icon in the Patients table links here with #lab-results to open the Lab Results tab.
   // When the chart tab strip on the Patients page drives the section (forcedSection), the inner tabs are hidden.
@@ -454,7 +461,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
     );
   }
 
-  if (me.role !== null && !canPlace) {
+  if (me.role !== null && !canPlace && !viewOnly) {
     return (
       <Typography color="text.secondary">
         Your role does not have access to orders.
@@ -635,12 +642,12 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
               Cosign
             </Button>
           )}
-          {(order.status === "active" || order.status === "in_progress") && (
+          {!viewOnly && (order.status === "active" || order.status === "in_progress") && (
             <Button size="small" disabled={busy} onClick={() => openDialog("complete", order)}>
               Complete
             </Button>
           )}
-          {order.orderable_category === "laboratory" && order.status !== "discontinued" && (
+          {!viewOnly && order.orderable_category === "laboratory" && order.status !== "discontinued" && (
             <Button
               size="small"
               disabled={busy}
@@ -653,7 +660,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
               Enter results
             </Button>
           )}
-          {open && (
+          {!viewOnly && open && (
             <>
               <Button size="small" disabled={busy} onClick={() => openDialog("replace", order)}>
                 Replace
@@ -788,7 +795,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
       <Box>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Tabs value={tab} onChange={(e, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
-            {TABS.map((t) => (
+            {TABS.filter((t) => !viewOnly || t.key !== "drafts").map((t) => (
               <Tab key={t.key} value={t.key} label={`${t.label} (${counts[t.key]})`} />
             ))}
           </Tabs>
