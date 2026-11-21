@@ -2402,7 +2402,7 @@ class Prescription(models.Model):
         ("sent", "Given / sent"),
         ("cancelled", "Cancelled"),
     ]
-    METHOD_CHOICES = [("", "Not yet"), ("print", "Printed"), ("fax", "Faxed"), ("erx", "Electronic")]
+    METHOD_CHOICES = [("", "Not yet"), ("print", "Printed"), ("fax", "Faxed"), ("erx", "Electronic"), ("portal", "POWER Pharmacy Portal")]
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="prescriptions")
     patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prescriptions_received")
@@ -2445,6 +2445,9 @@ class Prescription(models.Model):
     is_yellow_rx = models.BooleanField(default=False)
     yellow_rx_serial = models.CharField(max_length=40, blank=True)
     s2_number = models.CharField(max_length=40, blank=True)
+    # POWER Pharmacy Portal: printed on the Rx (with a QR code). An approved partner pharmacy claims the Rx with it
+    # plus the patient's birthdate. Assigned when the Rx is signed.
+    claim_code = models.CharField(max_length=12, blank=True, db_index=True)
 
     # where it goes
     pharmacy = models.ForeignKey(Pharmacy, null=True, blank=True, on_delete=models.SET_NULL, related_name="prescriptions")
