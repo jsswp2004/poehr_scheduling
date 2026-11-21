@@ -2760,9 +2760,37 @@ class _CatalogAdminMixin:
             )
 
 
+MEDICATIONS_IN_FORMULARY = "Medications are managed in Pharmacy > Formulary. The Order Builder is for labs, imaging, procedures and other orders."
+
+
 class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
+    """
+    The Order Builder's catalog. Medications are not edited here any more: they are POWER Formulary items
+    (Pharmacy > Formulary). They stay orderable (OrderableViewSet) but are left out of this list and refused here.
+    """
+
     model = Orderable
     serializer_class = OrderableAdminSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.exclude(category="medication") if self.action == "list" else qs
+
+    def _refuse_medication(self, *categories):
+        if "medication" in categories:
+            raise ow.OrderWorkflowError(MEDICATIONS_IN_FORMULARY, 400)
+
+    def perform_create(self, serializer):
+        self._refuse_medication(serializer.validated_data.get("category"))
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        self._refuse_medication(serializer.instance.category, serializer.validated_data.get("category"))
+        super().perform_update(serializer)
+
+    def destroy(self, request, *args, **kwargs):
+        self._refuse_medication(self.get_object().category)
+        return super().destroy(request, *args, **kwargs)
 
     # CSV: same all-or-nothing approach as the note template upload (see
     # appointments/orders_csv.py for the format).
@@ -2780,6 +2808,7 @@ class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
         org_id = None if request.user.role == "system_admin" else request.user.organization_id
         qs = (
             Orderable.objects.filter(organization_id=org_id)
+            .exclude(category="medication")  # medications are exported from Pharmacy > Formulary
             .select_related("detail_template")
             .order_by("category", "name")
         )
@@ -2835,6 +2864,9 @@ class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
                         "message": f"No Order detail form with code '{form_code}'.",
                     })
                 current = existing.get(r["code"].lower())
+                if r.get("category") == "medication" or (current is not None and current.category == "medication"):
+                    errors.append({"row": r["_row"], "column": "category", "message": MEDICATIONS_IN_FORMULARY})
+                    continue
                 if current is not None and current.organization_id != org_id:
                     errors.append({
                         "row": r["_row"], "column": "code",

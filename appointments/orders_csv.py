@@ -6,7 +6,8 @@ it is easy to test; the view resolves detail forms and writes the rows.
 Columns (header row required; order doesn't matter; extra columns are ignored):
 
   code, name                      required
-  category                        laboratory | imaging | procedure | referral | nursing | medication | other
+  category                        laboratory | imaging | procedure | referral | nursing | other
+                                  (medications are POWER Formulary items: Pharmacy > Formulary; rows are refused)
   code_system                     local | loinc | hcpcs | icd10pcs | snomed | rxnorm | cpt
   external_code                   the code in that system (CPT is entered by the clinic)
   description
@@ -207,7 +208,6 @@ SAMPLE_ROWS = [
     ["cardiology_referral", "Referral: Cardiology", "referral", "local", "", "", "routine", "no", "", "yes", "", ""],
     ["vitals_q4h", "Vital signs every 4 hours", "nursing", "local", "", "", "routine", "no", "", "yes", "yes", "q4h"],
     ["office_visit_est", "Established patient office visit", "procedure", "cpt", "99213", "CPT code entered by the clinic", "routine", "yes", "", "yes", "", ""],
-    ["amoxicillin_500_cap", "Amoxicillin 500 mg capsule", "medication", "local", "", "", "routine", "no", "", "yes", "", "tid"],
 ]
 
 
