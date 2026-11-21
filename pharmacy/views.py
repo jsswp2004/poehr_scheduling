@@ -748,3 +748,75 @@ class PortalRequestRespondView(APIView):
         except _rxs.RxError as exc:
             return Response({"detail": str(exc)}, status=getattr(exc, "status_code", 400))
         return Response(pt.serialize_request(req))
+
+
+class PortalRerouteView(APIView):
+    """POST {pharmacy: directory id} -> send a declined prescription to another portal pharmacy.
+    POST {new_code: true} -> give it a new claim code so any approved pharmacy can claim it."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, rx_id):
+        rx = Prescription.objects.filter(pk=rx_id).first()
+        if rx is None or (request.user.role != "system_admin" and rx.organization_id != request.user.organization_id):
+            return Response({"detail": "Prescription not found."}, status=404)
+        if request.user.role not in pt.RESPOND_ROLES or (request.user.role == "doctor" and rx.prescriber_id != request.user.pk):
+            return Response({"detail": "Only the prescriber or an administrator can do this."}, status=403)
+        try:
+            if request.data.get("new_code"):
+                pt.release_for_claim(request.user, rx)
+            else:
+                pharmacy = _Pharmacy.objects.filter(pk=request.data.get("pharmacy"), organization_id=rx.organization_id).first()
+                if pharmacy is None:
+                    return Response({"detail": "Choose a portal pharmacy from your directory."}, status=400)
+                pt.reroute(request.user, rx, pharmacy)
+        except pt.PortalError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        rx.refresh_from_db()
+        return Response({"claim_code": rx.claim_code, "portal": pt.portal_summary(rx)})
+
+
+class PortalAccessLogView(APIView):
+    """GET ?user=&pharmacy=&action=&prescription=&date_from=&date_to=[&export=csv] -- POWER administrators only (RA 10173)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        import csv
+
+        from django.http import HttpResponse
+        from django.utils.dateparse import parse_date
+
+        from .models import PortalAccessLog
+
+        if request.user.role != "system_admin":
+            return Response({"detail": "Only a POWER administrator can see the portal access log."}, status=403)
+        p = request.query_params
+        qs = PortalAccessLog.objects.select_related("user", "partner")
+        if p.get("user"):
+            qs = qs.filter(Q(user__username__icontains=p["user"]) | Q(user__last_name__icontains=p["user"]))
+        if p.get("pharmacy"):
+            qs = qs.filter(partner_id=p["pharmacy"])
+        if p.get("action"):
+            qs = qs.filter(action__icontains=p["action"])
+        if p.get("prescription"):
+            qs = qs.filter(prescription_id=str(p["prescription"]).upper().replace("RX-", "").lstrip("0") or 0)
+        if parse_date(p.get("date_from") or ""):
+            qs = qs.filter(created_at__date__gte=parse_date(p["date_from"]))
+        if parse_date(p.get("date_to") or ""):
+            qs = qs.filter(created_at__date__lte=parse_date(p["date_to"]))
+        rows = [
+            {"id": e.pk, "at": e.created_at.isoformat(), "user": e.user.username, "name": svc.name_of(e.user),
+             "pharmacy": e.partner.name if e.partner_id else "", "action": e.action,
+             "prescription": f"RX-{e.prescription_id:06d}" if e.prescription_id else "", "ip": e.ip, "detail": e.detail}
+            for e in qs[:5000 if p.get("export") == "csv" else 500]
+        ]
+        if p.get("export") == "csv":
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = 'attachment; filename="portal-access-log.csv"'
+            writer = csv.writer(response)
+            writer.writerow(["When", "Username", "Name", "Pharmacy", "Action", "Prescription", "IP", "Detail"])
+            for r in rows:
+                writer.writerow([r["at"], r["user"], r["name"], r["pharmacy"], r["action"], r["prescription"], r["ip"], r["detail"]])
+            return response
+        return Response({"results": rows, "retention_days": pt.access_log_retention_days()})

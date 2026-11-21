@@ -72,10 +72,23 @@ class EmailChannel(Channel):
             log.exception("pharmacy portal: email to %s failed", address)
 
     def to_pharmacy(self, partner, title, body, portal_rx=None):
-        self._send(partner.email, f"POWER Pharmacy Portal: {title}", body)
+        """Each active pharmacist gets the email at their own address; the pharmacy's email only when none has one."""
+        addresses = pharmacist_addresses(partner) or ([partner.email] if partner.email else [])
+        for address in addresses:
+            self._send(address, f"POWER Pharmacy Portal: {title}", body)
 
     def to_prescriber(self, prescriber, title, body, rx=None, source_type="", source_id=None):
         self._send(prescriber.email, f"POWER: {title}", body, organization=rx.organization if rx is not None else None)
+
+
+def pharmacist_addresses(partner):
+    """The email of every active member of the pharmacy (their own record, else their login), without repeats."""
+    out = []
+    for member in partner.staff.filter(is_active=True).select_related("user"):
+        address = (member.email or (member.user.email if member.user_id and member.user.is_active else "") or "").strip()
+        if address and address.lower() not in {a.lower() for a in out}:
+            out.append(address)
+    return out
 
 
 # SMS later: class SmsChannel(Channel): ... and add SmsChannel() here.

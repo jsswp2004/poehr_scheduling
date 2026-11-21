@@ -226,6 +226,7 @@ class PartnerPharmacist(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name="portal_membership")
     full_name = models.CharField(max_length=160)
     prc_number = models.CharField(max_length=40, blank=True)
+    email = models.EmailField(blank=True, help_text="Portal notices are emailed to each active pharmacist")
     is_admin = models.BooleanField(default=False, help_text="Manages the pharmacy's portal logins (the person who registered it)")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -248,7 +249,8 @@ PORTAL_STATUSES = [
     ("ready", "Ready for pickup"),
     ("partially_dispensed", "Partially dispensed"),
     ("dispensed", "Dispensed"),
-    ("declined", "Declined"),
+    ("declined", "Declined (back with the prescriber)"),
+    ("released", "Released for claiming"),
     ("cancelled", "Cancelled by prescriber"),
 ]
 
