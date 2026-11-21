@@ -13,17 +13,20 @@ const BLANK = {
   renal_threshold_crcl: "", vat_exempt: false, unit: "", unit_price_php: "", is_active: true,
 };
 const DEFINITION = ["generic_name", "brand_name", "strength", "form", "route", "rxnorm_code"];
+const PRICE = ["unit", "unit_price_php", "vat_exempt"];
+const REVIEW = { needs_review: "Needs pharmacist review", reviewed: "Reviewed" };
 const LABELS = {
   generic_name: "Generic name", brand_name: "Brand", strength: "Strength", form: "Form", route: "Default route", rxnorm_code: "RxNorm code",
   dangerous_drug: "Dangerous drug (RA 9165)", renal_threshold_crcl: "Renal: review below CrCl (mL/min)", vat_exempt: "VAT-exempt",
-  unit: "Unit", unit_price_php: "Price per unit (₱)", is_active: "Active",
+  unit: "Unit", unit_price_php: "Price per unit (₱)", is_active: "Active", review: "Review",
 };
-const show = (v) => (v === true ? "Yes" : v === false ? "No" : v === null || v === undefined || v === "" ? "—" : String(v));
+const show = (v) => (v === true ? "Yes" : v === false ? "No" : v === null || v === undefined || v === "" ? "—" : REVIEW[v] || String(v));
 
 /**
  * One formulary item. A clinic sees a shared item's definition (names, strength, form, route, RxNorm) read-only and
- * can override its local values (active, dangerous drug, renal threshold, price); each overridden value shows the
- * shared one and can be reverted. A system administrator edits the shared item itself.
+ * can override its local values (active, dangerous drug, renal threshold); each overridden value shows the shared one
+ * and can be reverted. Price, unit and VAT-exempt are always the clinic's own (prices are per clinic). A system
+ * administrator edits the shared item itself, without prices. "Mark reviewed" for whoever may review the item.
  */
 export default function FormularyItemDialog({ open, item, meta, onClose, onSaved }) {
   const creating = !item;
@@ -34,6 +37,7 @@ export default function FormularyItemDialog({ open, item, meta, onClose, onSaved
   const [busy, setBusy] = useState(false);
   const clinicOnShared = !!item && item.scope === "shared" && !meta?.edits_shared;
   const canEdit = !!meta?.can_edit;
+  const showPrices = !meta?.edits_shared; // the shared POWER formulary has no prices
 
   useEffect(() => {
     if (!open) return;
@@ -64,10 +68,11 @@ export default function FormularyItemDialog({ open, item, meta, onClose, onSaved
     try {
       const headers = await authHeader();
       if (creating) {
-        await api.post(apiEndpoints.formulary, form, { headers });
+        const body = showPrices ? form : Object.fromEntries(Object.entries(form).filter(([k]) => !PRICE.includes(k)));
+        await api.post(apiEndpoints.formulary, body, { headers });
         toast.success("Item added.");
       } else {
-        const fields = (clinicOnShared ? meta.overridable : Object.keys(BLANK).filter((k) => k !== "code"))
+        const fields = (clinicOnShared ? meta.overridable : Object.keys(BLANK).filter((k) => k !== "code" && (showPrices || !PRICE.includes(k))))
           .filter((k) => String(form[k] ?? "") !== String(item[k] ?? ""));
         if (fields.length === 0) {
           onClose();
@@ -99,6 +104,20 @@ export default function FormularyItemDialog({ open, item, meta, onClose, onSaved
     }
   };
 
+  const markReviewed = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api.post(apiEndpoints.formularyReview(item.id), {}, { headers: await authHeader() });
+      toast.success("Marked reviewed.");
+      onSaved(res.data, true);
+    } catch (err) {
+      setError(errorText(err, "Could not mark it reviewed."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const note = (key) => {
     if (!item) return null;
     const source = item.sources?.[key];
@@ -111,7 +130,9 @@ export default function FormularyItemDialog({ open, item, meta, onClose, onSaved
         </Stack>
       );
     }
-    if (clinicOnShared) return <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Shared (POWER)</Typography>;
+    if (clinicOnShared) {
+      return <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{PRICE.includes(key) ? "Your clinic's own" : "Shared (POWER)"}</Typography>;
+    }
     return null;
   };
 
@@ -142,6 +163,19 @@ export default function FormularyItemDialog({ open, item, meta, onClose, onSaved
       )}
       <DialogContent dividers>
         {error && <Alert severity="error" sx={{ mb: 1.5 }} data-testid="fi-error">{error}</Alert>}
+        {item?.review && (
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }} data-testid="fi-review">
+            <Chip size="small" color={item.review.status === "reviewed" ? "success" : "warning"} variant="outlined" label={REVIEW[item.review.status] || item.review.status} />
+            {item.review.reviewed_by && (
+              <Typography variant="caption" color="text.secondary">
+                {item.review.status === "reviewed" ? "Reviewed" : "Last reviewed"} by {item.review.reviewed_by}{item.review.reviewed_at ? ` · ${fmtDateTime(item.review.reviewed_at)}` : ""}
+              </Typography>
+            )}
+            {item.can_review && (
+              <Button size="small" variant="outlined" onClick={markReviewed} disabled={busy} data-testid="fi-mark-reviewed">Mark reviewed</Button>
+            )}
+          </Stack>
+        )}
         {tab === "details" ? (
           <Grid container spacing={1.5}>
             {creating && <Grid size={{ xs: 12, sm: 4 }}>{text("code", { label: "Code (optional, made from the name)" })}</Grid>}
@@ -158,13 +192,23 @@ export default function FormularyItemDialog({ open, item, meta, onClose, onSaved
             <Grid size={{ xs: 12, sm: 4 }}>{check("dangerous_drug")}</Grid>
             <Grid size={{ xs: 12, sm: 4 }}>{text("renal_threshold_crcl", { helperText: "Blank = no renal flag" })}</Grid>
             <Grid size={{ xs: 12, sm: 4 }}>{check("is_active")}</Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>{text("unit_price_php")}</Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>{text("unit")}</Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>{check("vat_exempt")}</Grid>
+            {showPrices ? (
+              <>
+                <Grid size={{ xs: 12, sm: 4 }}>{text("unit_price_php")}</Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>{text("unit")}</Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>{check("vat_exempt")}</Grid>
+              </>
+            ) : (
+              <Grid size={12}>
+                <Typography variant="caption" color="text.secondary" data-testid="fi-prices-per-clinic">
+                  Prices are set by each clinic in its own formulary; the shared POWER formulary has no prices.
+                </Typography>
+              </Grid>
+            )}
             {clinicOnShared && (
               <Grid size={12}>
                 <Typography variant="caption" color="text.secondary">
-                  The names, strength, form, route and RxNorm code belong to the shared POWER formulary. Price, unit and VAT-exempt are overridden and reverted together.
+                  The names, strength, form, route and RxNorm code belong to the shared POWER formulary. Price, unit and VAT-exempt are your clinic's own.
                 </Typography>
               </Grid>
             )}
