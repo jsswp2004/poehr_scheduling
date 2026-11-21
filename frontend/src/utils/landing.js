@@ -22,6 +22,7 @@ export const landingPath = (role, modules) => {
   const have = withIncluded(modules);
   const has = (code) => all || have.includes(code);
   if (role === 'staff') return has('staffing') ? '/staffing' : '/dashboard';
+  if (role === 'pharmacist' || role === 'pharmacy_tech') return has('pharmacy') ? '/patients?care=pharmacy' : '/dashboard';
   if (CLINICAL_ROLES.includes(role)) {
     const hit = SERVICE_LANDINGS.find(([code]) => has(code));
     return hit ? hit[1] : '/dashboard';
@@ -58,6 +59,8 @@ export const SOLUTIONS = [
   { key: 'dictate', label: 'POWER Dictate', module: 'dictation', path: '/dictate', roles: ['admin', 'system_admin', 'doctor', 'nurse'] },
   // POWER MDS runs as its own app (own database); sign-in and organization come from this site.
   { key: 'mds', label: 'POWER MDS', module: 'mds', path: '/mds', roles: ['admin', 'system_admin', 'doctor', 'nurse'] },
+  // POWER Pharmacy is the Pharmacy care setting of the Patients page (?care= picks it).
+  { key: 'pharmacy', label: 'POWER Pharmacy', module: 'pharmacy', path: '/patients?care=pharmacy', roles: ['admin', 'system_admin', 'pharmacist', 'pharmacy_tech'] },
 ];
 
 /** The solutions a person may open: their organization has the service and their role may use it. */
