@@ -7,7 +7,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import VerifyOrderDialog from "./VerifyOrderDialog";
 import {
-  DrugName, PHARMACY_CHANGED_EVENT, PHARMACY_STATUS_COLOR, PRIORITY_LABEL, VERIFY_ROLES, authHeader, directions, errorText, fmtWait,
+  DrugName, NOT_REVIEWED, PHARMACY_CHANGED_EVENT, PHARMACY_STATUS_COLOR, PRIORITY_LABEL, VERIFY_ROLES, authHeader, directions, errorText, fmtWait,
 } from "./pharmacyShared";
 
 export const QUEUES = [
@@ -159,7 +159,10 @@ export default function VerificationQueue({ role, patient = null, onSelectPatien
                   <Typography variant="body2">{r.patient.name}</Typography>
                   <Typography variant="caption" color="text.secondary">{r.care_setting_label}</Typography>
                 </TableCell>
-                <TableCell><DrugName drug={r.drug} dangerous={r.dangerous_drug} testId={`queue-drug-${r.id}`} /></TableCell>
+                <TableCell>
+                  <DrugName drug={r.drug} dangerous={r.dangerous_drug} testId={`queue-drug-${r.id}`} />
+                  {r.needs_review && <Chip size="small" color="warning" variant="outlined" label={NOT_REVIEWED} data-testid={`queue-needs-review-${r.id}`} />}
+                </TableCell>
                 <TableCell>{directions(r)}</TableCell>
                 <TableCell>{r.ordering_provider?.name}</TableCell>
                 <TableCell sx={{ color: r.past_goal ? "error.main" : "inherit", fontWeight: r.past_goal ? 600 : 400, whiteSpace: "nowrap" }}>

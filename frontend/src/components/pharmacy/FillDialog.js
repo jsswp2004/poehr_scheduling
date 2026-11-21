@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import PharmacyLabelDialog from "./PharmacyLabel";
-import { DrugName, FILLS_CHANGED_EVENT, FILL_STAGE_COLOR, authHeader, errorText, fmtWho, peso } from "./pharmacyShared";
+import { DrugName, FILLS_CHANGED_EVENT, FILL_STAGE_COLOR, NOT_REVIEWED, authHeader, errorText, fmtWho, peso } from "./pharmacyShared";
 
 const STEP_ROWS = [
   ["received", "Received"],
@@ -173,6 +173,7 @@ export default function FillDialog({ open, fillId, onClose, onChanged }) {
               )}
             </Grid>
 
+            {fill.needs_review && <Alert severity="warning" data-testid="fill-needs-review">{NOT_REVIEWED}: check its formulary details as you fill it.</Alert>}
             {stage === "on_hold" && <Alert severity="warning" data-testid="fill-hold-reason">On hold: {fill.hold_reason}</Alert>}
             {fill.check_note && stage === "filling" && <Alert severity="warning">Sent back by the pharmacist: {fill.check_note}</Alert>}
 

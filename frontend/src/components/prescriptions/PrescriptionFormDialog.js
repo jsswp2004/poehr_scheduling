@@ -201,6 +201,8 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
   const forms = meta?.forms || [];
   const preview = form.dose || form.frequency ? buildSig(form) : "";
   // a dangerous drug (RA 9165): written on a DDB yellow prescription with the prescriber's S2 number, no refills
+  // POWER Formulary: the picked item still needs a pharmacist's review (a warning, never a block)
+  const needsReviewNow = drugOptions.some((o) => o.formulary && o.needs_review && form.drug_name === formularyName(o));
   const controlledNow =
     !!form.drug_name &&
     (drugOptions.some((o) => (o.display === form.drug_name || (o.formulary && form.drug_name === formularyName(o))) && o.controlled) ||
@@ -235,6 +237,7 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
                     {o.display}
                     {o.formulary && <Chip size="small" color="primary" variant="outlined" label="Formulary" sx={{ ml: 1 }} />}
                     {o.controlled && <Chip size="small" color="warning" label="Dangerous drug: yellow Rx" sx={{ ml: 1 }} />}
+                    {o.needs_review && <Chip size="small" color="warning" variant="outlined" label="Not yet reviewed by a pharmacist" sx={{ ml: 1 }} />}
                   </li>
                 );
               }}
@@ -318,6 +321,11 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
                 <MenuItem key={d.id} value={d.id}>{d.name}{d.ready ? "" : " (details incomplete)"}</MenuItem>
               ))}
             </TextField>
+            {needsReviewNow && (
+              <Alert severity="warning" data-testid="rx-needs-review">
+                Not yet reviewed by a pharmacist. You can still prescribe it; the pharmacy will check it.
+              </Alert>
+            )}
             {controlledNow && (
               <Stack spacing={1} data-testid="rx-yellow">
                 <Alert severity="warning">

@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import {
-  DrugName, PHARMACY_CHANGED_EVENT, PHARMACY_STATUS_COLOR, PRIORITY_LABEL, authHeader, directions, errorText, fmtDateTime, fmtWait,
+  DrugName, NOT_REVIEWED, PHARMACY_CHANGED_EVENT, PHARMACY_STATUS_COLOR, PRIORITY_LABEL, authHeader, directions, errorText, fmtDateTime, fmtWait,
 } from "./pharmacyShared";
 
 const FREQUENCIES = [
@@ -118,6 +118,9 @@ export default function VerifyOrderDialog({ open, orderId, onClose, onDone, canV
                 <Chip size="small" color={PHARMACY_STATUS_COLOR[order.pharmacy_status] || "default"} label={order.pharmacy_status_label} />
                 {order.past_goal && <Chip size="small" color="error" variant="outlined" label={`Past ${order.goal_minutes}-min goal`} />}
               </Stack>
+              {order.needs_review && (
+                <Alert severity="warning" sx={{ mt: 1 }} data-testid="verify-needs-review">{NOT_REVIEWED}: check its formulary details (strength, form, route, flags) as you verify.</Alert>
+              )}
             </Box>
 
             <Grid container spacing={1}>
