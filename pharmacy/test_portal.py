@@ -485,7 +485,7 @@ class FollowUpTests(Base):
         self.assertEqual(data["retention_days"], 5 * 365 + 1)
         r = self.api(self.sysadmin).get(url, {"export": "csv", "user": "rphw"})
         self.assertEqual(r["Content-Type"], "text/csv")
-        lines = r.content.decode().strip().splitlines()
+        lines = b"".join(r.streaming_content).decode().strip().splitlines()
         self.assertEqual(lines[0].split(",")[:5], ["When", "Username", "Name", "Pharmacy", "Action"])
         self.assertEqual(len(lines), 2)
         self.assertIn("rphw", lines[1])
@@ -533,3 +533,56 @@ class FollowUpTests(Base):
         mail.outbox.clear()
         tr.notify_pharmacy(lone, "Hello", "Body")
         self.assertEqual([m.to for m in mail.outbox], [["uno@example.ph"]])
+
+
+class PurgeScheduleAndExportTests(Base):
+    """The monthly purge runs on its own; the CSV export is complete and streamed."""
+
+    def old_and_new_entries(self):
+        pt.log_access(self.rph, "view")
+        pt.log_access(self.rph, "view")
+        oldest = PortalAccessLog.objects.order_by("id").first()
+        PortalAccessLog.objects.filter(pk=oldest.pk).update(created_at=timezone.now() - timedelta(days=6 * 365))
+
+    def run_scheduled_jobs(self, day):
+        from unittest import mock
+
+        from django.test import override_settings as _override
+
+        when = timezone.now().replace(day=day, hour=12)
+        with _override(SCHEDULED_JOBS_SECRET="test-secret"), \
+                mock.patch("appointments.views.timezone.now", return_value=when), \
+                mock.patch("appointments.views.send_patient_reminders"), \
+                mock.patch("appointments.views.send_patient_sms_reminders"):
+            return self.api().post("/api/run-scheduled-jobs/", HTTP_X_SCHEDULED_JOB_SECRET="test-secret")
+
+    def test_daily_scheduled_jobs_purge_on_the_first_of_the_month(self):
+        self.old_and_new_entries()
+        r = self.run_scheduled_jobs(day=2)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIn("skipped", r.json()["portal_access_log_purge"])
+        self.assertEqual(PortalAccessLog.objects.count(), 2)
+        r = self.run_scheduled_jobs(day=1)
+        self.assertEqual(r.json()["portal_access_log_purge"], {"deleted": 1})
+        self.assertEqual(PortalAccessLog.objects.count(), 1)
+
+    def test_django_cron_job_is_registered_monthly(self):
+        from django.conf import settings as dj_settings
+
+        from .cron import PurgePortalAccessLogCronJob
+
+        self.assertIn("pharmacy.cron.PurgePortalAccessLogCronJob", dj_settings.CRON_CLASSES)
+        self.assertEqual(PurgePortalAccessLogCronJob.RUN_EVERY_MINS, 60 * 24 * 30)
+        self.old_and_new_entries()
+        self.assertEqual(PurgePortalAccessLogCronJob().do(), "deleted 1 entries")
+        self.assertEqual(PortalAccessLog.objects.count(), 1)
+
+    def test_csv_export_is_complete_and_streamed(self):
+        PortalAccessLog.objects.bulk_create([PortalAccessLog(user=self.rph, partner=self.mercury, action="view") for _ in range(5100)])
+        r = self.api(self.sysadmin).get("/api/pharmacy/portal-access-log/", {"export": "csv"})
+        self.assertTrue(r.streaming)
+        self.assertEqual(r["Content-Type"], "text/csv")
+        lines = b"".join(r.streaming_content).decode().strip().splitlines()
+        self.assertEqual(len(lines), 5101)  # header + every entry, no 5,000 cap
+        self.assertEqual(len(self.api(self.sysadmin).get("/api/pharmacy/portal-access-log/").json()["results"]), 500)
+
