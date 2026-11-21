@@ -19,7 +19,8 @@ import {
   EmailModal,
 } from "../components/patients";
 import RegisterPage from "./RegisterPage";
-import CareSettingSidebar from "../components/patients/CareSettingSidebar";
+import CareSettingSidebar, { availableCareSettings } from "../components/patients/CareSettingSidebar";
+import PharmacyWorkspace from "../components/pharmacy/PharmacyWorkspace";
 import useChartTabs from "../hooks/useChartTabs";
 import useWorklistCounts from "../hooks/useWorklistCounts";
 import MySchedulePanel from "../components/patients/MySchedulePanel";
@@ -266,6 +267,17 @@ function PatientsPage() {
       else setChartTab(chartLayout.defaultTab);
     }
   }, [chartLayout.loaded, chartLayout.defaultTab, careKey, chartTab, setChartTab]);
+  // ?care=pharmacy (the POWER Pharmacy tile) opens that care setting, when this person may use it.
+  const careParam = searchParams.get("care");
+  useEffect(() => {
+    if (!careParam || !userRole) return;
+    if (availableCareSettings(userRole).some((c) => c.key === careParam) && careParam !== patients.careSetting) {
+      patients.setCareSetting(careParam);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("care");
+    setSearchParams(next, { replace: true });
+  }, [careParam, userRole, patients, searchParams, setSearchParams]);
   const followUpTabOn = tab === "patients" && careKey === "emergency" && visibleChartTabs(userRole, chartLayout.tabs, "emergency").some((t) => t.value === "ed_follow_up");
   const [followUpCount, setFollowUpCount] = useFollowUpCount(followUpTabOn, 0);
   const team = useTeam(navigate);
@@ -360,7 +372,9 @@ function PatientsPage() {
           role !== "doctor" &&
           role !== "registrar" &&
           role !== "receptionist" &&
-          role !== "nurse"
+          role !== "nurse" &&
+          role !== "pharmacist" &&
+          role !== "pharmacy_tech"
         ) {
           console.error("❌ PatientsPage: Unauthorized role:", role);
           navigate("/");
@@ -614,8 +628,8 @@ function PatientsPage() {
             role={userRole}
             keys={chartLayout.tabs}
             careSetting={careKey}
-            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count, inbox: worklists.inbox.count }}
-            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue, results: worklists.results.overdue }}
+            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count, inbox: worklists.inbox.count, verification_queue: worklists.pharmacy.count }}
+            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue, results: worklists.results.overdue, verification_queue: worklists.pharmacy.overdue }}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
             visitMarker={selectedPatient && openVisit ? `Visit ${openVisit.visit_number || `#${openVisit.id}`}` : null}
           />
@@ -639,6 +653,20 @@ function PatientsPage() {
           {tab === "patients" && (() => {
             const allowed = visibleChartTabs(userRole, chartLayout.tabs, careKey).map((t) => t.value);
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
+            // POWER Pharmacy: its own Patient List, Verification Queue, Med Profile and the Phase 2/3 placeholders.
+            if (careKey === "pharmacy" && ["patient_list", "verification_queue", "outpatient_rx", "erx_routing", "med_profile"].includes(current)) {
+              if (current === "med_profile" && !selectedPatient) return <SelectPatientPrompt />;
+              return (
+                <PharmacyWorkspace
+                  view={current}
+                  role={userRole}
+                  selectedPatient={selectedPatient}
+                  onSelect={selectPatient}
+                  onOpenChart={openChart}
+                  onListChange={reportList}
+                />
+              );
+            }
             if (current === "patient_list") {
               const acute = patients.careSetting === "acute";
               const surgery = patients.careSetting === "surgery";

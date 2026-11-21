@@ -21,7 +21,27 @@ export const CHART_TABS = [
   { value: "vaccines", label: "Vaccines", clinical: true },
   { value: "messages", label: "Messages", clinical: false },
   { value: "inbox", label: "Inbox", clinical: false },
+  // POWER Pharmacy's own tabs: only in the Pharmacy care setting.
+  { value: "verification_queue", label: "Verification Queue", clinical: false, onlyIn: "pharmacy" },
+  { value: "outpatient_rx", label: "Outpatient Rx", clinical: false, onlyIn: "pharmacy" },
+  { value: "erx_routing", label: "eRx Routing", clinical: false, onlyIn: "pharmacy" },
+  { value: "med_profile", label: "Med Profile", clinical: false, onlyIn: "pharmacy" },
 ];
+
+/** The Pharmacy care setting's tabs, in order: its own worklists, then the usual chart tabs a pharmacist reads. */
+export const PHARMACY_TABS = [
+  "patient_list",
+  "verification_queue",
+  "outpatient_rx",
+  "erx_routing",
+  "med_profile",
+  "orders",
+  "prescriptions",
+  "results",
+  "patient_info",
+];
+/** Roles that read the clinical tabs (Orders, Prescriptions, Results) in the Pharmacy care setting. */
+export const PHARMACY_TAB_ROLES = ["pharmacist", "pharmacy_tech", "admin", "system_admin"];
 
 // Tabs that have no page behind them yet (none at the moment: every chart tab has its page).
 export const COMING_SOON = {};
@@ -34,9 +54,18 @@ export const CLINICAL_ROLES = ["doctor", "nurse", "admin", "system_admin"];
  * is how a patient gets chosen.
  */
 export function visibleChartTabs(role, keys = null, careSetting = null) {
+  if (careSetting === "pharmacy") {
+    // Pharmacy has a fixed set of tabs (the clinic's tab layouts cover the other care settings only).
+    if (!PHARMACY_TAB_ROLES.includes(role)) return CHART_TABS.filter((t) => t.value === "patient_list");
+    const byKey = Object.fromEntries(CHART_TABS.map((t) => [t.value, t]));
+    return PHARMACY_TABS.map((k) => byKey[k]);
+  }
   const clinical = CLINICAL_ROLES.includes(role);
-  // some tabs belong to one module only (ED Follow-up is Emergency's); with no module given nothing is left out
-  const allowed = CHART_TABS.filter((t) => (!t.clinical || clinical) && (!careSetting || !t.onlyIn || t.onlyIn === careSetting));
+  // some tabs belong to one module only (ED Follow-up is Emergency's, the Pharmacy tabs are Pharmacy's);
+  // with no module given only the Pharmacy tabs are left out
+  const allowed = CHART_TABS.filter(
+    (t) => (!t.clinical || clinical) && (careSetting ? !t.onlyIn || t.onlyIn === careSetting : t.onlyIn !== "pharmacy")
+  );
   if (!Array.isArray(keys) || keys.length === 0) return allowed;
   const byKey = Object.fromEntries(allowed.map((t) => [t.value, t]));
   const ordered = keys.map((k) => byKey[k]).filter(Boolean);

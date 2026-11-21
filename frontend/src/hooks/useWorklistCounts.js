@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
+import { moduleEnabled } from "../utils/orgModules";
 
 const REFERRAL_ROLES = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 const TASK_ROLES = ["doctor", "nurse", "admin", "system_admin"];
@@ -19,6 +20,12 @@ const readQueueCounts = (data) => {
 const INBOX_ROLES = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 // The Inbox tab's badge: everything unread (messages, alerts and co-sign requests).
 const readInbox = (data) => ({ count: Number(data && data.all) || 0, overdue: 0 });
+// POWER Pharmacy: medication orders waiting for verification, and how many are past their goal time.
+const PHARMACY_ROLES = ["pharmacist", "pharmacy_tech", "admin", "system_admin"];
+const readPharmacy = (data) => {
+  const counts = (data && data.counts) || {};
+  return { count: Number(counts.pending_verification) || 0, overdue: Number(counts.past_goal) || 0 };
+};
 const readLabSummary = (data) => ({ count: Number(data && data.count) || 0, overdue: Number(data && data.critical) || 0 });
 
 function useQueueCount(url, allowed, eventName, read = readQueueCounts, params) {
@@ -57,5 +64,8 @@ export default function useWorklistCounts(role, enabled = true) {
   // Results: unreviewed lab results (red when any is critical), the same count the Lab Inbox shows.
   const results = useQueueCount("/api/lab-reports/inbox/", enabled && LAB_ROLES.includes(role), "lab-inbox-changed", readLabSummary, { summary: 1 });
   const inbox = useQueueCount("/api/inbox/counts/", enabled && INBOX_ROLES.includes(role), "inbox-changed", readInbox);
-  return { referrals, tasks, results, inbox };
+  const pharmacy = useQueueCount(
+    "/api/pharmacy/queue/", enabled && PHARMACY_ROLES.includes(role) && moduleEnabled("pharmacy"), "pharmacy-changed", readPharmacy, { summary: 1 }
+  );
+  return { referrals, tasks, results, inbox, pharmacy };
 }

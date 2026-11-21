@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
-import { CHART_TABS } from "../components/patients/PatientChartTabs";
+import { CHART_TABS, PHARMACY_TABS } from "../components/patients/PatientChartTabs";
 
-const builtInTabs = (careSetting) => CHART_TABS.filter((t) => !t.onlyIn || t.onlyIn === (careSetting || "ambulatory")).map((t) => t.value);
+const builtInTabs = (careSetting) =>
+  careSetting === "pharmacy"
+    ? PHARMACY_TABS
+    : CHART_TABS.filter((t) => !t.onlyIn || t.onlyIn === (careSetting || "ambulatory")).map((t) => t.value);
 const BUILT_IN = { default_tab: "patient_list" };
 
 /**
@@ -38,7 +41,8 @@ export default function useChartTabs(careSetting, enabled = true) {
   }, [enabled, version]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-  const mine = all && all[careSetting || "ambulatory"];
+  // Pharmacy's tabs are fixed (the clinic's layouts cover Ambulatory, Emergency, Acute and Surgery).
+  const mine = careSetting === "pharmacy" ? null : all && all[careSetting || "ambulatory"];
   return useMemo(
     () => ({
       loaded,
