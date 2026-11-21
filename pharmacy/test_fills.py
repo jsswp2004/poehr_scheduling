@@ -13,7 +13,7 @@ from appointments.models import Pharmacy, PrescriberProfile, Prescription
 from users.models import Organization
 
 from . import fills as fx
-from .models import FillEvent, PatientDiscountId, PharmacyPrice, PrescriptionFill
+from .models import FillEvent, PatientDiscountId, PharmacistProfile, PharmacyPrice, PrescriptionFill
 
 User = get_user_model()
 NEXT_YEAR = (date.today() + timedelta(days=365)).isoformat()
@@ -45,6 +45,8 @@ class Base(TestCase):
         self.outside = Pharmacy.objects.create(organization=self.org, name="Mercury Drug Cubao", city="Quezon City")
         PharmacyPrice.objects.create(organization=self.org, drug_name="Amoxicillin", unit="capsule", unit_price=Decimal("11.20"))
         PharmacyPrice.objects.create(organization=self.org, drug_name="Metformin", unit="tablet", unit_price=Decimal("5.00"), vat_exempt=True)
+        PharmacyPrice.objects.create(organization=self.org, drug_name="Morphine sulfate", unit="tablet", unit_price=Decimal("38.00"))
+        PharmacistProfile.objects.create(user=self.rph, prc_license_number="0045678")
 
     def rx(self, drug="Amoxicillin (Amoxil) 500 mg", patient=None, quantity=21, refills=0, pharmacy=None, **extra):
         values = dict(
@@ -180,17 +182,17 @@ class StageTests(Base):
 
     def test_dispense_records_counseling(self):
         fill = self.to_ready(self.rx())
-        self.assertEqual(self.do(fill, "dispense").status_code, 400)  # counseling must be recorded
-        r = self.do(fill, "dispense", counseling_offered=True, counseling_accepted=False)
+        self.assertEqual(self.do(fill, "dispense", self.rph).status_code, 400)  # counseling must be recorded
+        r = self.do(fill, "dispense", self.rph, counseling_offered=True, counseling_accepted=False)
         self.assertEqual(r.status_code, 200, r.content)
         fill.refresh_from_db()
-        self.assertEqual((fill.stage, fill.dispensed_by, fill.counseling_offered, fill.counseling_accepted), ("dispensed", self.tech, True, False))
+        self.assertEqual((fill.stage, fill.dispensed_by, fill.counseling_offered, fill.counseling_accepted), ("dispensed", self.rph, True, False))
         self.assertEqual(Prescription.objects.get(pk=fill.prescription_id).status, "sent")
 
     def test_steps_out_of_order_are_refused(self):
         fill = self.fill_for(self.rx())
         self.assertEqual(self.do(fill, "fill", product_name="x").status_code, 409)
-        self.assertEqual(self.do(fill, "dispense", counseling_offered=True).status_code, 409)
+        self.assertEqual(self.do(fill, "dispense", self.rph, counseling_offered=True).status_code, 409)
 
 
 class LabelTests(Base):
@@ -244,13 +246,13 @@ class RefillTests(Base):
     def test_refill_counts_down_and_stops(self):
         rx = self.rx(refills=1)
         fill = self.to_ready(rx)
-        self.do(fill, "dispense", counseling_offered=False)
+        self.do(fill, "dispense", self.rph, counseling_offered=False)
         r = self.api(self.tech).post(f"/api/pharmacy/prescriptions/{rx.pk}/refill/")
         self.assertEqual(r.status_code, 201, r.content)
         self.assertEqual((r.json()["fill_number"], r.json()["is_refill"]), (2, True))
         self.assertEqual(self.api(self.tech).post(f"/api/pharmacy/prescriptions/{rx.pk}/refill/").status_code, 409)  # in progress
         refill = PrescriptionFill.objects.get(pk=r.json()["id"])
-        self.do(self.to_ready_existing(refill), "dispense", counseling_offered=False)
+        self.do(self.to_ready_existing(refill), "dispense", self.rph, counseling_offered=False)
         r = self.api(self.tech).post(f"/api/pharmacy/prescriptions/{rx.pk}/refill/")
         self.assertEqual(r.status_code, 409)
         self.assertIn("No refills", r.json()["detail"])
@@ -267,7 +269,7 @@ class PartialFillTests(Base):
     def test_partial_fill_leaves_a_balance_that_can_be_completed(self):
         rx = self.rx(quantity=30)
         fill = self.to_ready(rx, quantity=12)
-        self.do(fill, "dispense", counseling_offered=True, counseling_accepted=True)
+        self.do(fill, "dispense", self.rph, counseling_offered=True, counseling_accepted=True)
         data = self.api(self.tech).get(f"/api/pharmacy/fills/{fill.pk}/").json()
         self.assertEqual((data["quantity"], data["balance"], data["is_partial"]), ("12", "18", True))
         r = self.api(self.tech).post(f"/api/pharmacy/fills/{fill.pk}/complete-partial/")
@@ -301,16 +303,16 @@ class PricingTests(Base):
         fill = self.to_ready(rx)
         quote = self.api(self.tech).get(f"/api/pharmacy/fills/{fill.pk}/").json()["quote"]
         self.assertEqual((quote["currency"], quote["total"], quote["discount_kind"]), ("PHP", "168.00", "senior"))
-        r = self.do(fill, "dispense", counseling_offered=True, counseling_accepted=True, discount_kind="senior")
+        r = self.do(fill, "dispense", self.rph, counseling_offered=True, counseling_accepted=True, discount_kind="senior")
         self.assertEqual(r.status_code, 200, r.content)
         fill.refresh_from_db()
         self.assertEqual((fill.total_amount, fill.discount_amount, fill.discount_id_number), (Decimal("168.00"), Decimal("42.00"), "QC-SC-2019-004512"))
 
     def test_no_discount_without_an_id_on_file(self):
         fill = self.to_ready(self.rx())
-        r = self.do(fill, "dispense", counseling_offered=True, discount_kind="pwd")
+        r = self.do(fill, "dispense", self.rph, counseling_offered=True, discount_kind="pwd")
         self.assertEqual(r.status_code, 400)
-        r = self.do(fill, "dispense", counseling_offered=True)
+        r = self.do(fill, "dispense", self.rph, counseling_offered=True)
         fill.refresh_from_db()
         self.assertEqual((fill.total_amount, fill.discount_kind), (Decimal("235.20"), ""))
 
@@ -332,13 +334,112 @@ class PricingTests(Base):
 class MedProfileTests(Base):
     def test_dispensing_history_on_the_med_profile(self):
         fill = self.to_ready(self.rx())
-        self.do(fill, "dispense", counseling_offered=True, counseling_accepted=True)
+        self.do(fill, "dispense", self.rph, counseling_offered=True, counseling_accepted=True)
         prof = self.api(self.rph).get(f"/api/pharmacy/med-profile/{self.patient.pk}/").json()
         self.assertEqual(len(prof["dispensing"]), 1)
         row = prof["dispensing"][0]
-        self.assertEqual((row["rx_number"], row["quantity"], row["dispensed"]["name"]), (f"RX-{fill.prescription_id:06d}", "21", "Silang, Gabriela"))
+        self.assertEqual((row["rx_number"], row["quantity"], row["dispensed"]["name"]), (f"RX-{fill.prescription_id:06d}", "21", "Bonifacio, Andres"))
 
     def test_in_house_pharmacy_fields_on_the_directory(self):
         r = self.api(self.admin).post("/api/pharmacies/", {"name": "Botika 2", "is_in_house": True, "fda_lto_number": "LTO-30000099"}, format="json")
         self.assertEqual(r.status_code, 201, r.content)
         self.assertEqual((r.json()["is_in_house"], r.json()["fda_lto_number"]), (True, "LTO-30000099"))
+
+
+class FollowUpTests(Base):
+    """Jessie's answers to the Phase 2 questions."""
+
+    def test_1_dangerous_yellow_rx_reaches_the_queue_with_serial_and_s2(self):
+        rx = self.rx("Morphine sulfate 10 mg tablet", quantity=10, is_yellow_rx=True, yellow_rx_serial="DDB-2026-0007777", s2_number="S2-24680")
+        fill = self.fill_for(rx)
+        self.assertEqual((fill.stage, fill.yellow_rx_serial, fill.s2_number), ("received", "DDB-2026-0007777", "S2-24680"))
+
+    def test_2_only_a_pharmacist_dispenses_any_drug(self):
+        fill = self.to_ready(self.rx())
+        for user in (self.tech, self.admin):
+            r = self.do(fill, "dispense", user, counseling_offered=True)
+            self.assertEqual(r.status_code, 403, user.role)
+            self.assertIn("pharmacist", r.json()["detail"])
+        # assistants still do data entry and filling (to_ready above did both as the assistant)
+        self.assertEqual((fill.entered_by, fill.filled_by), (self.tech, self.tech))
+
+    def _filled_by(self, user):
+        fill = self.fill_for(self.rx())
+        self.do(fill, "start_entry", user)
+        self.do(fill, "enter", user)
+        self.do(fill, "fill", user, product_name="Amoxil", product_strength="500 mg", lot_number="A1", expiry_date=NEXT_YEAR)
+        return fill
+
+    def test_3_final_check_by_a_different_pharmacist(self):
+        fill = self._filled_by(self.rph)
+        checks = dict(product_verified=True, strength_verified=True, quantity_verified=True)
+        r = self.do(fill, "check", self.rph, **checks)
+        self.assertEqual(r.status_code, 409)
+        self.assertIn("different pharmacist", r.json()["detail"])
+        self.assertEqual(self.do(fill, "check", self.rph2, **checks).status_code, 200)
+        fill.refresh_from_db()
+        self.assertEqual((fill.checked_by, fill.single_pharmacist_reason), (self.rph2, ""))
+
+    def test_3_single_pharmacist_on_duty_override_is_logged(self):
+        fill = self._filled_by(self.rph)
+        r = self.do(fill, "check", self.rph, product_verified=True, strength_verified=True, quantity_verified=True,
+                    single_pharmacist_reason="Only pharmacist on duty (night shift)")
+        self.assertEqual(r.status_code, 200, r.content)
+        fill.refresh_from_db()
+        self.assertEqual(fill.single_pharmacist_reason, "Only pharmacist on duty (night shift)")
+        self.assertEqual(fill.events.get(event_type="checked").detail["single_pharmacist_override"], "Only pharmacist on duty (night shift)")
+
+    def test_4_dangerous_partial_fills_allowed_unless_switched_off(self):
+        rx = self.rx("Morphine sulfate 10 mg tablet", quantity=10)
+        fill = self.fill_for(rx)
+        self.do(fill, "start_entry")
+        with self.settings(PHARMACY_ALLOW_DANGEROUS_PARTIAL_FILLS=False):
+            r = self.do(fill, "enter", quantity="4")
+            self.assertEqual(r.status_code, 400)
+            self.assertIn("switched off", r.json()["detail"])
+        self.assertEqual(self.do(fill, "enter", quantity="4").status_code, 200)  # default: allowed
+
+    def test_5_one_discount_per_sale_never_stacked(self):
+        for kind, number in (("senior", "QC-SC-2019-004512"), ("pwd", "QC-PWD-2021-000321")):
+            PatientDiscountId.objects.create(organization=self.org, patient=self.lola, kind=kind, id_number=number)
+        fill = self.to_ready(self.rx(patient=self.lola))
+        r = self.do(fill, "dispense", self.rph, counseling_offered=False, discount_kind="pwd")
+        self.assertEqual(r.status_code, 200, r.content)
+        fill.refresh_from_db()
+        # one 20% on the VAT-exclusive price (210.00), not two
+        self.assertEqual((fill.discount_kind, fill.discount_id_number, fill.discount_amount, fill.total_amount),
+                         ("pwd", "QC-PWD-2021-000321", Decimal("42.00"), Decimal("168.00")))
+
+    def test_6_price_admin_notes_the_vat_exempt_review(self):
+        from .admin import PharmacyPriceAdmin
+
+        self.assertIn("pharmacist must tick", PharmacyPriceAdmin.__doc__)
+        self.assertIn("pharmacist must set", PharmacyPrice._meta.get_field("vat_exempt").help_text)
+
+    def test_7_no_dispense_without_a_price(self):
+        fill = self.to_ready(self.rx("Cefuroxime 500 mg tablet"))
+        r = self.do(fill, "dispense", self.rph, counseling_offered=True)
+        self.assertEqual(r.status_code, 409)
+        self.assertIn("no price for Cefuroxime", r.json()["detail"])
+        # priced after data entry: the table price is used at dispense
+        PharmacyPrice.objects.create(organization=self.org, drug_name="Cefuroxime", unit="tablet", unit_price=Decimal("25.00"))
+        self.assertEqual(self.do(fill, "dispense", self.rph, counseling_offered=True).status_code, 200)
+        fill.refresh_from_db()
+        self.assertEqual(fill.total_amount, Decimal("525.00"))
+
+    def test_8_label_shows_the_dispensing_pharmacist_and_prc_license(self):
+        fill = self.to_ready(self.rx())
+        self.do(fill, "dispense", self.rph, counseling_offered=True)
+        label = self.api(self.tech).get(f"/api/pharmacy/fills/{fill.pk}/label/").json()
+        self.assertEqual((label["dispensed_by"], label["pharmacist_license"]), ("Bonifacio, Andres", "0045678"))
+
+    def test_8_pharmacist_without_a_license_on_file_enters_it_once(self):
+        fill = self.to_ready(self.rx(), checker=self.rph)
+        r = self.do(fill, "dispense", self.rph2, counseling_offered=True)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("PRC license", r.json()["detail"])
+        r = self.do(fill, "dispense", self.rph2, counseling_offered=True, prc_license_number="0099887")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(PharmacistProfile.objects.get(user=self.rph2).prc_license_number, "0099887")
+        fill.refresh_from_db()
+        self.assertEqual(fill.pharmacist_license, "0099887")
