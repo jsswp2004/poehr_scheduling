@@ -181,7 +181,7 @@ DRUG_GROUPS = {
         "label": "Cephalosporins",
         "aliases": ["cephalosporin", "cephalosporins", "cephalosporin antibiotics"],
         "members": [
-            "cephalexin", "cefazolin", "cefuroxime", "cefdinir", "cefepime", "ceftriaxone", "cefotaxime",
+            "cephalexin", "cefalexin", "cefazolin", "cefuroxime", "cefdinir", "cefepime", "ceftriaxone", "cefotaxime",
             "ceftazidime", "cefoxitin", "cefpodoxime", "cefadroxil", "cefixime", "cephalosporin",
         ],
     },
