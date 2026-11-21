@@ -3,7 +3,7 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -26,6 +26,19 @@ QUEUES = "/api/prescriptions/queues/"
 GOOD_NPI = "1234567893"
 
 
+class DangerousDrugDetectionTests(TestCase):
+    """Uses the database: the POWER Formulary items decide first, the list covers free text."""
+
+    def test_dangerous_drug_detection_follows_the_philippine_list(self):
+        for name in ("Oxycodone", "Morphine sulfate 10 mg", "alprazolam", "Midazolam 1 mg/mL", "Methylphenidate"):
+            self.assertTrue(rxs.is_controlled(name), name)
+        # US-only entries of the old block are not dangerous drugs unless the clinic configures them
+        for name in ("Amoxicillin", "Lisinopril", "Metformin", "Tramadol HCl", "Pregabalin 75 mg", "zolpidem"):
+            self.assertFalse(rxs.is_controlled(name), name)
+        with override_settings(PHARMACY_DANGEROUS_DRUGS=["tramadol"]):
+            self.assertTrue(rxs.is_controlled("Tramadol HCl"))
+
+
 class PureTests(SimpleTestCase):
     def test_npi_check_digit(self):
         self.assertTrue(rxs.npi_valid(GOOD_NPI))
@@ -37,15 +50,6 @@ class PureTests(SimpleTestCase):
         self.assertTrue(rxs.dea_valid("AB1234563"))
         self.assertFalse(rxs.dea_valid("AB1234560"))
         self.assertFalse(rxs.dea_valid("1234567"))
-
-    def test_dangerous_drug_detection_follows_the_philippine_list(self):
-        for name in ("Oxycodone", "Morphine sulfate 10 mg", "alprazolam", "Midazolam 1 mg/mL", "Methylphenidate"):
-            self.assertTrue(rxs.is_controlled(name), name)
-        # US-only entries of the old block are not dangerous drugs unless the clinic configures them
-        for name in ("Amoxicillin", "Lisinopril", "Metformin", "Tramadol HCl", "Pregabalin 75 mg", "zolpidem"):
-            self.assertFalse(rxs.is_controlled(name), name)
-        with override_settings(PHARMACY_DANGEROUS_DRUGS=["tramadol"]):
-            self.assertTrue(rxs.is_controlled("Tramadol HCl"))
 
     def test_sig_sentences(self):
         rx = Prescription(dose="1 tablet", route="PO", frequency="bid", duration_days=10, sig_extra="with food")
