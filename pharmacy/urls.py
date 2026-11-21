@@ -1,5 +1,6 @@
 from django.urls import path
 
+from . import formulary_views as fv
 from . import views
 
 urlpatterns = [
@@ -27,4 +28,14 @@ urlpatterns = [
     path("portal-requests/<int:pk>/respond/", views.PortalRequestRespondView.as_view(), name="pharmacy-portal-request-respond"),
     path("portal-reroute/<int:rx_id>/", views.PortalRerouteView.as_view(), name="pharmacy-portal-reroute"),
     path("portal-access-log/", views.PortalAccessLogView.as_view(), name="pharmacy-portal-access-log"),
+    # POWER Formulary (shared, with clinic overrides)
+    path("formulary/", fv.FormularyListView.as_view(), name="formulary"),
+    path("formulary/export/", fv.FormularyExportView.as_view(), name="formulary-export"),
+    path("formulary/template/", fv.FormularyTemplateView.as_view(), name="formulary-template"),
+    path("formulary/import/", fv.FormularyImportView.as_view(), name="formulary-import"),
+    path("formulary/imports/", fv.FormularyImportListView.as_view(), name="formulary-imports"),
+    path("formulary/imports/<int:pk>/file/", fv.FormularyImportFileView.as_view(), name="formulary-import-file"),
+    path("formulary/<int:pk>/", fv.FormularyItemView.as_view(), name="formulary-item"),
+    path("formulary/<int:pk>/revert/", fv.FormularyRevertView.as_view(), name="formulary-revert"),
+    path("formulary/<int:pk>/history/", fv.FormularyHistoryView.as_view(), name="formulary-history"),
 ]
