@@ -274,6 +274,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
       setOrders((list) => [created, ...list]);
       setTab("drafts");
       setSearchText("");
+      if (orderable.needs_review) toast.warning(`${orderable.name}: not yet reviewed by a pharmacist. The pharmacist will check it when verifying.`);
     }
   };
 
@@ -740,6 +741,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
                       {o.category_display}
                       {o.external_code ? ` · ${o.code_system_display} ${o.external_code}` : ""}
                     </Typography>
+                    {o.needs_review && <Chip size="small" color="warning" variant="outlined" label="Not yet reviewed by a pharmacist" sx={{ ml: 1 }} data-testid={`orderable-needs-review-${o.id}`} />}
                   </Box>
                 </li>
               )}

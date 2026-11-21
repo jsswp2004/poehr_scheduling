@@ -18,6 +18,9 @@ export const PHARMACY_STATUS_COLOR = {
   rejected: "error",
 };
 
+/** The soft warning for a POWER Formulary item that still needs a pharmacist's review (never a block). */
+export const NOT_REVIEWED = "Not yet reviewed by a pharmacist";
+
 export const PRIORITY_LABEL = { stat: "STAT", urgent: "Urgent", routine: "Routine" };
 
 export const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString() : "");
