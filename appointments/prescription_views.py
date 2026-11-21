@@ -106,7 +106,8 @@ def serialize(rx, user, detail=False):
         "renews": rx.renews_id,
         "runs_out_on": rxs.runs_out_at(rx).date().isoformat() if rxs.runs_out_at(rx) else None,
         "renewal_due": rxs.renewal_due(rx) if rx.status in ("signed", "sent") else False,
-        "controlled": rxs.is_controlled(rx.drug_name),
+        "controlled": rxs.is_controlled(rx.drug_name),  # a dangerous drug (RA 9165)
+        "is_yellow_rx": rx.is_yellow_rx, "yellow_rx_serial": rx.yellow_rx_serial, "s2_number": rx.s2_number,
         "actions": rxs.allowed_actions(user, rx),
     }
     if detail:
@@ -143,7 +144,7 @@ def _doctors(org):
 TEXT_FIELDS = (
     ("drug_name", 200), ("code_system", 10), ("code", 20), ("strength", 60), ("form", 40), ("dose", 60),
     ("prn_reason", 120), ("sig_extra", 300), ("quantity_unit", 30), ("indication_code", 20),
-    ("indication_text", 255), ("note_to_pharmacist", 500),
+    ("indication_text", 255), ("note_to_pharmacist", 500), ("yellow_rx_serial", 40), ("s2_number", 40),
 )
 
 
@@ -169,8 +170,6 @@ def _clean_fields(request, org, data, creating, rx=None):
     if "drug_name" in values:
         if creating and not values["drug_name"]:
             return None, Response({"detail": "Choose the drug."}, status=400)
-        if rxs.is_controlled(values["drug_name"]):
-            return None, Response({"detail": rxs.CONTROLLED_MESSAGE}, status=400)
     elif creating:
         return None, Response({"detail": "Choose the drug."}, status=400)
     if values.get("form") and values["form"] not in rxs.FORMS:
@@ -196,7 +195,7 @@ def _clean_fields(request, org, data, creating, rx=None):
         if data.get("quantity") not in (None, "") and (qty is None or qty <= 0 or qty > 100000):
             return None, Response({"detail": "Quantity must be a number greater than 0."}, status=400)
         values["quantity"] = qty
-    for key in ("prn", "dispense_as_written"):
+    for key in ("prn", "dispense_as_written", "is_yellow_rx"):
         if key in data:
             values[key] = bool(data.get(key))
     if "pharmacy" in data:
@@ -609,6 +608,7 @@ def _profile_json(user):
         "user": user.pk, "name": _name(user), "npi": user.npi,
         "license_number": getattr(prof, "license_number", ""), "license_state": getattr(prof, "license_state", ""),
         "dea_number": getattr(prof, "dea_number", ""), "practice_name": getattr(prof, "practice_name", ""),
+        "s2_number": getattr(prof, "s2_number", ""),
         "address": getattr(prof, "address", ""), "phone": getattr(prof, "phone", ""), "fax": getattr(prof, "fax", ""),
         "ready": bool(rxs.npi_valid(user.npi) and prof and prof.license_number.strip()),
     }
@@ -654,7 +654,7 @@ class PrescriberProfileView(APIView):
             if dea and not rxs.dea_valid(dea):
                 return Response({"detail": "That DEA number isn't valid."}, status=400)
             prof.dea_number = dea
-        for key, limit in (("license_number", 40), ("license_state", 2), ("practice_name", 200), ("address", 255), ("phone", 30), ("fax", 30)):
+        for key, limit in (("license_number", 40), ("license_state", 2), ("practice_name", 200), ("address", 255), ("phone", 30), ("fax", 30), ("s2_number", 40)):
             if key in d:
                 value = str(d.get(key) or "").strip()[:limit]
                 setattr(prof, key, value.upper() if key == "license_state" else value)
@@ -697,6 +697,8 @@ def _favorite_values(request, org, data):
         values = {key: getattr(rx, key) for key in FAVORITE_FIELDS}
     else:
         body = {k: v for k, v in data.items() if k in FAVORITE_FIELDS}
+        if rxs.is_controlled(body.get("drug_name")):
+            return None, Response({"detail": rxs.CONTROLLED_MESSAGE}, status=400)
         values, err = _clean_fields(request, org, body, creating=False)
         if err:
             return None, err

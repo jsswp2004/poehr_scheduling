@@ -116,6 +116,10 @@ def build_pdf(rx, reprint=False):
         c.setFont("Helvetica", 11.5)
         c.drawString(body_left + 1.1 * inch, y, value)
         y -= 17
+    if rx.is_yellow_rx:
+        c.setFont("Helvetica-Bold", 11.5)
+        c.drawString(body_left, y, f"DDB yellow prescription  Serial {rx.yellow_rx_serial or '________'}  S2 {rx.s2_number or '________'}")
+        y -= 17
     if rx.dispense_as_written:
         c.setFont("Helvetica-Bold", 11.5)
         c.drawString(body_left, y, "DISPENSE AS WRITTEN - brand medically necessary")
@@ -175,7 +179,7 @@ def build_pdf(rx, reprint=False):
     y -= 12
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.grey)
-    c.drawString(left, 0.55 * inch, f"Rx #{rx.pk}  -  generated {timezone.localtime().strftime('%m/%d/%Y %H:%M')}  -  not valid for controlled substances")
+    c.drawString(left, 0.55 * inch, f"Rx #{rx.pk}  -  generated {timezone.localtime().strftime('%m/%d/%Y %H:%M')}{'' if rx.is_yellow_rx else '  -  dangerous drugs need the DDB yellow prescription'}")
     c.setFillColor(colors.black)
 
     mark = WATERMARKS.get(rx.status)

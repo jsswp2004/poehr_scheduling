@@ -2352,6 +2352,7 @@ class PrescriberProfile(models.Model):
     license_number = models.CharField(max_length=40, blank=True)
     license_state = models.CharField(max_length=2, blank=True)
     dea_number = models.CharField(max_length=15, blank=True)  # kept for later e-prescribing; not used on printed Rx yet
+    s2_number = models.CharField(max_length=40, blank=True)  # PDEA S2 license: needed to prescribe dangerous drugs (RA 9165)
     practice_name = models.CharField(max_length=200, blank=True)
     address = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=30, blank=True)
@@ -2438,6 +2439,12 @@ class Prescription(models.Model):
     indication_code = models.CharField(max_length=20, blank=True)
     indication_text = models.CharField(max_length=255, blank=True)
     note_to_pharmacist = models.CharField(max_length=500, blank=True)
+
+    # Dangerous drugs (RA 9165): written on the DDB's special (yellow) prescription form, with the prescriber's
+    # S2 license number. The form's serial number is captured here when known (the pharmacy can also enter it).
+    is_yellow_rx = models.BooleanField(default=False)
+    yellow_rx_serial = models.CharField(max_length=40, blank=True)
+    s2_number = models.CharField(max_length=40, blank=True)
 
     # where it goes
     pharmacy = models.ForeignKey(Pharmacy, null=True, blank=True, on_delete=models.SET_NULL, related_name="prescriptions")

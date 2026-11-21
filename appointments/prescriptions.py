@@ -37,35 +37,23 @@ FORMS = [
 ]
 
 # ---------------------------------------------------------------- controlled substances
-# A conservative reviewable list of drugs that are Schedule II-V (federal) so they are kept out of
-# the paper / fax writer. It is a safety net, not a drug reference; a pharmacist should review it.
-
-CONTROLLED_INGREDIENTS = """
-oxycodone hydrocodone morphine hydromorphone fentanyl methadone oxymorphone tapentadol codeine tramadol
-meperidine buprenorphine butorphanol pentazocine levorphanol amphetamine dextroamphetamine methamphetamine
-methylphenidate dexmethylphenidate lisdexamfetamine alprazolam lorazepam diazepam clonazepam temazepam
-triazolam midazolam chlordiazepoxide clorazepate oxazepam estazolam flurazepam zolpidem eszopiclone zaleplon
-phenobarbital butalbital carisoprodol pregabalin lacosamide brivaracetam cenobamate testosterone oxandrolone
-nandrolone modafinil armodafinil phentermine ketamine esketamine dronabinol suvorexant lemborexant
-daridorexant solriamfetol oxybate diphenoxylate eluxadoline lomotil
-""".split()
-CONTROLLED_BRANDS = [
-    "percocet", "vicodin", "norco", "oxycontin", "roxicodone", "xanax", "ativan", "valium", "klonopin", "adderall",
-    "ritalin", "concerta", "vyvanse", "ambien", "lunesta", "soma", "lyrica", "ultram", "suboxone", "subutex",
-    "dilaudid", "duragesic", "restoril", "halcion", "focalin", "provigil", "nuvigil", "adipex", "xyrem",
-]
-_CONTROLLED = {allergies._norm(x) for x in CONTROLLED_INGREDIENTS + CONTROLLED_BRANDS}
+# Dangerous drugs (RA 9165) are the ones on POWER Pharmacy's configurable list (pharmacy/dangerous_drugs.py,
+# setting PHARMACY_DANGEROUS_DRUGS). They may be prescribed on a DDB yellow prescription, with the prescriber's
+# S2 license number; they are never refilled. (This replaced a US Schedule II-V block.)
 
 
 def is_controlled(name):
-    """True when the drug name mentions a Schedule II-V drug."""
-    text = allergies._norm(name or "")
-    return any(allergies._phrase_in(term, text) for term in _CONTROLLED)
+    """True when the drug is a dangerous drug under RA 9165 (brand names are read as their generic)."""
+    from pharmacy.dangerous_drugs import is_dangerous_drug
+    from pharmacy.services import drug_names
+
+    name = name or ""
+    return is_dangerous_drug(f"{drug_names(name)['generic']} {name}")
 
 
 CONTROLLED_MESSAGE = (
-    "Controlled substances (Schedule II-V) can't be written on paper or fax here. "
-    "They require electronic prescribing with two-factor signing."
+    "This is a dangerous drug (RA 9165). Write it on a DDB yellow prescription with the prescriber's "
+    "S2 license number; it can't be refilled or saved as a favorite."
 )
 
 
@@ -290,6 +278,13 @@ def missing_for_sign(rx):
     profile = getattr(prescriber, "prescriber_profile", None)
     if not (profile and profile.license_number.strip()):
         missing.append("prescriber license number")
+    if is_controlled(rx.drug_name):
+        if not rx.is_yellow_rx:
+            missing.append("DDB yellow prescription (dangerous drug)")
+        if not (rx.s2_number.strip() or (profile and profile.s2_number.strip())):
+            missing.append("prescriber S2 license number")
+        if rx.refills:
+            missing.append("no refills (a dangerous drug is not refilled)")
     patient_profile = getattr(rx.patient, "patient_profile", None)
     if not getattr(patient_profile, "date_of_birth", None):
         missing.append("patient date of birth")
@@ -331,11 +326,6 @@ def duplicates_for(rx):
     return out
 
 
-def check_not_controlled(name):
-    if is_controlled(name):
-        raise RxError(CONTROLLED_MESSAGE)
-
-
 # ---------------------------------------------------------------- the steps
 
 
@@ -346,7 +336,6 @@ def sign(rx, user, allergy_override_reason="", duplicate_reason=""):
         raise RxError("Only a draft can be signed.", 409)
     if not can_sign(user, rx):
         raise RxError("Only the prescribing doctor can sign this prescription.", 403)
-    check_not_controlled(rx.drug_name)
     missing = missing_for_sign(rx)
     if missing:
         raise RxError("Before signing you need: " + ", ".join(missing) + ".", errors=missing)
@@ -366,6 +355,9 @@ def sign(rx, user, allergy_override_reason="", duplicate_reason=""):
             409, errors=[{"kind": "duplicate", "duplicates": dups}],
         )
 
+    dangerous = is_controlled(rx.drug_name)
+    if dangerous and not rx.s2_number.strip():
+        rx.s2_number = rx.prescriber.prescriber_profile.s2_number.strip()
     pharmacy = rx.pharmacy
     rx.sig = build_sig(rx)
     rx.clinical_snapshot = clinical_snapshot(rx)
@@ -380,6 +372,8 @@ def sign(rx, user, allergy_override_reason="", duplicate_reason=""):
         detail["allergy_override"] = {"reason": override, "alerts": alerts}
     if dups:
         detail["duplicate_override"] = {"reason": dup_reason, "duplicates": dups}
+    if dangerous:
+        detail["dangerous_drug"] = {"yellow_rx_serial": rx.yellow_rx_serial, "s2_number": rx.s2_number}
     log_event(rx, "signed", user, from_status="draft", to_status="signed", detail=detail)
 
     # what a patient has been prescribed is what they now take: keep the home medication list up to date
