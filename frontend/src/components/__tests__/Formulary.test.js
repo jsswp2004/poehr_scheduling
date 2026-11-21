@@ -7,6 +7,7 @@ jest.mock("../../config/api", () => ({
     formularyItem: (id) => `/f/${id}/`,
     formularyRevert: (id) => `/f/${id}/revert/`,
     formularyHistory: (id) => `/f/${id}/history/`,
+    formularyReview: (id) => `/f/${id}/review/`,
     formularyExport: "/f/export/",
     formularyTemplate: "/f/template/",
     formularyImport: "/f/import/",
@@ -29,14 +30,17 @@ const shared = (over = {}) => ({
 const AMOX = {
   id: 1, code: "amoxicillin_500_capsule", scope: "shared", display: "Amoxicillin (Amoxil) 500 mg capsule",
   generic_name: "Amoxicillin", brand_name: "Amoxil", strength: "500 mg", form: "capsule", route: "PO", rxnorm_code: "308191",
-  dangerous_drug: false, renal_threshold_crcl: null, is_active: true, unit: "capsule", unit_price_php: "12.5", vat_exempt: false,
-  sources: shared({ unit_price_php: "overridden", unit: "overridden", vat_exempt: "overridden" }),
-  shared_values: { unit_price_php: "11.2", unit: "capsule", vat_exempt: false }, overridden: ["unit", "unit_price_php", "vat_exempt"],
+  dangerous_drug: true, renal_threshold_crcl: null, is_active: true, unit: "capsule", unit_price_php: "12.5", vat_exempt: false,
+  // prices are the clinic's own; the clinic overrides the dangerous-drug flag
+  sources: shared({ unit_price_php: "clinic", unit: "clinic", vat_exempt: "clinic", dangerous_drug: "overridden" }),
+  shared_values: { dangerous_drug: false }, overridden: ["dangerous_drug"],
+  review: { status: "needs_review", reviewed_by: "", reviewed_at: null }, can_review: false,
 };
 const MORPHINE = {
   ...AMOX, id: 2, code: "morphine_10_tablet", display: "Morphine sulfate 10 mg tablet", generic_name: "Morphine sulfate", brand_name: "",
   strength: "10 mg", form: "tablet", rxnorm_code: "", dangerous_drug: true, unit_price_php: "38", unit: "tablet",
   sources: shared(), shared_values: {}, overridden: [],
+  review: { status: "reviewed", reviewed_by: "Mabini, Apolinario", reviewed_at: "2026-11-20T02:00:00Z" },
 };
 const META = { can_edit: true, edits_shared: false, forms: ["tablet", "capsule"], routes: ["PO", "IV"], overridable: ["is_active", "dangerous_drug", "renal_threshold_crcl", "unit", "unit_price_php", "vat_exempt"] };
 
@@ -52,7 +56,7 @@ test("the formulary lists items generic first with flags, price and which values
   const amox = await screen.findByTestId("formulary-row-amoxicillin_500_capsule");
   expect(amox.textContent.indexOf("Amoxicillin")).toBeLessThan(amox.textContent.indexOf("(Amoxil)"));
   expect(amox).toHaveTextContent("₱12.50 / capsule");
-  expect(screen.getByTestId("formulary-overridden-amoxicillin_500_capsule")).toHaveTextContent("3 overridden");
+  expect(screen.getByTestId("formulary-overridden-amoxicillin_500_capsule")).toHaveTextContent("1 overridden");
   expect(screen.getByTestId("formulary-row-morphine_10_tablet")).toHaveTextContent("Dangerous drug");
   fireEvent.change(screen.getByTestId("formulary-filter-scope"), { target: { value: "overridden" } });
   await waitFor(() => expect(api.get.mock.calls.some((c) => c[1].params.scope === "overridden")).toBe(true));
@@ -66,19 +70,54 @@ test("a pharmacy assistant sees the formulary without edit buttons", async () =>
   expect(screen.queryByTestId("formulary-import")).toBeNull();
 });
 
-test("a clinic edits a shared item: the definition is locked, overrides show the shared value and can be reverted", async () => {
-  api.post.mockResolvedValue({ data: { ...AMOX, unit_price_php: "11.2", sources: shared(), overridden: [], shared_values: {} } });
+test("a clinic edits a shared item: the definition and RxNorm are locked, the price is its own, overrides can be reverted", async () => {
+  api.post.mockResolvedValue({ data: { ...AMOX, dangerous_drug: false, sources: shared(), overridden: [], shared_values: {} } });
   api.patch.mockResolvedValue({ data: AMOX });
   const onSaved = jest.fn();
   render(<FormularyItemDialog open item={AMOX} meta={META} onClose={() => {}} onSaved={onSaved} />);
   expect(screen.getByTestId("fi-brand_name")).toBeDisabled();
+  expect(screen.getByTestId("fi-rxnorm_code")).toBeDisabled();
   expect(screen.getByTestId("fi-unit_price_php")).not.toBeDisabled();
-  expect(screen.getByTestId("fi-overridden-unit_price_php")).toHaveTextContent("Shared: 11.2");
+  expect(screen.queryByTestId("fi-overridden-unit_price_php")).toBeNull();
+  expect(screen.getByTestId("fi-overridden-dangerous_drug")).toHaveTextContent("Shared: No");
   fireEvent.click(screen.getByTestId("fi-is_active"));
   fireEvent.click(screen.getByTestId("fi-save"));
   await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/f/1/", { is_active: false }, expect.anything()));
-  fireEvent.click(screen.getByTestId("fi-revert-unit_price_php"));
-  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/f/1/revert/", { field: "unit_price_php" }, expect.anything()));
+  fireEvent.click(screen.getByTestId("fi-revert-dangerous_drug"));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/f/1/revert/", { field: "dangerous_drug" }, expect.anything()));
+});
+
+test("items needing review show a badge and can be filtered", async () => {
+  api.get.mockResolvedValue({ data: { ...META, results: [AMOX, MORPHINE] } });
+  render(<FormularyPanel />);
+  expect(await screen.findByTestId("formulary-review-amoxicillin_500_capsule")).toHaveTextContent("Needs review");
+  expect(screen.queryByTestId("formulary-review-morphine_10_tablet")).toBeNull();
+  fireEvent.change(screen.getByTestId("formulary-filter-review"), { target: { value: "needs_review" } });
+  await waitFor(() => expect(api.get.mock.calls.some((c) => c[1].params.review === "needs_review")).toBe(true));
+});
+
+test("Mark reviewed is offered only when the user may review the item", async () => {
+  api.post.mockResolvedValue({ data: { ...AMOX, review: { status: "reviewed", reviewed_by: "Mabini, Apolinario", reviewed_at: "2026-11-21T08:00:00Z" } } });
+  const onSaved = jest.fn();
+  const { unmount } = render(<FormularyItemDialog open item={AMOX} meta={META} onClose={() => {}} onSaved={onSaved} />);
+  expect(screen.getByTestId("fi-review")).toHaveTextContent("Needs pharmacist review");
+  expect(screen.queryByTestId("fi-mark-reviewed")).toBeNull();
+  unmount();
+  render(<FormularyItemDialog open item={{ ...AMOX, can_review: true }} meta={META} onClose={() => {}} onSaved={onSaved} />);
+  fireEvent.click(screen.getByTestId("fi-mark-reviewed"));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/f/1/review/", {}, expect.anything()));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ review: expect.objectContaining({ status: "reviewed" }) }), true));
+});
+
+test("a system administrator edits the shared item without prices", async () => {
+  api.patch.mockResolvedValue({ data: MORPHINE });
+  render(<FormularyItemDialog open item={MORPHINE} meta={{ ...META, edits_shared: true }} onClose={() => {}} onSaved={() => {}} />);
+  expect(screen.getByTestId("fi-review")).toHaveTextContent("Reviewed by Mabini, Apolinario");
+  expect(screen.queryByTestId("fi-unit_price_php")).toBeNull();
+  expect(screen.getByTestId("fi-prices-per-clinic")).toHaveTextContent("Prices are set by each clinic");
+  fireEvent.change(screen.getByTestId("fi-rxnorm_code"), { target: { value: "892494" } });
+  fireEvent.click(screen.getByTestId("fi-save"));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/f/2/", { rxnorm_code: "892494" }, expect.anything()));
 });
 
 test("the item's history lists who changed what", async () => {
