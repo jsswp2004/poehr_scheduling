@@ -22,6 +22,7 @@ import {
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
+import PortalSection from "./PortalSection";
 import {
   STATUS_COLOR, announceChange, authHeader, errorText, fmtDate, fmtDateTime, fmtDay, openPdf, pdfErrorText, runAction, saveFavorite,
 } from "./rxShared";
@@ -29,6 +30,10 @@ import {
 const EVENT_LABEL = {
   created: "Draft created", edited: "Draft edited", signed: "Signed", printed: "Printed", reprinted: "Printed again",
   faxed: "Faxed", faxed_again: "Faxed again", cancelled: "Cancelled", revision_started: "Revision started", renewal_started: "Renewal started",
+  portal_routed: "Sent to portal pharmacy", portal_claimed: "Claimed by portal pharmacy", portal_accepted: "Accepted by pharmacy",
+  portal_declined: "Declined by pharmacy", portal_ready: "Ready for pickup", portal_partially_dispensed: "Partially dispensed",
+  portal_dispensed: "Dispensed by pharmacy", portal_refill_started: "Refill started at pharmacy", portal_request: "Pharmacy request",
+  portal_request_answered: "Pharmacy request answered",
 };
 
 function Row({ label, children }) {
@@ -292,6 +297,8 @@ export default function PrescriptionDetailDialog({ open, id, onClose, onChanged,
                 </Stack>
               </Box>
             )}
+
+            <PortalSection rx={rx} onChanged={load} />
 
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.5 }}>History</Typography>
             <Table size="small" data-testid="rx-history">

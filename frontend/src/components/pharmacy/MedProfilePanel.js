@@ -144,7 +144,7 @@ export default function MedProfilePanel({ patient, role }) {
       </Section>
 
       <Section title="Dispensing history" testId="med-profile-dispensing">
-        {(data.dispensing || []).length === 0 ? (
+        {[...(data.dispensing || []), ...(data.portal_dispensing || [])].length === 0 ? (
           <Typography variant="body2" color="text.secondary">Nothing dispensed by the in-house pharmacy yet.</Typography>
         ) : (
           <TableContainer component={Paper} variant="outlined">
@@ -156,11 +156,12 @@ export default function MedProfilePanel({ patient, role }) {
                   <TableCell>Quantity</TableCell>
                   <TableCell>Rx</TableCell>
                   <TableCell>By</TableCell>
+                  <TableCell>Product (manufacturer)</TableCell>
                   <TableCell align="right">Total</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.dispensing.map((f) => (
+                {[...(data.dispensing || []), ...(data.portal_dispensing || [])].map((f) => (
                   <TableRow key={f.id} data-testid={`dispensed-${f.id}`}>
                     <TableCell>{fmtDateTime(f.dispensed?.at)}</TableCell>
                     <TableCell><DrugName drug={f.drug} dangerous={f.dangerous_drug} detail={f.strength} /></TableCell>
@@ -170,6 +171,7 @@ export default function MedProfilePanel({ patient, role }) {
                     </TableCell>
                     <TableCell>{f.rx_number}{f.is_refill ? ` · Refill ${f.fill_number - 1}` : ""}</TableCell>
                     <TableCell>{f.dispensed?.name}</TableCell>
+                    <TableCell>{f.source ? [f.drug?.brand || f.drug?.generic, f.manufacturer && `(${f.manufacturer})`].filter(Boolean).join(" ") : "In-house"}</TableCell>
                     <TableCell align="right">{peso(f.total_amount)}</TableCell>
                   </TableRow>
                 ))}
