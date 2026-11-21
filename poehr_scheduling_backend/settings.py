@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "communicator",
     "staffing",
     "surgery",
+    "pharmacy",
     "secure_messaging",
     "telehealth",
     "dictation",

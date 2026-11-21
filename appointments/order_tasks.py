@@ -187,6 +187,21 @@ def makes_tasks(order):
     return bool(sched.get("frequency")) and sched["frequency"] != "prn"
 
 
+AWAITING_PHARMACY = ("pending_verification", "on_hold_clarify", "rejected")
+
+
+def awaiting_pharmacy(order):
+    """
+    True when a medication order may not be given yet because a pharmacist has not verified it.
+    Only for organizations that switched POWER Pharmacy on explicitly; everyone else (including
+    organizations that never configured modules) keeps giving signed orders straight away.
+    """
+    if order.orderable_category != "medication" or order.pharmacy_status not in AWAITING_PHARMACY:
+        return False
+    stored = getattr(order.organization, "enabled_modules", None) if order.organization_id else None
+    return isinstance(stored, list) and "pharmacy" in stored
+
+
 # ---------------------------------------------------------------- laying out the due times
 
 def _base_time(order):
@@ -254,7 +269,7 @@ def _log(task, event_type, user=None, detail=None):
 def generate_tasks(order, now=None, cfg=None):
     """Create the tasks this order is due to have by now + the look-ahead. Safe to call again."""
     now = now or timezone.now()
-    if order.status not in ("active", "in_progress") or not makes_tasks(order):
+    if order.status not in ("active", "in_progress") or not makes_tasks(order) or awaiting_pharmacy(order):
         return 0
     cfg = cfg or settings_for(order.organization)
     horizon = now + timedelta(hours=cfg["look_ahead_hours"])
@@ -428,6 +443,8 @@ def give_prn(order, user, data=None, now=None):
     sched = order.schedule or {}
     if order.status not in ("active", "in_progress") or sched.get("frequency") != "prn":
         raise TaskError("This is not an active as-needed order.", 409)
+    if awaiting_pharmacy(order):
+        raise TaskError("This order is waiting for pharmacist verification.", 409)
     reason = str(data.get("reason") or "").strip()[:300]
     if not reason:
         raise TaskError("Say why it was given.")
