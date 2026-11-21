@@ -8,7 +8,7 @@ jest.mock("react-router-dom", () => ({
   Navigate: ({ to }) => <div data-testid="navigate">{to}</div>,
   Link: ({ children }) => <a href="/">{children}</a>,
 }), { virtual: true });
-jest.mock("../../api/client", () => ({ api: { get: jest.fn(), post: jest.fn() } }), { virtual: true });
+jest.mock("../../api/client", () => ({ api: { get: jest.fn(), post: jest.fn(), patch: jest.fn() } }), { virtual: true });
 jest.mock("../../config/api", () => ({
   apiEndpoints: {
     portalMe: "/portal/me/",
@@ -23,6 +23,10 @@ jest.mock("../../config/api", () => ({
     pharmacyNetworkStatus: (id) => `/network/${id}/status/`,
     pharmacyNetworkAdd: (id) => `/network/${id}/add/`,
     pharmacyPortalRespond: (id) => `/portal-requests/${id}/respond/`,
+    pharmacyPortalReroute: (id) => `/portal-reroute/${id}/`,
+    pharmacyPortalAccessLog: "/portal-access-log/",
+    portalStaff: "/portal/staff/",
+    portalStaffDetail: (id) => `/portal/staff/${id}/`,
   },
 }), { virtual: true });
 jest.mock("../../utils/auth", () => ({ getValidToken: async () => "t" }), { virtual: true });
@@ -38,6 +42,8 @@ import PharmacyPortalRegisterPage from "../../pages/PharmacyPortalRegisterPage";
 import PortalRxDialog from "../pharmacyPortal/PortalRxDialog";
 import PortalPharmaciesPanel from "../pharmacy/PortalPharmaciesPanel";
 import PortalSection from "../prescriptions/PortalSection";
+import PortalStaffDialog from "../pharmacyPortal/PortalStaffDialog";
+import PortalAccessLogDialog from "../pharmacy/PortalAccessLogDialog";
 import { landingPath, postLoginPath } from "../../utils/landing";
 
 const signIn = (role) => {
@@ -136,8 +142,12 @@ describe("portal page", () => {
     render(<ClaimDialog open onClose={() => {}} onClaimed={onClaimed} />);
     fireEvent.change(screen.getByTestId("claim-code"), { target: { value: "K7PQ2M9X" } });
     fireEvent.change(screen.getByTestId("claim-birthdate"), { target: { value: "1958-03-14" } });
+    expect(screen.getByTestId("claim-submit")).toBeDisabled(); // the last 4 digits of the mobile number are needed too
+    fireEvent.change(screen.getByTestId("claim-mobile"), { target: { value: "0917-4567" } });
+    expect(screen.getByTestId("claim-mobile")).toHaveValue("0917");
+    fireEvent.change(screen.getByTestId("claim-mobile"), { target: { value: "4567" } });
     fireEvent.click(screen.getByTestId("claim-submit"));
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/portal/claim/", { code: "K7PQ2M9X", birthdate: "1958-03-14" }, expect.anything()));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/portal/claim/", { code: "K7PQ2M9X", birthdate: "1958-03-14", mobile_last4: "4567" }, expect.anything()));
     await waitFor(() => expect(onClaimed).toHaveBeenCalled());
   });
 });
@@ -271,5 +281,71 @@ describe("clinic side", () => {
     fireEvent.click(screen.getByTestId("rx-portal-approve-4"));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/portal-requests/4/respond/", { decision: "approved", response: "OK: half a 100 mg tablet daily" }, expect.anything()));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
+  });
+});
+
+
+describe("Phase 3 follow-ups", () => {
+  test("a pharmacy admin who is not a pharmacist can neither claim nor accept", async () => {
+    signIn("ext_pharmacy_admin");
+    const adminMe = { ...ME, user: { ...ME.user, role: "ext_pharmacy_admin", can_dispense: false } };
+    api.get.mockImplementation((url) => Promise.resolve({ data: url === "/portal/me/" ? adminMe : url === "/portal/rx/9/" ? DETAIL : { counts: {}, results: [] } }));
+    const { unmount } = render(<PharmacyPortalPage />);
+    await waitFor(() => expect(screen.getByTestId("portal-claim")).toBeDisabled());
+    unmount();
+    render(<PortalRxDialog open rxId={9} me={adminMe} onClose={() => {}} />);
+    await screen.findByTestId("portal-decline");
+    expect(screen.queryByTestId("portal-accept")).toBeNull();
+  });
+
+  test("staff screen: add with PRC and email, edit, deactivate", async () => {
+    api.get.mockResolvedValue({ data: { can_manage: true, results: [{ id: 2, full_name: "Andres Bonifacio", prc_number: "0045678", email: "andres@example.ph", username: "rph", is_admin: false, has_login: true, is_active: true }] } });
+    api.post.mockResolvedValue({ data: {} });
+    api.patch.mockResolvedValue({ data: {} });
+    render(<PortalStaffDialog open onClose={() => {}} />);
+    await screen.findByTestId("staff-row-2");
+    fireEvent.change(screen.getByTestId("staff-full_name"), { target: { value: "Melchora Aquino" } });
+    fireEvent.change(screen.getByTestId("staff-prc_number"), { target: { value: "0055667" } });
+    expect(screen.getByTestId("staff-add-save")).toBeDisabled(); // an email is needed
+    fireEvent.change(screen.getByTestId("staff-email"), { target: { value: "melchora@example.ph" } });
+    fireEvent.click(screen.getByTestId("staff-add-save"));
+    await waitFor(() => expect(api.post.mock.calls[0][1]).toMatchObject({ full_name: "Melchora Aquino", prc_number: "0055667", email: "melchora@example.ph" }));
+    fireEvent.click(screen.getByTestId("staff-edit-2"));
+    fireEvent.change(screen.getByTestId("staff-edit-email"), { target: { value: "a.bonifacio@example.ph" } });
+    fireEvent.click(screen.getByTestId("staff-edit-save"));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/portal/staff/2/", { full_name: "Andres Bonifacio", prc_number: "0045678", email: "a.bonifacio@example.ph" }, expect.anything()));
+    fireEvent.click(await screen.findByTestId("staff-toggle-2"));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/portal/staff/2/", { is_active: false }, expect.anything()));
+  });
+
+  test("POWER admins filter the access log and export CSV", async () => {
+    window.URL.createObjectURL = jest.fn(() => "blob:x");
+    window.URL.revokeObjectURL = jest.fn();
+    api.get.mockImplementation((url, cfg) => Promise.resolve({ data: cfg.params.export ? "csv" : { results: [{ id: 1, at: "2026-11-21T03:00:00Z", user: "rph", name: "Bonifacio, Andres", pharmacy: "Mercury Drug Cubao", action: "view", prescription: "RX-000042", ip: "10.0.0.5" }] } }));
+    render(<PortalAccessLogDialog open onClose={() => {}} pharmacies={[{ id: 3, name: "Mercury Drug Cubao" }]} />);
+    expect(await screen.findByTestId("log-row-1")).toHaveTextContent("RX-000042");
+    fireEvent.change(screen.getByTestId("log-user"), { target: { value: "rph" } });
+    fireEvent.click(screen.getByTestId("log-search"));
+    await waitFor(() => expect(api.get.mock.calls.some((c) => c[1].params.user === "rph")).toBe(true));
+    fireEvent.click(screen.getByTestId("log-export"));
+    await waitFor(() => expect(api.get.mock.calls.some((c) => c[1].params.export === "csv" && c[1].responseType === "blob")).toBe(true));
+  });
+
+  test("a declined prescription: the prescriber re-routes it or issues a new code", async () => {
+    api.get.mockResolvedValue({ data: { results: [{ id: 5, name: "Watsons Iloilo", in_directory: true, can_receive: true, directory_pharmacy_id: 77 }] } });
+    api.post.mockResolvedValue({ data: {} });
+    render(
+      <PortalSection
+        rx={{ id: 42, claim_code: "K7PQ2M9X", pharmacy_requests: [], portal: { status: "declined", status_label: "Declined (back with the prescriber)", pharmacy: "", how: "", decline_reason: "Out of stock", dispenses: [] } }}
+        onChanged={() => {}}
+      />
+    );
+    expect(screen.getByTestId("rx-portal-declined")).toHaveTextContent("No other pharmacy can claim it");
+    fireEvent.click(screen.getByTestId("rx-portal-new-code"));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/portal-reroute/42/", { new_code: true }, expect.anything()));
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    fireEvent.change(screen.getByTestId("rx-portal-reroute-target"), { target: { value: "77" } });
+    fireEvent.click(screen.getByTestId("rx-portal-reroute"));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/portal-reroute/42/", { pharmacy: 77 }, expect.anything()));
   });
 });
