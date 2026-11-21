@@ -40,7 +40,7 @@ def serialize(med, detail=True):
         "from_prescription": med.from_prescription_id,
         "reviewed_at": _iso(med.reviewed_at), "reviewed_by_name": _name(med.reviewed_by) if med.reviewed_by_id else "",
         "created_at": _iso(med.created_at), "created_by_name": _name(med.created_by) if med.created_by_id else "",
-        "controlled": rxs.is_controlled(med.drug_name),
+        "controlled": rxs.is_controlled(med.drug_name, med.organization),
         "allergy_alerts": alerts,
     }
 
