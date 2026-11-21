@@ -103,7 +103,7 @@ export const MODULE_LINKS = [
     to: "/dashboard",
     Icon: MedicalInformationIcon,
     roles: null, // every signed-in user ...
-    notFor: ["staff"], // ... except Staffing-only logins, who have no business in the portal
+    notFor: ["staff", "ext_pharmacist", "ext_pharmacy_admin"], // ... except Staffing-only and pharmacy-portal logins
     isActive: (path) => path === "/dashboard",
   },
   {

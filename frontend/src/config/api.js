@@ -327,6 +327,22 @@ export const apiEndpoints = {
     pharmacyPrices: `${API_BASE_URL}/api/pharmacy/prices/`,
     pharmacyPrice: (id) => `${API_BASE_URL}/api/pharmacy/prices/${id}/`,
     pharmacyDiscountIds: (patientId) => `${API_BASE_URL}/api/pharmacy/patients/${patientId}/discount-ids/`,
+    // Phase 3: POWER Pharmacy Portal (clinic side)
+    pharmacyNetwork: `${API_BASE_URL}/api/pharmacy/network/`,
+    pharmacyNetworkStatus: (id) => `${API_BASE_URL}/api/pharmacy/network/${id}/status/`,
+    pharmacyNetworkAdd: (id) => `${API_BASE_URL}/api/pharmacy/network/${id}/add-to-directory/`,
+    pharmacyPortalRequests: `${API_BASE_URL}/api/pharmacy/portal-requests/`,
+    pharmacyPortalRespond: (id) => `${API_BASE_URL}/api/pharmacy/portal-requests/${id}/respond/`,
+    // the portal itself (partner pharmacy staff)
+    portalRegister: `${API_BASE_URL}/api/pharmacy-portal/register/`,
+    portalMe: `${API_BASE_URL}/api/pharmacy-portal/me/`,
+    portalRx: `${API_BASE_URL}/api/pharmacy-portal/rx/`,
+    portalRxDetail: (id) => `${API_BASE_URL}/api/pharmacy-portal/rx/${id}/`,
+    portalRxAction: (id) => `${API_BASE_URL}/api/pharmacy-portal/rx/${id}/action/`,
+    portalRxRequests: (id) => `${API_BASE_URL}/api/pharmacy-portal/rx/${id}/requests/`,
+    portalClaim: `${API_BASE_URL}/api/pharmacy-portal/claim/`,
+    portalNotices: `${API_BASE_URL}/api/pharmacy-portal/notices/`,
+    portalStaff: `${API_BASE_URL}/api/pharmacy-portal/staff/`,
 
     // Surgery module (Case List, Day Planner)
     surgeryPlanner: `${API_BASE_URL}/api/surgery/planner/`,

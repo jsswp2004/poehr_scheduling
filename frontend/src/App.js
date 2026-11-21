@@ -7,6 +7,8 @@ import axios from 'axios';
 import { getAccessToken } from './utils/tokenManager';
 import { autoMigrateTokens } from './utils/authMigration';
 import LoginPage from './pages/LoginPage';
+import PharmacyPortalPage from './pages/PharmacyPortalPage';
+import PharmacyPortalRegisterPage from './pages/PharmacyPortalRegisterPage';
 import RegisterPage from './pages/RegisterPage';
 import RegistrationWorkspacePage from './pages/RegistrationWorkspacePage';
 import DashboardPage from './pages/DashboardPage';
@@ -225,6 +227,9 @@ function AppContent() {
         <Route path="/security" element={<DataSecurityPage />} />
         <Route path="/dashboard" element={<PrivateRoute blockRoles={["staff"]} blockedTo="/staffing"><DashboardPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
+        {/* POWER Pharmacy Portal: partner pharmacies (their own landing; internal pages redirect them here) */}
+        <Route path="/pharmacy-portal" element={<PrivateRoute><PharmacyPortalPage /></PrivateRoute>} />
+        <Route path="/pharmacy-portal/register" element={<PharmacyPortalRegisterPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/patients" element={<PrivateRoute><PatientsPage /></PrivateRoute>} />
         <Route path="/patients/:id" element={<PrivateRoute><PatientDetailPage /></PrivateRoute>} />
