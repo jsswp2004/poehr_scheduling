@@ -24,6 +24,7 @@ from .models import HomeMedication, PatientAllergy, PatientAllergyStatus, Patien
 from .order_tasks import FREQUENCIES, ROUTES
 
 DRAFT_ROLES = ("doctor", "nurse", "admin", "system_admin")  # may create / edit drafts and see prescriptions
+READ_ROLES = DRAFT_ROLES + ("pharmacist", "pharmacy_tech")  # POWER Pharmacy may see prescriptions, not write them
 ADMIN_ROLES = ("admin", "system_admin")
 SIGN_ROLES = ("doctor",)  # a prescription is signed by the prescriber personally
 

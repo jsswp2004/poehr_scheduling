@@ -17,6 +17,8 @@ class CustomUser(AbstractUser):
         ("none", "None"),  # For non-patients, use 'None' or leave blank
         ("system_admin", "System Admin"),  # For superusers or system admins
         ("staff", "Staff"),  # Staffing-module roster staff with an app login (My Shifts)
+        ("pharmacist", "Pharmacist"),  # licensed pharmacist (RA 10918): verifies medication orders (POWER Pharmacy)
+        ("pharmacy_tech", "Pharmacy Assistant"),  # pharmacy assistant / aide: read-only in POWER Pharmacy Phase 1
     )
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="none"

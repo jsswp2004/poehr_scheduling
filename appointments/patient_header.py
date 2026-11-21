@@ -35,6 +35,8 @@ from .models import (
 )
 
 STAFF_ROLES = ("doctor", "nurse", "registrar", "admin", "system_admin")
+# POWER Pharmacy roles may read a patient's chart (header, allergies) but not change it from these views.
+PHARMACY_READ_ROLES = ("pharmacist", "pharmacy_tech")
 ADMIN_ROLES = ("admin", "system_admin")
 MAX_CUSTOM_FIELDS = 20
 
@@ -247,7 +249,8 @@ class HeaderFieldViewSet(viewsets.ModelViewSet):
 def _patient_for(request, patient_id):
     """The patient user, if this staff member may see them. Returns (patient, error response)."""
     user = request.user
-    if user.role not in STAFF_ROLES:
+    reading = request.method in permissions.SAFE_METHODS and user.role in PHARMACY_READ_ROLES
+    if user.role not in STAFF_ROLES and not reading:
         return None, Response({"detail": "Not allowed."}, status=403)
     patient = CustomUser.objects.filter(pk=patient_id, role="patient").select_related("organization", "provider").first()
     if patient is None or (not sees_all_orgs(user) and patient.organization_id != user.organization_id):

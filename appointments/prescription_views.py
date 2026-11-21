@@ -35,6 +35,12 @@ def _need_staff(request):
     return None
 
 
+def _need_reader(request):
+    if request.user.role not in rxs.READ_ROLES:
+        return Response({"detail": "Not allowed."}, status=403)
+    return None
+
+
 def _scope(request):
     org = _target_org(request, request.query_params.get("org"))
     qs = Prescription.objects.select_related(*RELATED)
@@ -224,7 +230,7 @@ class PrescriptionListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        denied = _need_staff(request)
+        denied = _need_reader(request)
         if denied:
             return denied
         qs, _org = _scope(request)
@@ -287,7 +293,7 @@ class PrescriptionQueuesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        denied = _need_staff(request)
+        denied = _need_reader(request)
         if denied:
             return denied
         qs, _org = _scope(request)
@@ -302,7 +308,7 @@ class PrescriptionDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get(self, request, pk):
-        denied = _need_staff(request)
+        denied = _need_reader(request) if request.method == "GET" else _need_staff(request)
         if denied:
             return None, denied
         qs, _org = _scope(request)
@@ -419,7 +425,7 @@ class PrescriptionMetaView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        denied = _need_staff(request)
+        denied = _need_reader(request)
         if denied:
             return denied
         org = _target_org(request)
