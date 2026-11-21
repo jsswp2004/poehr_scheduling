@@ -223,6 +223,7 @@ def pharmacy_json(p):
     return {
         "id": p.pk, "name": p.name, "address": p.address, "city": p.city, "state": p.state, "zip_code": p.zip_code,
         "phone": p.phone, "fax": p.fax, "ncpdp_id": p.ncpdp_id, "npi": p.npi, "is_active": p.is_active,
+        "is_in_house": p.is_in_house, "fda_lto_number": p.fda_lto_number,
     }
 
 

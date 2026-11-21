@@ -2370,6 +2370,10 @@ class Pharmacy(models.Model):
     fax = models.CharField(max_length=30, blank=True)
     ncpdp_id = models.CharField(max_length=7, blank=True)  # needed later for electronic prescribing
     npi = models.CharField(max_length=10, blank=True)
+    # POWER Pharmacy (Phase 2): the clinic's own dispensing pharmacy. Prescriptions sent to it go to the
+    # in-house fill queue. The FDA License to Operate (LTO) number is printed on every label.
+    is_in_house = models.BooleanField(default=False)
+    fda_lto_number = models.CharField(max_length=40, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
