@@ -673,11 +673,12 @@ class PartnerNetworkView(APIView):
         if request.user.role != "system_admin":
             qs = qs.filter(status="approved")
         org = _target_org(request, request.query_params.get("org"))
-        linked = set(PartnerDirectoryLink.objects.filter(pharmacy__organization=org).values_list("partner_id", flat=True)) if org else set()
+        linked = dict(PartnerDirectoryLink.objects.filter(pharmacy__organization=org).values_list("partner_id", "pharmacy_id")) if org else {}
         rows = []
         for p in qs:
             data = pt.serialize_partner(p)
             data["in_directory"] = p.pk in linked
+            data["directory_pharmacy_id"] = linked.get(p.pk)
             if request.user.role != "system_admin":
                 data.pop("pharmacists")
             rows.append(data)

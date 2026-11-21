@@ -11,6 +11,7 @@ import { toast } from "react-toastify";
 import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import PortalRxDialog, { PORTAL_STATUS_COLOR } from "../components/pharmacyPortal/PortalRxDialog";
+import PortalStaffDialog from "../components/pharmacyPortal/PortalStaffDialog";
 import { DrugName, authHeader, errorText, fmtDateTime } from "../components/pharmacy/pharmacyShared";
 import { PORTAL_ROLES } from "../utils/landing";
 
@@ -23,10 +24,14 @@ export const PORTAL_TABS = [
   { value: "history", label: "History" },
 ];
 
-/** Claim a printed prescription: the claim code (or the QR code's text) and the patient's birthdate. */
+/**
+ * Claim a printed prescription: the claim code (or the QR code's text), the patient's birthdate and the last 4 digits
+ * of their mobile number. Five failed tries in an hour lock your pharmacy's claiming for the rest of the hour.
+ */
 export function ClaimDialog({ open, onClose, onClaimed }) {
   const [code, setCode] = useState("");
   const [birthdate, setBirthdate] = useState("");
+  const [mobile, setMobile] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -34,6 +39,7 @@ export function ClaimDialog({ open, onClose, onClaimed }) {
     if (open) {
       setCode("");
       setBirthdate("");
+      setMobile("");
       setError("");
     }
   }, [open]);
@@ -42,7 +48,7 @@ export function ClaimDialog({ open, onClose, onClaimed }) {
     setBusy(true);
     setError("");
     try {
-      const res = await api.post(apiEndpoints.portalClaim, { code, birthdate }, { headers: await authHeader() });
+      const res = await api.post(apiEndpoints.portalClaim, { code, birthdate, mobile_last4: mobile }, { headers: await authHeader() });
       toast.success("Prescription claimed: it is now locked to your pharmacy.");
       onClaimed(res.data);
     } catch (err) {
@@ -60,11 +66,13 @@ export function ClaimDialog({ open, onClose, onClaimed }) {
           {error && <Alert severity="error" data-testid="claim-error">{error}</Alert>}
           <TextField size="small" label="Claim code (printed under the QR code)" value={code} onChange={(e) => setCode(e.target.value)} inputProps={{ "data-testid": "claim-code" }} />
           <TextField size="small" type="date" label="Patient's birthdate" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} InputLabelProps={{ shrink: true }} inputProps={{ "data-testid": "claim-birthdate" }} />
+          <TextField size="small" label="Last 4 digits of the patient's mobile number" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 4))} inputProps={{ "data-testid": "claim-mobile", inputMode: "numeric" }} />
+          <Typography variant="caption" color="text.secondary">Five wrong tries in an hour lock claiming for your pharmacy until the hour is up.</Typography>
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={busy || !code.trim() || !birthdate} onClick={claim} data-testid="claim-submit">Claim</Button>
+        <Button variant="contained" disabled={busy || !code.trim() || !birthdate || mobile.length !== 4} onClick={claim} data-testid="claim-submit">Claim</Button>
       </DialogActions>
     </Dialog>
   );
@@ -94,6 +102,7 @@ export default function PharmacyPortalPage() {
   const [openId, setOpenId] = useState(null);
   const [claimOpen, setClaimOpen] = useState(false);
   const [noticesOpen, setNoticesOpen] = useState(false);
+  const [staffOpen, setStaffOpen] = useState(false);
   const [notices, setNotices] = useState([]);
   const seq = useRef(0);
   const role = signedInRole();
@@ -160,7 +169,9 @@ export default function PharmacyPortalPage() {
         <Button size="small" startIcon={<Badge color="error" badgeContent={me?.unread_notices || 0}><NotificationsIcon fontSize="small" /></Badge>} onClick={openNotices} data-testid="portal-notices">
           Notices
         </Button>
-        <Button size="small" variant="contained" disabled={!me || !!me.problem} onClick={() => setClaimOpen(true)} data-testid="portal-claim">
+        <Button size="small" onClick={() => setStaffOpen(true)} disabled={!me} data-testid="portal-staff">Pharmacists</Button>
+        <Button size="small" variant="contained" disabled={!me || !!me.problem || me.user.role !== "ext_pharmacist"} onClick={() => setClaimOpen(true)} data-testid="portal-claim"
+          title={me && me.user.role !== "ext_pharmacist" ? "Only a pharmacist can claim a prescription" : ""}>
           Claim a prescription
         </Button>
       </Stack>
@@ -227,6 +238,7 @@ export default function PharmacyPortalPage() {
       </TableContainer>
 
       <PortalRxDialog open={!!openId} rxId={openId} me={me} onClose={() => setOpenId(null)} onChanged={() => { load(); loadMe(); }} />
+      <PortalStaffDialog open={staffOpen} onClose={() => setStaffOpen(false)} />
       <ClaimDialog open={claimOpen} onClose={() => setClaimOpen(false)} onClaimed={(rx) => { setClaimOpen(false); setTab("in_progress"); load(); setOpenId(rx.id); }} />
       <Dialog open={noticesOpen} onClose={() => setNoticesOpen(false)} maxWidth="sm" fullWidth data-testid="portal-notices-dialog">
         <DialogTitle>Notices</DialogTitle>

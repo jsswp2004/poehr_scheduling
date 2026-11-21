@@ -255,7 +255,9 @@ export default function PortalRxDialog({ open, rxId, me, onClose, onChanged }) {
         {rx && !closed && !mode && status === "new" && (
           <>
             <Button color="error" onClick={() => setMode("decline")} data-testid="portal-decline">Decline</Button>
-            <Button variant="contained" onClick={() => act("accept")} disabled={busy} data-testid="portal-accept">Accept</Button>
+            {me?.user?.role === "ext_pharmacist" && (
+              <Button variant="contained" onClick={() => act("accept")} disabled={busy} data-testid="portal-accept">Accept</Button>
+            )}
           </>
         )}
         {mode === "decline" && <Button variant="contained" color="error" disabled={busy || !form.reason.trim()} onClick={() => act("decline", { reason: form.reason })} data-testid="portal-decline-confirm">Decline and return</Button>}

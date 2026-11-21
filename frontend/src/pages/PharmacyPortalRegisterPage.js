@@ -17,7 +17,7 @@ const BLANK = {
  */
 export default function PharmacyPortalRegisterPage() {
   const [form, setForm] = useState(BLANK);
-  const [pharmacists, setPharmacists] = useState([{ full_name: "", prc_number: "" }]);
+  const [pharmacists, setPharmacists] = useState([{ full_name: "", prc_number: "", email: "" }]);
   const [error, setError] = useState("");
   const [done, setDone] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -89,10 +89,11 @@ export default function PharmacyPortalRegisterPage() {
           <Stack key={i} direction="row" spacing={1} sx={{ mb: 1 }}>
             <TextField size="small" fullWidth label="Full name" value={p.full_name} onChange={setPh(i, "full_name")} inputProps={{ "data-testid": `reg-ph-name-${i}` }} />
             <TextField size="small" fullWidth label="PRC license number" value={p.prc_number} onChange={setPh(i, "prc_number")} inputProps={{ "data-testid": `reg-ph-prc-${i}` }} />
+            <TextField size="small" fullWidth label="Email (portal notices)" value={p.email} onChange={setPh(i, "email")} inputProps={{ "data-testid": `reg-ph-email-${i}` }} />
             <IconButton aria-label="Remove pharmacist" onClick={() => setPharmacists((list) => list.filter((_, j) => j !== i))} disabled={pharmacists.length === 1}><DeleteIcon /></IconButton>
           </Stack>
         ))}
-        <Button size="small" startIcon={<AddIcon />} onClick={() => setPharmacists((list) => [...list, { full_name: "", prc_number: "" }])}>Add a pharmacist</Button>
+        <Button size="small" startIcon={<AddIcon />} onClick={() => setPharmacists((list) => [...list, { full_name: "", prc_number: "", email: "" }])}>Add a pharmacist</Button>
       </Paper>
       <Stack direction="row" spacing={2} alignItems="center">
         <Button variant="contained" onClick={submit} disabled={busy} data-testid="reg-submit">Register</Button>
