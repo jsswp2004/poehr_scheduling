@@ -2668,7 +2668,7 @@ class OrderableViewSet(viewsets.ReadOnlyModelViewSet):
                 Q(name__icontains=term) | Q(code__icontains=term)
                 | Q(external_code__icontains=term) | Q(description__icontains=term)
             )
-        qs = qs.select_related("detail_template").order_by("category", "name")
+        qs = qs.select_related("detail_template", "formulary_review").order_by("category", "name")
         try:
             limit = int(self.request.query_params.get("limit", 0))
         except ValueError:
