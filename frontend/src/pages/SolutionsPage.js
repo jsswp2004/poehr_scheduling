@@ -14,6 +14,7 @@ import DictationImage from "../assets/dictation.jpg";
 import ManagementImage from "../assets/management_portal.jpg";
 import RegistrationImage from "../assets/registration.jpg";
 import MdsImage from "../assets/mds.jpg";
+import PharmacyImage from "../assets/pharmacy.jpg";
 
 const IMAGES = {
   management: ManagementImage,
@@ -27,6 +28,7 @@ const IMAGES = {
   telehealth: TelehealthImage,
   dictate: DictationImage,
   mds: MdsImage,
+  pharmacy: PharmacyImage,
 };
 
 // The page people reach after signing in (under the signed-in header and footer the app adds): one tile for each service their organization has and their role

@@ -12,6 +12,7 @@ import ScienceIcon from "@mui/icons-material/Science";
 import ForumIcon from "@mui/icons-material/Forum";
 import PolicyIcon from "@mui/icons-material/Policy";
 import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
+import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
 
 // Roles that can use the clinical/staff modules (matches the login redirects
 // and the Staffing page guard).
@@ -122,6 +123,16 @@ export const MODULE_LINKS = [
     Icon: MedicalServicesIcon,
     roles: STAFF_MODULE_ROLES,
     isActive: (path) => path.startsWith("/surgery"),
+  },
+  {
+    // The Patients page opened on the Pharmacy care setting.
+    key: "pharmacy",
+    module: "pharmacy",
+    label: "Pharmacy",
+    to: "/patients?care=pharmacy",
+    Icon: LocalPharmacyIcon,
+    roles: ["admin", "system_admin", "pharmacist", "pharmacy_tech"],
+    isActive: () => false, // it shares /patients with the Patients link, which stays the highlighted one
   },
   {
     key: "telehealth",

@@ -311,6 +311,13 @@ export const apiEndpoints = {
     registrations: `${API_BASE_URL}/api/users/registrations/`,
     registration: (id) => `${API_BASE_URL}/api/users/registrations/${id}/`,
 
+    // POWER Pharmacy (verification queue, pharmacy patient list, medication profile)
+    pharmacyPatients: `${API_BASE_URL}/api/pharmacy/patients/`,
+    pharmacyQueue: `${API_BASE_URL}/api/pharmacy/queue/`,
+    pharmacyOrder: (id) => `${API_BASE_URL}/api/pharmacy/orders/${id}/`,
+    pharmacyOrderAction: (id) => `${API_BASE_URL}/api/pharmacy/orders/${id}/action/`,
+    pharmacyMedProfile: (patientId) => `${API_BASE_URL}/api/pharmacy/med-profile/${patientId}/`,
+
     // Surgery module (Case List, Day Planner)
     surgeryPlanner: `${API_BASE_URL}/api/surgery/planner/`,
     surgeryCases: `${API_BASE_URL}/api/surgery/cases/`,
