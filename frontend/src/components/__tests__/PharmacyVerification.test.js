@@ -168,3 +168,19 @@ describe("VerifyOrderDialog", () => {
     expect(screen.queryByTestId("ack-allergy:4")).toBeNull();
   });
 });
+
+describe("Formulary items not yet reviewed by a pharmacist", () => {
+  test("the queue shows the warning chip on that order only", async () => {
+    api.get.mockResolvedValue({ data: { counts: { pending_verification: 2 }, results: [{ ...ROW, needs_review: true }, MORPHINE] } });
+    render(<VerificationQueue role="pharmacist" />);
+    expect(await screen.findByTestId("queue-needs-review-7")).toHaveTextContent("Not yet reviewed by a pharmacist");
+    expect(screen.queryByTestId("queue-needs-review-8")).toBeNull();
+  });
+
+  test("the verify dialog warns but still offers Verify", async () => {
+    api.get.mockResolvedValue({ data: { ...ORDER, needs_review: true } });
+    render(<VerifyOrderDialog open orderId={7} canVerify onClose={() => {}} />);
+    expect(await screen.findByTestId("verify-needs-review")).toHaveTextContent("Not yet reviewed by a pharmacist");
+    expect(screen.getByTestId("action-verify")).toBeInTheDocument();
+  });
+});

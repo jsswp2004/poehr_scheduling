@@ -246,6 +246,28 @@ describe("writer form", () => {
     expect(api.post.mock.calls[0][1]).toMatchObject({ drug_name: "Amoxicillin (Amoxil)", strength: "500 mg", form: "capsule", route: "PO", code: "308191" });
   });
 
+  test("a formulary item not yet reviewed by a pharmacist shows a warning but can be prescribed", async () => {
+    api.get.mockImplementation((url) => {
+      if (url === "/pharmacies/") return Promise.resolve({ data: { results: [PHARM] } });
+      if (url === "/patient-pharmacy/3/") return Promise.resolve({ data: { pharmacy: null } });
+      if (url === "/rx-drugs/") {
+        return Promise.resolve({ data: { results: [
+          { display: "Losartan potassium 50 mg tablet", generic_name: "Losartan potassium", brand_name: "", strength: "50 mg", form: "tablet", route: "PO", system: "", code: "", unit: "tablet", formulary: true, controlled: false, needs_review: true },
+        ] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    api.post.mockResolvedValue({ data: RX() });
+    open();
+    fireEvent.change(await screen.findByTestId("rx-drug"), { target: { value: "losar" } });
+    const option = await screen.findByRole("option", { name: /Losartan/ });
+    expect(option).toHaveTextContent("Not yet reviewed by a pharmacist");
+    fireEvent.click(option);
+    expect(await screen.findByTestId("rx-needs-review")).toHaveTextContent("Not yet reviewed by a pharmacist");
+    fireEvent.click(screen.getByTestId("rx-form-save"));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+  });
+
   test("shows the server's message when it refuses", async () => {
     api.post.mockRejectedValue({ response: { data: { detail: "Controlled substances (Schedule II-V) can't be written on paper or fax here." } } });
     open();

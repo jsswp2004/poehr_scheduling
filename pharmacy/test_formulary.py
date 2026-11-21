@@ -513,3 +513,105 @@ class ReviewTests(Base):
         self.assertEqual(fm.review_of(self.amox)["status"], "needs_review")
         self.assertEqual(FormularyReview.objects.get().status, "needs_review")
 
+
+class ReviewersScreenTests(Base):
+    """1. System administrators choose the POWER formulary reviewers on screen; every change is logged."""
+
+    URL_R = f"{URL}reviewers/"
+
+    def test_only_system_admins(self):
+        for user in (self.rph, self.admin, self.tech):
+            self.assertEqual(self.api(user).get(self.URL_R).status_code, 403, user.role)
+            self.assertEqual(self.api(user).patch(f"{self.URL_R}{self.rph.pk}/", {"reviewer": True}, format="json").status_code, 403, user.role)
+
+    def test_add_and_remove_a_reviewer_with_the_log(self):
+        c = self.api(self.sysadmin)
+        data = c.get(self.URL_R).json()
+        rows = {r["id"]: r for r in data["results"]}
+        self.assertEqual(set(rows), {self.rph.pk, self.rph_cebu.pk})  # pharmacists only, every clinic
+        self.assertEqual((rows[self.rph_cebu.pk]["clinic"], rows[self.rph_cebu.pk]["reviewer"]), ("Cebu Doctors Clinic", False))
+        self.assertFalse(self.row(self.rph, "amoxicillin_500_capsule")["can_review"])
+        r = c.patch(f"{self.URL_R}{self.rph.pk}/", {"reviewer": True}, format="json").json()
+        self.assertTrue(r["changed"])
+        self.assertTrue(self.row(self.rph, "amoxicillin_500_capsule")["can_review"])
+        self.assertFalse(c.patch(f"{self.URL_R}{self.rph.pk}/", {"reviewer": True}, format="json").json()["changed"])  # no change, no log
+        r = c.patch(f"{self.URL_R}{self.rph.pk}/", {"reviewer": False}, format="json").json()
+        self.assertEqual([(x["pharmacist"], x["by"], x["granted"]) for x in r["log"]], [("rph", "sys", False), ("rph", "sys", True)])
+        self.assertEqual(self.api(self.rph).post(f"{URL}{self.amox.pk}/review/").status_code, 403)
+
+    def test_refuses_non_pharmacists_and_bad_values(self):
+        c = self.api(self.sysadmin)
+        self.assertEqual(c.patch(f"{self.URL_R}{self.doctor.pk}/", {"reviewer": True}, format="json").status_code, 404)
+        self.assertEqual(c.patch(f"{self.URL_R}{self.rph.pk}/", {"reviewer": "yes"}, format="json").status_code, 400)
+        self.assertFalse(PharmacistProfile.objects.filter(reviews_shared_formulary=True).exists())
+
+
+class NotReviewedWarningTests(Base):
+    """2. A soft "Not yet reviewed by a pharmacist" flag wherever the item is used; never a block."""
+
+    def test_prescription_writer_drug_search(self):
+        from django.test import override_settings
+
+        with override_settings(ALLERGY_RXNORM_ENABLED=False):
+            first = self.api(self.doctor).get("/api/prescription-drugs/", {"q": "amox"}).json()["results"][0]
+            self.assertEqual((first["formulary"], first["needs_review"]), (True, True))
+            fm.mark_reviewed(self.sysadmin, None, self.amox)
+            first = self.api(self.doctor).get("/api/prescription-drugs/", {"q": "amox"}).json()["results"][0]
+            self.assertFalse(first["needs_review"])
+
+    def test_inpatient_ordering_catalog(self):
+        Orderable.objects.create(code="cbc", name="CBC", category="laboratory")
+        rows = {o["code"]: o for o in self.api(self.doctor).get("/api/orderables/").json()}
+        self.assertEqual((rows["amoxicillin_500_capsule"]["needs_review"], rows["cbc"]["needs_review"]), (True, False))
+        fm.mark_reviewed(self.sysadmin, None, self.amox)
+        rows = {o["code"]: o for o in self.api(self.doctor).get("/api/orderables/").json()}
+        self.assertFalse(rows["amoxicillin_500_capsule"]["needs_review"])
+
+    def test_verification_queue_and_order_are_not_blocked(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from appointments import orders_workflow as ow
+        from appointments.models import Appointment
+
+        doctor, patient = mk("docq", "doctor", self.manila), mk("patq", "patient", self.manila)
+        appt = Appointment.all_objects.create(organization=self.manila, patient=patient, provider=doctor, title="Admission",
+                                              appointment_datetime=timezone.now() + timedelta(days=1))
+        order = ow.sign_order(ow.create_draft_order(doctor, appt, self.amox, schedule={"frequency": "q8h", "dose": "500 mg", "route": "PO"}), doctor)
+        self.assertEqual(order.status, "active")  # ordered although the item needs review
+        rows = self.api(self.rph).get("/api/pharmacy/queue/").json()["results"]
+        row = next(r for r in rows if r["id"] == order.pk)
+        self.assertTrue(row["needs_review"])
+        self.assertTrue(self.api(self.rph).get(f"/api/pharmacy/orders/{order.pk}/").json()["needs_review"])
+        fm.mark_reviewed(self.sysadmin, None, self.amox)
+        rows = self.api(self.rph).get("/api/pharmacy/queue/").json()["results"]
+        self.assertFalse(next(r for r in rows if r["id"] == order.pk)["needs_review"])
+
+
+class ExportAsStartingPointTests(Base):
+    """3. One clinic's export, prices included, is another clinic's starting point through its own CSV import."""
+
+    def test_export_with_prices_imports_into_another_clinic(self):
+        m = self.api(self.rph)
+        m.patch(f"{URL}{self.amox.pk}/", {"unit_price_php": "12.50", "unit": "capsule", "vat_exempt": True}, format="json")
+        m.post(URL, {"code": "lagundi_600_tablet", "generic_name": "Lagundi leaf", "strength": "600 mg", "form": "tablet", "unit_price_php": "4.50", "unit": "tablet"}, format="json")
+        text = m.get(f"{URL}export/").content.decode()
+        self.assertIn("12.5", text)
+        self.assertIn("4.5", text)
+        # Cebu: the shared row brings Manila's price; Manila's own item must get a new code first
+        plan = self.upload(self.rph_cebu, text).json()
+        err = next(e for e in plan["errors"] if e["column"] == "code")
+        self.assertIn("give the row a new code", err["message"])
+        text = text.replace("lagundi_600_tablet", "cebu_lagundi_600_tablet")
+        r = self.upload(self.rph_cebu, text, mode="apply")
+        self.assertEqual(r.status_code, 201, r.content)
+        amox = self.row(self.rph_cebu, "amoxicillin_500_capsule")
+        self.assertEqual((amox["unit_price_php"], amox["unit"], amox["vat_exempt"]), ("12.5", "capsule", True))
+        lagundi = self.row(self.rph_cebu, "cebu_lagundi_600_tablet")
+        self.assertEqual((lagundi["scope"], lagundi["unit_price_php"]), ("clinic", "4.5"))
+        self.assertEqual(Orderable.objects.get(code="cebu_lagundi_600_tablet").organization, self.cebu)
+        # Manila is untouched and Cebu's prices are its own rows
+        self.assertEqual(PharmacyPrice.objects.filter(orderable=self.amox).count(), 2)
+        self.assertEqual(self.row(self.rph, "amoxicillin_500_capsule")["unit_price_php"], "12.5")
+
