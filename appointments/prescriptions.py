@@ -42,13 +42,13 @@ FORMS = [
 # S2 license number; they are never refilled. (This replaced a US Schedule II-V block.)
 
 
-def is_controlled(name):
-    """True when the drug is a dangerous drug under RA 9165 (brand names are read as their generic)."""
+def is_controlled(name, organization=None):
+    """True when the drug is a dangerous drug under RA 9165 (the formulary item's flag; brand names read as generic)."""
     from pharmacy.dangerous_drugs import is_dangerous_drug
     from pharmacy.services import drug_names
 
     name = name or ""
-    return is_dangerous_drug(f"{drug_names(name)['generic']} {name}")
+    return is_dangerous_drug(f"{drug_names(name)['generic']} {name}", organization=organization)
 
 
 CONTROLLED_MESSAGE = (
@@ -278,7 +278,7 @@ def missing_for_sign(rx):
     profile = getattr(prescriber, "prescriber_profile", None)
     if not (profile and profile.license_number.strip()):
         missing.append("prescriber license number")
-    if is_controlled(rx.drug_name):
+    if is_controlled(rx.drug_name, rx.organization):
         if not rx.is_yellow_rx:
             missing.append("DDB yellow prescription (dangerous drug)")
         if not (rx.s2_number.strip() or (profile and profile.s2_number.strip())):
@@ -355,7 +355,7 @@ def sign(rx, user, allergy_override_reason="", duplicate_reason=""):
             409, errors=[{"kind": "duplicate", "duplicates": dups}],
         )
 
-    dangerous = is_controlled(rx.drug_name)
+    dangerous = is_controlled(rx.drug_name, rx.organization)
     if dangerous and not rx.s2_number.strip():
         rx.s2_number = rx.prescriber.prescriber_profile.s2_number.strip()
     pharmacy = rx.pharmacy

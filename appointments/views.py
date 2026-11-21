@@ -2653,6 +2653,12 @@ class OrderableViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = _org_scoped(Orderable.objects.filter(is_active=True), self.request.user, allow_global=True)
+        # POWER Formulary: shared medications this clinic switched off are not offered
+        from pharmacy.formulary import hidden_ids
+
+        hidden = hidden_ids(getattr(self.request.user, "organization", None))
+        if hidden:
+            qs = qs.exclude(pk__in=hidden)
         category = self.request.query_params.get("category")
         if category:
             qs = qs.filter(category=category)
@@ -2872,6 +2878,11 @@ class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 Orderable.objects.bulk_create(to_create, batch_size=500)
+                # bulk_create skips Orderable.save(): give new medications the reference-list defaults here
+                # (POWER Formulary: dangerous drug and renal threshold)
+                from pharmacy.formulary import apply_list_defaults
+
+                apply_list_defaults([o.code for o in to_create if o.category == "medication"])
                 if to_update:
                     Orderable.objects.bulk_update(
                         to_update,

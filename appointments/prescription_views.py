@@ -118,7 +118,7 @@ def serialize(rx, user, detail=False):
         "renews": rx.renews_id,
         "runs_out_on": rxs.runs_out_at(rx).date().isoformat() if rxs.runs_out_at(rx) else None,
         "renewal_due": rxs.renewal_due(rx) if rx.status in ("signed", "sent") else False,
-        "controlled": rxs.is_controlled(rx.drug_name),  # a dangerous drug (RA 9165)
+        "controlled": rxs.is_controlled(rx.drug_name, rx.organization),  # a dangerous drug (RA 9165)
         "is_yellow_rx": rx.is_yellow_rx, "yellow_rx_serial": rx.yellow_rx_serial, "s2_number": rx.s2_number,
         "actions": rxs.allowed_actions(user, rx),
     }
@@ -477,12 +477,19 @@ class DrugSearchView(APIView):
         denied = _need_staff(request)
         if denied:
             return denied
-        found = allergies.search_substances(request.query_params.get("q", ""), "medication")
-        results = []
+        q = request.query_params.get("q", "")
+        found = allergies.search_substances(q, "medication")
+        # the POWER Formulary first (clinic overrides respected, hidden items left out), then RxNorm and the local lists
+        from pharmacy.formulary import search as formulary_search
+
+        results = formulary_search(_target_org(request), q)
+        taken = {r["display"].lower() for r in results}
         for r in found["results"]:
+            if r["display"].lower() in taken:
+                continue
             if r["display"].endswith("(class)"):
                 continue
-            results.append({**r, "controlled": rxs.is_controlled(r["display"])})
+            results.append({**r, "controlled": rxs.is_controlled(r["display"], _target_org(request))})
         return Response({"results": results, "rxnorm": found["rxnorm"], "rxnorm_detail": found["rxnorm_detail"]})
 
 
@@ -712,7 +719,7 @@ def _favorite_values(request, org, data):
         rx = qs.filter(pk=data["from_prescription"]).first()
         if rx is None:
             return None, Response({"detail": "Prescription not found."}, status=404)
-        if rxs.is_controlled(rx.drug_name):
+        if rxs.is_controlled(rx.drug_name, rx.organization):
             return None, Response({"detail": rxs.CONTROLLED_MESSAGE}, status=400)
         values = {key: getattr(rx, key) for key in FAVORITE_FIELDS}
     else:
