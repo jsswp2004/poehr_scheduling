@@ -374,4 +374,5 @@ STRIPE_ASSISTANT_OVERAGE_PRICE_ID = os.getenv("STRIPE_ASSISTANT_OVERAGE_PRICE_ID
 # Django Cron Settings
 CRON_CLASSES = [
     "appointments.cron.BlastPatientReminderCronJob",
+    "pharmacy.cron.PurgePortalAccessLogCronJob",  # monthly, 5-year retention of the pharmacy portal access log
 ]

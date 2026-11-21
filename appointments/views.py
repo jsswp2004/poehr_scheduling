@@ -1628,6 +1628,8 @@ class RunScheduledJobsView(APIView):
          Stripe only accepts it once -- running this daily would lock
          in partial usage on whatever day it first ran and silently
          miss everything reported after that.
+      4. POWER Pharmacy Portal access log -- ONLY on the 1st of the month,
+         entries older than the 5-year retention period are deleted.
 
     Auth: a shared secret in the X-Scheduled-Job-Secret header
     (SCHEDULED_JOBS_SECRET env var), not a user JWT -- there is no
@@ -1694,8 +1696,15 @@ class RunScheduledJobsView(APIView):
                 "period": f"{prev_year}-{prev_month:02d}",
                 "organizations": billing_results,
             }
+            try:
+                from pharmacy.portal import purge_access_log
+
+                results["portal_access_log_purge"] = {"deleted": purge_access_log()}
+            except Exception as exc:
+                results["portal_access_log_purge"] = f"error: {exc}"
         else:
             results["messaging_billing"] = "skipped (only runs on the 1st of the month)"
+            results["portal_access_log_purge"] = "skipped (only runs on the 1st of the month)"
 
         return Response(results, status=status.HTTP_200_OK)
 
