@@ -150,7 +150,7 @@ function OrderableDialog({ initial, forms, locked, onClose, onSaved }) {
                         <FormControl size="small" sx={{ flex: 1 }} disabled={locked}>
                             <InputLabel id="ob-cat">Category</InputLabel>
                             <Select labelId="ob-cat" label="Category" value={form.category} onChange={set("category")}>
-                                {CATEGORIES.map((c) => (
+                                {BUILDER_CATEGORIES.map((c) => (
                                     <MenuItem key={c.value} value={c.value}>
                                         {c.label}
                                     </MenuItem>
@@ -295,6 +295,10 @@ function OrderableDialog({ initial, forms, locked, onClose, onSaved }) {
         </Dialog>
     );
 }
+
+// Medications are POWER Formulary items (Pharmacy > Formulary): the Order Builder no longer adds or edits them.
+const BUILDER_CATEGORIES = CATEGORIES.filter((c) => c.value !== "medication");
+export const MEDICATIONS_NOTE = "Medications are managed in Pharmacy > Formulary. The Order Builder is for labs, imaging, procedures and other orders.";
 
 /**
  * The orderables catalog: search/filter, add/edit, and CSV upload/download.
@@ -452,6 +456,7 @@ function OrderablesManager() {
                     {banner.text}
                 </Alert>
             )}
+            <Alert severity="info" sx={{ mb: 1 }} data-testid="ob-medications-note">{MEDICATIONS_NOTE}</Alert>
             {uploadErrors.length > 0 && (
                 <Paper variant="outlined" sx={{ mb: 2, maxHeight: 280, overflow: "auto" }}>
                     <Table size="small" stickyHeader>
@@ -501,7 +506,7 @@ function OrderablesManager() {
                         onChange={(e) => setCategory(e.target.value)}
                     >
                         <MenuItem value="">All</MenuItem>
-                        {CATEGORIES.map((c) => (
+                        {BUILDER_CATEGORIES.map((c) => (
                             <MenuItem key={c.value} value={c.value}>
                                 {c.label}
                             </MenuItem>
