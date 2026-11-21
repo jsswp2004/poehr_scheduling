@@ -19,6 +19,9 @@ class CustomUser(AbstractUser):
         ("staff", "Staff"),  # Staffing-module roster staff with an app login (My Shifts)
         ("pharmacist", "Pharmacist"),  # licensed pharmacist (RA 10918): verifies medication orders (POWER Pharmacy)
         ("pharmacy_tech", "Pharmacy Assistant"),  # pharmacy assistant / aide: read-only in POWER Pharmacy Phase 1
+        # POWER Pharmacy Portal (Phase 3): staff of an outside (partner) pharmacy. They only ever reach the portal.
+        ("ext_pharmacist", "External Pharmacist"),
+        ("ext_pharmacy_admin", "External Pharmacy Admin"),
     )
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="none"

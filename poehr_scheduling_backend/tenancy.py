@@ -151,6 +151,8 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
             user, _validated_token = result
             if getattr(user, "role", None) == "staff":
                 self._enforce_staff_scope(request)
+            if getattr(user, "role", None) in self.PORTAL_ROLES:
+                self._enforce_portal_scope(request)
             self._act_for_facility(request, user)
             self._enforce_module(request, user)
             set_current_organization(getattr(user, "organization", None))
@@ -237,6 +239,23 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
         "/api/users/token/refresh/",
         "/api/auth/token/refresh/",
     )
+
+    # POWER Pharmacy Portal logins (staff of an outside pharmacy) may only reach the portal API and their own
+    # account. Patient lists, charts and every other internal page are refused here, centrally.
+    PORTAL_ROLES = ("ext_pharmacist", "ext_pharmacy_admin")
+    PORTAL_ALLOWED_PREFIXES = (
+        "/api/pharmacy-portal/",
+        "/api/users/change-password/",
+        "/api/auth/change-password/",
+        "/api/users/token/refresh/",
+        "/api/auth/token/refresh/",
+    )
+
+    def _enforce_portal_scope(self, request):
+        from rest_framework.exceptions import PermissionDenied
+
+        if not (request.path or "").startswith(self.PORTAL_ALLOWED_PREFIXES):
+            raise PermissionDenied("Pharmacy portal accounts can only use the POWER Pharmacy Portal.")
 
     def _enforce_staff_scope(self, request):
         from rest_framework.exceptions import PermissionDenied
