@@ -53,7 +53,7 @@ describe("Pharmacy care setting in the sidebar", () => {
 describe("Pharmacy chart tabs", () => {
   test("the Pharmacy care setting has its own tabs, in order", () => {
     expect(visibleChartTabs("pharmacist", null, "pharmacy").map((t) => t.label)).toEqual([
-      "Patient List", "Verification Queue", "Outpatient Rx", "eRx Routing", "Med Profile", "Orders", "Prescriptions", "Results", "Patient Info",
+      "Patient List", "Verification Queue", "Outpatient Rx", "eRx Routing", "Med Profile", "Formulary", "Orders", "Prescriptions", "Results", "Patient Info",
     ]);
     // the clinic's tab layout for the other care settings does not apply here
     expect(visibleChartTabs("admin", ["patient_list", "documents"], "pharmacy").map((t) => t.value)).toContain("verification_queue");
