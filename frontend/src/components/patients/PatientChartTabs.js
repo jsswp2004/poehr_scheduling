@@ -26,6 +26,7 @@ export const CHART_TABS = [
   { value: "outpatient_rx", label: "Outpatient Rx", clinical: false, onlyIn: "pharmacy" },
   { value: "erx_routing", label: "eRx Routing", clinical: false, onlyIn: "pharmacy" },
   { value: "med_profile", label: "Med Profile", clinical: false, onlyIn: "pharmacy" },
+  { value: "formulary", label: "Formulary", clinical: false, onlyIn: "pharmacy" },
 ];
 
 /** The Pharmacy care setting's tabs, in order: its own worklists, then the usual chart tabs a pharmacist reads. */
@@ -35,6 +36,7 @@ export const PHARMACY_TABS = [
   "outpatient_rx",
   "erx_routing",
   "med_profile",
+  "formulary",
   "orders",
   "prescriptions",
   "results",
