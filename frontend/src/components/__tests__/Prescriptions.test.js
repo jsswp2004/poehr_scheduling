@@ -222,6 +222,30 @@ describe("writer form", () => {
     expect(api.post.mock.calls[0][1]).toMatchObject({ drug_name: "Oxycodone", is_yellow_rx: true, yellow_rx_serial: "DDB-2026-0001234", s2_number: "S2-12345", refills: 0 });
   });
 
+  test("a POWER Formulary item comes first and fills the generic name, strength, form and route", async () => {
+    api.get.mockImplementation((url) => {
+      if (url === "/pharmacies/") return Promise.resolve({ data: { results: [PHARM] } });
+      if (url === "/patient-pharmacy/3/") return Promise.resolve({ data: { pharmacy: null } });
+      if (url === "/rx-drugs/") {
+        return Promise.resolve({ data: { results: [
+          { display: "Amoxicillin (Amoxil) 500 mg capsule", generic_name: "Amoxicillin", brand_name: "Amoxil", strength: "500 mg", form: "capsule", route: "PO", system: "rxnorm", code: "308191", unit: "capsule", formulary: true, controlled: false },
+          { display: "Amoxicillin", code: "723", system: "rxnorm", controlled: false },
+        ] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    api.post.mockResolvedValue({ data: RX() });
+    open();
+    fireEvent.change(await screen.findByTestId("rx-drug"), { target: { value: "amox" } });
+    const option = await screen.findByRole("option", { name: /Amoxil/ });
+    expect(option).toHaveTextContent("Formulary");
+    fireEvent.click(option);
+    await waitFor(() => expect(screen.getByTestId("rx-strength")).toHaveValue("500 mg"));
+    fireEvent.click(screen.getByTestId("rx-form-save"));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0][1]).toMatchObject({ drug_name: "Amoxicillin (Amoxil)", strength: "500 mg", form: "capsule", route: "PO", code: "308191" });
+  });
+
   test("shows the server's message when it refuses", async () => {
     api.post.mockRejectedValue({ response: { data: { detail: "Controlled substances (Schedule II-V) can't be written on paper or fax here." } } });
     open();
