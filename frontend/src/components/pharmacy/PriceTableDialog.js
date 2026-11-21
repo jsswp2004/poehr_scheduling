@@ -67,6 +67,9 @@ export default function PriceTableDialog({ open, onClose }) {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           Prices include 12% VAT unless marked VAT-exempt. Senior citizens and PWDs with an ID on file get the VAT exemption, then 20% off.
         </Typography>
+        <Alert severity="info" sx={{ mb: 1 }} data-testid="price-vat-note">
+          A pharmacist must mark the VAT-exempt items for this clinic's formulary (for example, medicines exempt under the Tax Code for diabetes, hypertension and high cholesterol).
+        </Alert>
         <TableContainer component={Paper} variant="outlined">
           <Table size="small" aria-label="Price table">
             <TableHead>

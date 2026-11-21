@@ -60,6 +60,8 @@ export default function FillDialog({ open, fillId, onClose, onChanged }) {
         s2_number: res.data.s2_number || "",
         reason: "",
         note: "",
+        single_pharmacist_reason: "",
+        prc_license_number: res.data.my_prc_license || "",
         id_kind: "senior",
         id_number: "",
         issued_by: "",
@@ -203,13 +205,21 @@ export default function FillDialog({ open, fillId, onClose, onChanged }) {
                   Filled with <b>{fill.product_name} {fill.product_strength}</b>, lot {fill.lot_number}, exp {fill.expiry_date}; quantity {fill.quantity} {fill.quantity_unit}.
                 </Typography>
                 {fill.can_check ? (
-                  ["product_verified", "strength_verified", "quantity_verified"].map((k) => (
-                    <FormControlLabel
-                      key={k}
-                      control={<Checkbox size="small" checked={!!form[k]} onChange={set(k)} inputProps={{ "data-testid": `check-${k}` }} />}
-                      label={{ product_verified: "Product matches the prescription", strength_verified: "Strength matches", quantity_verified: "Quantity counted and correct" }[k]}
-                    />
-                  ))
+                  <>
+                    {["product_verified", "strength_verified", "quantity_verified"].map((k) => (
+                      <FormControlLabel
+                        key={k}
+                        control={<Checkbox size="small" checked={!!form[k]} onChange={set(k)} inputProps={{ "data-testid": `check-${k}` }} />}
+                        label={{ product_verified: "Product matches the prescription", strength_verified: "Strength matches", quantity_verified: "Quantity counted and correct" }[k]}
+                      />
+                    ))}
+                    {fill.filled_by_me && (
+                      <Stack spacing={1} sx={{ mt: 1 }} data-testid="form-single-pharmacist">
+                        <Alert severity="warning">You filled this prescription. A different pharmacist should do the final check.</Alert>
+                        {field("single_pharmacist_reason", "Only pharmacist on duty: reason to check your own fill")}
+                      </Stack>
+                    )}
+                  </>
                 ) : (
                   <Alert severity="info">Waiting for a pharmacist's final check.</Alert>
                 )}
@@ -219,6 +229,11 @@ export default function FillDialog({ open, fillId, onClose, onChanged }) {
               <Stack spacing={1} data-testid="form-dispense">
                 <Box data-testid="fill-price">
                   <Typography variant="subtitle2">Price</Typography>
+                  {q && !q.price_found && (
+                    <Alert severity="error" data-testid="fill-no-price">
+                      There is no price for {fill.drug.generic} in the price table. Add it to the price table before dispensing.
+                    </Alert>
+                  )}
                   {q && q.price_found ? (
                     <Typography variant="body2">
                       {peso(q.gross)}
@@ -254,7 +269,8 @@ export default function FillDialog({ open, fillId, onClose, onChanged }) {
                     <FormControlLabel control={<Checkbox size="small" checked={!!form.counseling_accepted} onChange={set("counseling_accepted")} inputProps={{ "data-testid": "fill-counseling-accepted" }} />} label="Patient accepted counseling" />
                   )}
                 </Stack>
-                {!fill.can_dispense && <Alert severity="info">A dangerous drug is dispensed by a pharmacist.</Alert>}
+                {fill.can_dispense && !fill.my_prc_license && field("prc_license_number", "Your PRC license number (printed on the label)")}
+                {!fill.can_dispense && <Alert severity="info">Only a pharmacist can dispense (RA 10918).</Alert>}
               </Stack>
             )}
             {stage === "dispensed" && (
@@ -319,18 +335,22 @@ export default function FillDialog({ open, fillId, onClose, onChanged }) {
         {mode === "check_fail" && <Button variant="contained" color="error" disabled={busy || !form.reason.trim()} onClick={() => run("check_fail", { reason: form.reason })} data-testid="fill-check-fail-confirm">Send back to filling</Button>}
         {fill && fill.can_check && !mode && stage === "final_check" && (
           <Button variant="contained" data-testid="fill-check-pass"
-            disabled={busy || !(form.product_verified && form.strength_verified && form.quantity_verified)}
-            onClick={() => run("check", { product_verified: true, strength_verified: true, quantity_verified: true })}>
+            disabled={busy || !(form.product_verified && form.strength_verified && form.quantity_verified) || (fill.filled_by_me && !form.single_pharmacist_reason.trim())}
+            onClick={() => run("check", {
+              product_verified: true, strength_verified: true, quantity_verified: true,
+              ...(fill.filled_by_me ? { single_pharmacist_reason: form.single_pharmacist_reason } : {}),
+            })}>
             Pass final check
           </Button>
         )}
         {fill && can && fill.can_dispense && !mode && stage === "ready" && (
           <Button variant="contained" data-testid="fill-dispense"
-            disabled={busy || !form.counseling_offered || (fill.dangerous_drug && (!form.yellow_rx_serial.trim() || !form.s2_number.trim()))}
+            disabled={busy || !form.counseling_offered || (q && !q.price_found) || !form.prc_license_number.trim() || (fill.dangerous_drug && (!form.yellow_rx_serial.trim() || !form.s2_number.trim()))}
             onClick={() => run("dispense", {
               counseling_offered: form.counseling_offered === "yes",
               counseling_accepted: form.counseling_offered === "yes" && !!form.counseling_accepted,
               discount_kind: form.discount_kind,
+              prc_license_number: form.prc_license_number,
               ...(fill.dangerous_drug ? { yellow_rx_serial: form.yellow_rx_serial, s2_number: form.s2_number } : {}),
             })}>
             Dispense

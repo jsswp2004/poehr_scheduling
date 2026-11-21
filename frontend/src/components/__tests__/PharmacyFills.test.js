@@ -59,6 +59,8 @@ const FILL = {
   can_check: false,
   can_price: false,
   can_dispense: true,
+  my_prc_license: "0045678",
+  filled_by_me: false,
 };
 
 beforeEach(() => {
@@ -235,4 +237,74 @@ test("the medication profile lists what was dispensed", async () => {
   expect(row).toHaveTextContent("RX-000042");
   expect(row).toHaveTextContent("Silang, Gabriela");
   expect(row).toHaveTextContent("₱235.20");
+});
+
+
+describe("Phase 2 follow-ups", () => {
+  const READY = { ...FILL, stage: "ready", stage_label: "Ready for pickup", quantity: "21" };
+
+  test("a pharmacist checking their own fill must give the single-pharmacist reason", async () => {
+    api.get.mockResolvedValue({ data: { ...FILL, stage: "final_check", stage_label: "Pharmacist final check", quantity: "21", can_check: true, filled_by_me: true } });
+    api.post.mockResolvedValue({ data: {} });
+    render(<FillDialog open fillId={5} onClose={() => {}} />);
+    expect(await screen.findByTestId("form-single-pharmacist")).toHaveTextContent("A different pharmacist should do the final check");
+    ["product_verified", "strength_verified", "quantity_verified"].forEach((k) => fireEvent.click(screen.getByTestId(`check-${k}`)));
+    const pass = screen.getByTestId("fill-check-pass");
+    expect(pass).toBeDisabled();
+    fireEvent.change(screen.getByTestId("fill-single_pharmacist_reason"), { target: { value: "Only pharmacist on duty" } });
+    fireEvent.click(pass);
+    await waitFor(() => expect(api.post.mock.calls[0][1]).toMatchObject({ action: "check", single_pharmacist_reason: "Only pharmacist on duty" }));
+  });
+
+  test("only a pharmacist can dispense", async () => {
+    api.get.mockResolvedValue({ data: { ...READY, can_dispense: false } });
+    render(<FillDialog open fillId={5} onClose={() => {}} />);
+    expect(await screen.findByText("Only a pharmacist can dispense (RA 10918).")).toBeInTheDocument();
+    expect(screen.queryByTestId("fill-dispense")).toBeNull();
+  });
+
+  test("no price in the price table: dispensing is blocked with a clear message", async () => {
+    api.get.mockResolvedValue({ data: { ...READY, quote: { price_found: false } } });
+    render(<FillDialog open fillId={5} onClose={() => {}} />);
+    expect(await screen.findByTestId("fill-no-price")).toHaveTextContent("There is no price for Amoxicillin in the price table");
+    fireEvent.change(screen.getByTestId("fill-counseling-offered"), { target: { value: "no" } });
+    expect(screen.getByTestId("fill-dispense")).toBeDisabled();
+  });
+
+  test("a pharmacist without a PRC license on file enters it at dispense", async () => {
+    api.get.mockResolvedValue({ data: { ...READY, my_prc_license: "" } });
+    api.post.mockResolvedValue({ data: {} });
+    render(<FillDialog open fillId={5} onClose={() => {}} />);
+    const go = await screen.findByTestId("fill-dispense");
+    fireEvent.change(screen.getByTestId("fill-counseling-offered"), { target: { value: "no" } });
+    expect(go).toBeDisabled();
+    fireEvent.change(screen.getByTestId("fill-prc_license_number"), { target: { value: "0099887" } });
+    fireEvent.click(go);
+    await waitFor(() => expect(api.post.mock.calls[0][1]).toMatchObject({ action: "dispense", prc_license_number: "0099887" }));
+  });
+
+  test("senior and PWD IDs on file: only the one chosen is applied", async () => {
+    api.get.mockResolvedValue({
+      data: { ...READY, discount_ids: [{ id: 1, kind: "senior", id_number: "QC-SC-1" }, { id: 2, kind: "pwd", id_number: "QC-PWD-2" }] },
+    });
+    api.post.mockResolvedValue({ data: {} });
+    render(<FillDialog open fillId={5} onClose={() => {}} />);
+    await screen.findByTestId("fill-dispense");
+    fireEvent.change(screen.getByTestId("fill-discount"), { target: { value: "pwd" } });
+    fireEvent.change(screen.getByTestId("fill-counseling-offered"), { target: { value: "no" } });
+    fireEvent.click(screen.getByTestId("fill-dispense"));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0][1].discount_kind).toBe("pwd");
+  });
+
+  test("the label names the dispensing pharmacist and their PRC license", () => {
+    render(<LabelBody label={{ pharmacy_name: "Botika ng Klinika", drug_line: "Amoxicillin (Amoxil) 500 mg capsule", dispensed_by: "Bonifacio, Andres", pharmacist_license: "0045678", refills_left: 0 }} />);
+    expect(screen.getByTestId("label-pharmacist")).toHaveTextContent("Dispensed by Bonifacio, Andres · PRC Lic. 0045678");
+  });
+
+  test("the price table reminds that a pharmacist sets the VAT-exempt items", async () => {
+    api.get.mockResolvedValue({ data: { results: [], can_edit: true } });
+    render(<PriceTableDialog open onClose={() => {}} />);
+    expect(await screen.findByTestId("price-vat-note")).toHaveTextContent("A pharmacist must mark the VAT-exempt items");
+  });
 });
