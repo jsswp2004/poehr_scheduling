@@ -343,6 +343,9 @@ export const apiEndpoints = {
     portalClaim: `${API_BASE_URL}/api/pharmacy-portal/claim/`,
     portalNotices: `${API_BASE_URL}/api/pharmacy-portal/notices/`,
     portalStaff: `${API_BASE_URL}/api/pharmacy-portal/staff/`,
+    portalStaffDetail: (id) => `${API_BASE_URL}/api/pharmacy-portal/staff/${id}/`,
+    pharmacyPortalReroute: (rxId) => `${API_BASE_URL}/api/pharmacy/portal-reroute/${rxId}/`,
+    pharmacyPortalAccessLog: `${API_BASE_URL}/api/pharmacy/portal-access-log/`,
 
     // Surgery module (Case List, Day Planner)
     surgeryPlanner: `${API_BASE_URL}/api/surgery/planner/`,
