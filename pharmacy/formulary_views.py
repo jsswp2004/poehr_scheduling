@@ -5,13 +5,14 @@ POWER Formulary API (mounted at /api/pharmacy/formulary/, part of the POWER Phar
     POST  formulary/                         add an item (system admin: shared; clinic: the clinic's own)
     PATCH formulary/<id>/                    edit (system admin: the shared item; clinic: overrides / its own item)
     POST  formulary/<id>/revert/             {field}: back to the shared value
+    POST  formulary/<id>/review/             "Mark reviewed" (needs pharmacist review -> reviewed)
     GET   formulary/<id>/history/            the item's change history
     GET   formulary/export/  formulary/template/            CSV
     POST  formulary/import/                  multipart file, mode=preview|apply
     GET   formulary/imports/, formulary/imports/<id>/file/  past imports and their original file
 
 View: pharmacist, pharmacy assistant, admin, system admin. Edit: pharmacist and admin (their clinic), system admin
-(the shared formulary). Doctors and nurses have no access here (they meet the formulary in the drug search).
+(the shared formulary, without prices: prices are per clinic). Mark reviewed: see formulary.can_review. Doctors and nurses have no access here (they meet the formulary in the drug search).
 """
 
 from django.http import HttpResponse
@@ -70,12 +71,19 @@ class FormularyListView(APIView):
         if denied:
             return denied
         p = request.query_params
-        rows = fm.listing(_org(request), p.get("q", ""), p.get("scope", ""), p.get("dangerous", ""), p.get("renal", ""), p.get("active", ""))
+        org = _org(request)
+        rows = fm.listing(org, p.get("q", ""), p.get("scope", ""), p.get("dangerous", ""), p.get("renal", ""), p.get("active", ""), p.get("review", ""))
         role = request.user.role
+        reviews_shared = fm.can_review(request.user, fm.Orderable(organization=None), org)
+        for r in rows:
+            r["can_review"] = r["review"]["status"] == "needs_review" and (
+                reviews_shared if r["scope"] == "shared" else (role == "pharmacist" and org is not None))
         return Response({
             "results": rows,
             "can_edit": role in fm.EDIT_ROLES,
             "edits_shared": role == "system_admin",
+            "edits_prices": role in fm.EDIT_ROLES and role != "system_admin",
+            "reviews_shared": reviews_shared,
             "forms": fm.FORMS,
             "routes": list(fm.ROUTES),
             "overridable": list(fm.OVERRIDABLE),
@@ -85,6 +93,8 @@ class FormularyListView(APIView):
         denied = _denied(request, edit=True)
         if denied:
             return denied
+        if request.user.role == "system_admin" and any(request.data.get(f) not in (None, "", False) for f in fm.PRICE):
+            return Response({"detail": fm.PRICES_PER_CLINIC, "fields": list(fm.PRICE)}, status=403)
         try:
             item = fm.create_item(request.user, _org(request), request.data)
         except (fm.FormularyError, ValueError) as exc:
@@ -104,6 +114,10 @@ class FormularyItemView(APIView):
         if item is None or not fm.can_edit(request.user, item):
             return Response({"detail": "Item not found."}, status=404)
         fields = fm.OVERRIDABLE if item.organization_id is None and request.user.role != "system_admin" else fm.COLUMNS[1:]
+        if request.user.role == "system_admin":
+            priced = [f for f in request.data if f in fm.PRICE]
+            if priced:
+                return Response({"detail": fm.PRICES_PER_CLINIC, "fields": priced}, status=403)
         refused = [f for f in request.data if f in fm.COLUMNS[1:] and f not in fields]
         if refused:
             return Response({"detail": f"Only POWER can change the shared item's {', '.join(refused)}.", "fields": refused}, status=403)
@@ -130,6 +144,26 @@ class FormularyRevertView(APIView):
             return Response({"detail": "Item not found."}, status=404)
         try:
             fm.revert(request.user, org, item, str(request.data.get("field") or ""))
+        except fm.FormularyError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        return Response(fm.serialize(item, org))
+
+
+class FormularyReviewView(APIView):
+    """POST: "Mark reviewed". Recorded in the item's history."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        denied = _denied(request)
+        if denied:
+            return denied
+        org = _org(request)
+        item = _item(request, pk)
+        if item is None:
+            return Response({"detail": "Item not found."}, status=404)
+        try:
+            fm.mark_reviewed(request.user, org, item)
         except fm.FormularyError as exc:
             return Response({"detail": exc.message}, status=exc.status_code)
         return Response(fm.serialize(item, org))

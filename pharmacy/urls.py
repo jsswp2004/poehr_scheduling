@@ -38,4 +38,5 @@ urlpatterns = [
     path("formulary/<int:pk>/", fv.FormularyItemView.as_view(), name="formulary-item"),
     path("formulary/<int:pk>/revert/", fv.FormularyRevertView.as_view(), name="formulary-revert"),
     path("formulary/<int:pk>/history/", fv.FormularyHistoryView.as_view(), name="formulary-history"),
+    path("formulary/<int:pk>/review/", fv.FormularyReviewView.as_view(), name="formulary-review"),
 ]

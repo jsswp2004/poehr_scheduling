@@ -5,10 +5,19 @@ Data model (the least invasive fit for how orderables are already owned):
 * A formulary item IS a medication `Orderable`. organization = None -> shared (owned by POWER system
   administrators, like every shared orderable); organization = a clinic -> that clinic's own item.
   The same item is what nurses order inpatient and what prescribers pick in the prescription writer.
-* Prices reuse `PharmacyPrice`, now linked to the item: organization = None is the shared price; a clinic's row
-  for a shared item overrides it (price, unit and VAT-exempt go together).
+* RxNorm codes are SHARED: on a shared item only POWER system administrators change them (like the rest of the
+  definition). Starter items have none; a pharmacist or administrator fills them in on screen or by CSV.
+* Prices are PER CLINIC (`PharmacyPrice` linked to the item, with the clinic as organization): each clinic sets its
+  own price, unit and VAT-exempt flag for shared items and for its own items. There is no shared price; rows with no
+  organization from before (shared prices) are kept in the database but ignored. With no formulary price, the
+  in-house fill falls back to the clinic's Phase 2 price-table rows ("no price, no dispense" still applies).
 * A clinic's other local values for a shared item (active/hidden, dangerous drug, renal threshold) are a
   `FormularyOverride` row holding only the overridden fields. Reverting a field deletes it from the row.
+* "Needs pharmacist review" is a `FormularyReview` per item (no row = needs review). A clinical change to the item
+  itself, or any change by an import, sets it back to needs review. Shared items are reviewed at POWER level (system
+  administrators and pharmacists flagged as POWER formulary reviewers); a clinic's own item by that clinic's
+  pharmacist. A clinic's overrides of a shared item have no review status of their own: they are the clinic's own
+  pharmacist decisions and are recorded, with who made them, in the item's history.
 * Every change, by hand, by import, by revert or by the flag migration, is a `FormularyChange`; every applied CSV
   is a `FormularyImport` that keeps the original file.
 
@@ -30,7 +39,7 @@ from appointments import allergies
 from appointments.models import Orderable
 from appointments.order_tasks import ROUTES
 
-from .models import FormularyChange, FormularyImport, FormularyOverride, PharmacyPrice
+from .models import FormularyChange, FormularyImport, FormularyOverride, FormularyReview, PharmacistProfile, PharmacyPrice
 
 EDIT_ROLES = ("pharmacist", "admin", "system_admin")
 VIEW_ROLES = EDIT_ROLES + ("pharmacy_tech",)
@@ -44,6 +53,8 @@ DEFINITION = ("generic_name", "brand_name", "strength", "form", "route", "rxnorm
 LOCAL = ("is_active", "dangerous_drug", "renal_threshold_crcl")  # a clinic may override these on a shared item
 PRICE = ("unit", "unit_price_php", "vat_exempt")  # ... and these (its own price row)
 OVERRIDABLE = LOCAL + PRICE
+REVIEW_FIELDS = DEFINITION + ("dangerous_drug", "renal_threshold_crcl")  # a change to these needs a pharmacist's review
+PRICES_PER_CLINIC = "Prices are set by each clinic in its own formulary; the shared POWER formulary has no prices."
 MAX_ROWS = 2000
 _SLUG = re.compile(r"^[-a-zA-Z0-9_]+$")
 _TRUE, _FALSE = {"yes", "y", "true", "1"}, {"no", "n", "false", "0"}
@@ -99,9 +110,9 @@ def _maps(items, org):
     ids = [i.pk for i in items]
     overrides = {o.orderable_id: o for o in FormularyOverride.objects.filter(organization=org, orderable_id__in=ids)} if org else {}
     prices = {}
-    for p in PharmacyPrice.objects.filter(orderable_id__in=ids).filter(Q(organization__isnull=True) | Q(organization=org)):
-        slot = prices.setdefault(p.orderable_id, {})
-        slot["clinic" if p.organization_id else "shared"] = p
+    if org is not None:  # prices are per clinic; rows with no organization (old shared prices) are ignored
+        for p in PharmacyPrice.objects.filter(orderable_id__in=ids, organization=org):
+            prices.setdefault(p.orderable_id, {})["clinic"] = p
     return overrides, prices
 
 
@@ -127,10 +138,8 @@ def effective(item, org, overrides=None, prices=None):
     if overrides is None or prices is None:
         overrides, prices = _maps([item], org)
     shared = item.organization_id is None
-    own_prices = prices.get(item.pk, {})
-    base_price = own_prices.get("shared") if shared else own_prices.get("clinic")
-    values = _base(item, base_price)
-    sources = {f: ("shared" if shared else "clinic") for f in values}
+    values = _base(item, prices.get(item.pk, {}).get("clinic"))
+    sources = {f: ("shared" if shared and f not in PRICE else "clinic") for f in values}
     shared_values = {}
     if shared and org is not None:
         override = overrides.get(item.pk)
@@ -139,16 +148,25 @@ def effective(item, org, overrides=None, prices=None):
                 shared_values[field] = values[field]
                 values[field] = value
                 sources[field] = "overridden"
-        clinic_price = own_prices.get("clinic")
-        if clinic_price is not None:
-            for field, value in (("unit", clinic_price.unit), ("unit_price_php", _num(clinic_price.unit_price)), ("vat_exempt", clinic_price.vat_exempt)):
-                shared_values[field] = values[field]
-                values[field] = value
-                sources[field] = "overridden"
     return {"values": values, "sources": sources, "shared_values": shared_values}
 
 
-def serialize(item, org, overrides=None, prices=None):
+def review_of(item, reviews=None):
+    """{"status", "reviewed_by", "reviewed_at"} of an item (no FormularyReview row: needs review)."""
+    from .services import name_of
+
+    r = reviews.get(item.pk) if reviews is not None else FormularyReview.objects.filter(orderable=item).select_related("reviewed_by").first()
+    if r is None:
+        return {"status": "needs_review", "reviewed_by": "", "reviewed_at": None}
+    return {"status": r.status, "reviewed_by": name_of(r.reviewed_by) if r.reviewed_by_id else "",
+            "reviewed_at": r.reviewed_at.isoformat() if r.reviewed_at else None}
+
+
+def _reviews(items):
+    return {r.orderable_id: r for r in FormularyReview.objects.filter(orderable_id__in=[i.pk for i in items]).select_related("reviewed_by")}
+
+
+def serialize(item, org, overrides=None, prices=None, reviews=None):
     eff = effective(item, org, overrides, prices)
     v = eff["values"]
     return {
@@ -160,13 +178,17 @@ def serialize(item, org, overrides=None, prices=None):
         "sources": eff["sources"],
         "shared_values": eff["shared_values"],
         "overridden": sorted(f for f, s in eff["sources"].items() if s == "overridden"),
+        "review": review_of(item, reviews),
     }
 
 
-def listing(org, q="", scope="", dangerous="", renal="", active=""):
+def listing(org, q="", scope="", dangerous="", renal="", active="", review=""):
     items = list(scope_items(org).order_by("generic_name", "name", "id"))
     overrides, prices = _maps(items, org)
-    rows = [serialize(i, org, overrides, prices) for i in items]
+    reviews = _reviews(items)
+    rows = [serialize(i, org, overrides, prices, reviews) for i in items]
+    if review in ("needs_review", "reviewed"):
+        rows = [r for r in rows if r["review"]["status"] == review]
     term = q.strip().lower()
     if term:
         rows = [r for r in rows if term in " ".join(str(r[k] or "") for k in ("code", "generic_name", "brand_name", "rxnorm_code")).lower()]
@@ -201,10 +223,10 @@ def match_item(name, org=None):
 
 
 def price_row(item, org):
-    """The PharmacyPrice that applies to this item for this clinic: the clinic's row, else the shared one."""
-    rows = {("clinic" if p.organization_id else "shared"): p for p in PharmacyPrice.objects.filter(orderable=item, is_active=True)
-            .filter(Q(organization__isnull=True) | Q(organization=org))}
-    return rows.get("clinic") or (rows.get("shared") if item.organization_id is None else None)
+    """This clinic's PharmacyPrice for the item (prices are per clinic; old shared rows are ignored), or None."""
+    if org is None:
+        return None
+    return PharmacyPrice.objects.filter(orderable=item, organization=org, is_active=True).first()
 
 
 # --------------------------------------------------------------------------- editing
@@ -317,11 +339,7 @@ def apply_changes(user, org, item, changes, source="manual", formulary_import=No
         elif override.pk:
             override.delete()
         if any(f in changes for f in PRICE):
-            price = {f: changes.get(f, old[f]) for f in PRICE}
-            if all(price[f] == shared_now[f] for f in PRICE):
-                PharmacyPrice.objects.filter(orderable=item, organization=org).delete()
-            else:
-                _set_price(item, org, price, old)
+            _set_price(item, org, {f: changes.get(f, old[f]) for f in PRICE}, old)  # the clinic's own price
             for f in PRICE:
                 if f in changes and old[f] != changes[f]:
                     done[f] = [old[f], changes[f]]
@@ -341,8 +359,10 @@ def apply_changes(user, org, item, changes, source="manual", formulary_import=No
         item.is_active = bool(values["is_active"])
         item.name = _name_for(values)
         item.save()
-        if any(f in done for f in PRICE):
-            _set_price(item, None if shared else item.organization, {f: values[f] for f in PRICE}, old)
+        if not shared and any(f in done for f in PRICE):  # a shared item has no price (prices are per clinic)
+            _set_price(item, item.organization, {f: values[f] for f in PRICE}, old)
+        if (source == "import" and done) or any(f in REVIEW_FIELDS for f in done):
+            set_needs_review(item)
     if done:
         FormularyChange.objects.create(
             organization=org if as_clinic else (None if shared else item.organization), orderable=item, user=user,
@@ -409,13 +429,50 @@ def create_item(user, org, data, source="manual", formulary_import=None):
             item.save()
     except IntegrityError:
         raise FormularyError("That code is already in use.")
-    if values["unit_price_php"] is not None:
+    if values["unit_price_php"] is not None and item.organization_id is not None:  # shared items have no price
         _set_price(item, item.organization, {"unit": values["unit"] or "", "unit_price_php": values["unit_price_php"], "vat_exempt": bool(values["vat_exempt"])}, {})
     FormularyChange.objects.create(
         organization=item.organization, orderable=item, user=user, source=source, formulary_import=formulary_import,
         changes={"created": [None, serialize(item, item.organization)["display"]]},
     )
     return item
+
+
+# --------------------------------------------------------------------------- review
+
+def set_needs_review(item):
+    """Back to "needs pharmacist review" (the last reviewer stays on record). No row already means needs review."""
+    FormularyReview.objects.filter(orderable=item, status="reviewed").update(status="needs_review")
+
+
+def can_review(user, item, org):
+    """
+    "Mark reviewed": a shared item at POWER level (a system administrator, or a pharmacist flagged as a POWER
+    formulary reviewer); a clinic's own item by a pharmacist of that clinic. Administrators and assistants never.
+    """
+    role = getattr(user, "role", None)
+    if item.organization_id is None:
+        if role == "system_admin":
+            return True
+        return role == "pharmacist" and PharmacistProfile.objects.filter(user=user, reviews_shared_formulary=True).exists()
+    return role == "pharmacist" and org is not None and item.organization_id == org.pk
+
+
+def mark_reviewed(user, org, item):
+    from django.utils import timezone
+
+    if not can_review(user, item, org):
+        raise FormularyError(
+            "Only a POWER formulary reviewer or a system administrator can review a shared item." if item.organization_id is None
+            else "Only a pharmacist of this clinic can review its items.", 403)
+    review, _ = FormularyReview.objects.get_or_create(orderable=item)
+    if review.status == "reviewed":
+        raise FormularyError("This item is already reviewed.", 409)
+    review.status, review.reviewed_by, review.reviewed_at = "reviewed", user, timezone.now()
+    review.save()
+    FormularyChange.objects.create(organization=item.organization, orderable=item, user=user, source="review",
+                                   changes={"review": ["needs_review", "reviewed"]})
+    return review
 
 
 # --------------------------------------------------------------------------- CSV
@@ -495,6 +552,10 @@ def plan_import(user, org, text):
                 bad = True
         if bad:
             continue
+        if as_admin:
+            for field in PRICE:
+                if values.pop(field, None) not in (None, "", False):
+                    warnings.append({"row": n, "column": field, "message": "Ignored: " + PRICES_PER_CLINIC})
         item = existing.get(code.lower())
         if item is not None and item.category != "medication":
             errors.append({"row": n, "column": "code", "message": "That code is an orderable that is not a medication."})
