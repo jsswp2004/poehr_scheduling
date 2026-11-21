@@ -2,8 +2,9 @@ import { Box, Typography } from "@mui/material";
 import PharmacyPatientList from "./PharmacyPatientList";
 import VerificationQueue from "./VerificationQueue";
 import MedProfilePanel from "./MedProfilePanel";
+import OutpatientFillQueue from "./OutpatientFillQueue";
 
-/** Shown on the Outpatient Rx and eRx Routing tabs until those phases are built. */
+/** Shown on the eRx Routing tab until that phase is built. */
 export function PharmacyComingSoon({ title, phase }) {
   return (
     <Box sx={{ p: 3 }} data-testid="pharmacy-coming-soon">
@@ -25,7 +26,7 @@ export default function PharmacyWorkspace({ view, role, selectedPatient, onSelec
     if (!selectedPatient) return null;
     return <MedProfilePanel key={selectedPatient.id} patient={selectedPatient} role={role} />;
   }
-  if (view === "outpatient_rx") return <PharmacyComingSoon title="Outpatient Rx" phase={2} />;
+  if (view === "outpatient_rx") return <OutpatientFillQueue onSelectPatient={onSelect} />;
   if (view === "erx_routing") return <PharmacyComingSoon title="eRx Routing" phase={3} />;
   return (
     <PharmacyPatientList

@@ -317,6 +317,16 @@ export const apiEndpoints = {
     pharmacyOrder: (id) => `${API_BASE_URL}/api/pharmacy/orders/${id}/`,
     pharmacyOrderAction: (id) => `${API_BASE_URL}/api/pharmacy/orders/${id}/action/`,
     pharmacyMedProfile: (patientId) => `${API_BASE_URL}/api/pharmacy/med-profile/${patientId}/`,
+    // Phase 2: in-house outpatient fill
+    pharmacyFills: `${API_BASE_URL}/api/pharmacy/fills/`,
+    pharmacyFill: (id) => `${API_BASE_URL}/api/pharmacy/fills/${id}/`,
+    pharmacyFillAction: (id) => `${API_BASE_URL}/api/pharmacy/fills/${id}/action/`,
+    pharmacyFillCompletePartial: (id) => `${API_BASE_URL}/api/pharmacy/fills/${id}/complete-partial/`,
+    pharmacyFillLabel: (id) => `${API_BASE_URL}/api/pharmacy/fills/${id}/label/`,
+    pharmacyRefill: (rxId) => `${API_BASE_URL}/api/pharmacy/prescriptions/${rxId}/refill/`,
+    pharmacyPrices: `${API_BASE_URL}/api/pharmacy/prices/`,
+    pharmacyPrice: (id) => `${API_BASE_URL}/api/pharmacy/prices/${id}/`,
+    pharmacyDiscountIds: (patientId) => `${API_BASE_URL}/api/pharmacy/patients/${patientId}/discount-ids/`,
 
     // Surgery module (Case List, Day Planner)
     surgeryPlanner: `${API_BASE_URL}/api/surgery/planner/`,

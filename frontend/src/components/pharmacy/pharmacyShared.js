@@ -58,3 +58,41 @@ export function DrugName({ drug, dangerous = false, detail = "", testId }) {
 /** Dose, route and frequency as one line: "2.25 g IV · Every 6 hours". */
 export const directions = (o) =>
   [[o.dose, o.route].filter(Boolean).join(" "), o.frequency_label].filter(Boolean).join(" · ");
+
+// ---- Phase 2: in-house outpatient fill
+
+/** The fill queue's stages, in order, as tabs. */
+export const FILL_STAGES = [
+  { value: "received", label: "Received" },
+  { value: "data_entry", label: "Data entry" },
+  { value: "filling", label: "Filling" },
+  { value: "final_check", label: "Final check" },
+  { value: "ready", label: "Ready for pickup" },
+  { value: "dispensed", label: "Dispensed" },
+  { value: "on_hold", label: "On hold" },
+];
+
+export const FILL_STAGE_COLOR = {
+  received: "default",
+  data_entry: "info",
+  filling: "info",
+  final_check: "warning",
+  ready: "success",
+  dispensed: "default",
+  on_hold: "error",
+};
+
+/** Fired after a fill changes, so the queue and the med profile reload. */
+export const FILLS_CHANGED_EVENT = "pharmacy-fills-changed";
+
+/** "₱1,234.50" */
+export const peso = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  const n = Number(value);
+  return Number.isFinite(n) ? `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";
+};
+
+export const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : "");
+
+/** "Bonifacio, Andres · 21/11/2026, 10:15" for a stage that has been done. */
+export const fmtWho = (who) => (who && (who.name || who.at) ? [who.name, fmtDateTime(who.at)].filter(Boolean).join(" · ") : "");
