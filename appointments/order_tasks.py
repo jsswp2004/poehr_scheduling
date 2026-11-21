@@ -193,13 +193,16 @@ AWAITING_PHARMACY = ("pending_verification", "on_hold_clarify", "rejected")
 def awaiting_pharmacy(order):
     """
     True when a medication order may not be given yet because a pharmacist has not verified it.
-    Only for organizations that switched POWER Pharmacy on explicitly; everyone else (including
-    organizations that never configured modules) keeps giving signed orders straight away.
+    Applies wherever POWER Pharmacy is available: organizations that switched it on and organizations that
+    never configured modules (everything on). An organization that chose its modules without Pharmacy has
+    nobody who can reach the verification queue, so its signed orders are given straight away as before.
+    Orders signed before Pharmacy existed were marked verified by migration 0104.
     """
     if order.orderable_category != "medication" or order.pharmacy_status not in AWAITING_PHARMACY:
         return False
-    stored = getattr(order.organization, "enabled_modules", None) if order.organization_id else None
-    return isinstance(stored, list) and "pharmacy" in stored
+    from users.modules import has_module
+
+    return has_module(order.organization if order.organization_id else None, "pharmacy")
 
 
 # ---------------------------------------------------------------- laying out the due times

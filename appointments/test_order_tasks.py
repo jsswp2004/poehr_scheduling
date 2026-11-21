@@ -47,7 +47,15 @@ class Base(TestCase):
     def med(self, schedule=None, user=None, orderable=None, sign=True, **extra):
         sched = {"frequency": "bid", "dose": "500 mg", "route": "PO", **(schedule or {})}
         o = ow.create_draft_order(user or self.doctor, self.appt, orderable or self.amox, schedule=sched)
+        if sign:
+            self.verified(o)
         return ow.sign_order(o, user or self.doctor) if sign else o
+
+    @staticmethod
+    def verified(order):
+        """A pharmacist has verified it: with POWER Pharmacy on (every module, here) tasks wait for that."""
+        Order.objects.filter(pk=order.pk).update(pharmacy_status="verified")
+        return order
 
     def api(self, user=None):
         c = APIClient()
@@ -215,7 +223,7 @@ class GenerationTests(Base):
         self.assertEqual(OrderTask.objects.filter(order=o).count(), again)
 
     def test_pending_cosign_makes_none_until_cosigned(self):
-        o = ow.create_draft_order(self.nurse, self.appt, self.amox, schedule={"frequency": "bid", "dose": "1", "route": "PO"})
+        o = self.verified(ow.create_draft_order(self.nurse, self.appt, self.amox, schedule={"frequency": "bid", "dose": "1", "route": "PO"}))
         o = ow.sign_order(o, self.nurse)
         self.assertEqual(o.status, "pending_cosign")
         self.assertEqual(OrderTask.objects.count(), 0)
