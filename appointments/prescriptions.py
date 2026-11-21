@@ -376,6 +376,14 @@ def sign(rx, user, allergy_override_reason="", duplicate_reason=""):
         detail["dangerous_drug"] = {"yellow_rx_serial": rx.yellow_rx_serial, "s2_number": rx.s2_number}
     log_event(rx, "signed", user, from_status="draft", to_status="signed", detail=detail)
 
+    # POWER Pharmacy Portal: a claim code for the printed Rx, and routing when the pharmacy is a portal partner
+    from pharmacy import portal
+
+    try:
+        portal.on_rx_signed(rx, user)
+    except portal.PortalError as exc:
+        raise RxError(exc.message, exc.status_code)
+
     # what a patient has been prescribed is what they now take: keep the home medication list up to date
     from . import home_meds
 
@@ -469,6 +477,9 @@ def cancel(rx, user, reason):
     rx.save()
     log_event(rx, "cancelled", user, from_status=previous, to_status="cancelled",
               detail={"reason": reason, "pharmacy_must_be_told": was_sent})
+    from pharmacy import portal
+
+    portal.on_rx_cancelled(rx, user)
     return rx
 
 

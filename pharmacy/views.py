@@ -344,6 +344,8 @@ class MedProfileView(APIView):
             "interventions": [svc.serialize_intervention(i) for i in interventions],
             # Phase 2: what the in-house pharmacy has dispensed to this patient
             "dispensing": [fx.serialize_fill(f) for f in dispensed],
+            # Phase 3: what partner pharmacies (POWER Pharmacy Portal) dispensed, with the actual product
+            "portal_dispensing": pt.portal_dispensing_for(patient),
         })
 
 
@@ -641,3 +643,108 @@ class DiscountIdDetailView(APIView):
             card.is_active = bool(request.data.get("is_active"))
             card.save(update_fields=["is_active"])
         return Response(_card_json(card))
+
+
+# --------------------------------------------------------------------------------------------- Phase 3
+# Clinic side of the POWER Pharmacy Portal:
+#
+#     GET  network/                         partner pharmacies (POWER administrators see every status)
+#     POST network/<id>/status/             {action: approve|suspend|reinstate, reason}   (POWER administrators)
+#     POST network/<id>/add-to-directory/   put an approved partner in this clinic's pharmacy directory
+#     GET  portal-requests/?prescription=   a prescription's pharmacy requests
+#     POST portal-requests/<id>/respond/    {decision: approved|denied, response}   (the prescriber or an admin)
+
+from appointments import prescriptions as _rxs  # noqa: E402
+from appointments.models import Pharmacy as _Pharmacy  # noqa: E402
+
+from . import portal as pt  # noqa: E402
+from .models import PartnerDirectoryLink, PartnerPharmacy, PortalRequest  # noqa: E402
+
+NETWORK_ROLES = tuple(dict.fromkeys(_rxs.DRAFT_ROLES + svc.READ_ROLES))
+
+
+class PartnerNetworkView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in NETWORK_ROLES:
+            return Response({"detail": "Not allowed."}, status=403)
+        qs = PartnerPharmacy.objects.prefetch_related("staff")
+        if request.user.role != "system_admin":
+            qs = qs.filter(status="approved")
+        org = _target_org(request, request.query_params.get("org"))
+        linked = set(PartnerDirectoryLink.objects.filter(pharmacy__organization=org).values_list("partner_id", flat=True)) if org else set()
+        rows = []
+        for p in qs:
+            data = pt.serialize_partner(p)
+            data["in_directory"] = p.pk in linked
+            if request.user.role != "system_admin":
+                data.pop("pharmacists")
+            rows.append(data)
+        return Response({"results": rows, "can_approve": request.user.role == "system_admin"})
+
+
+class PartnerStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        partner = PartnerPharmacy.objects.filter(pk=pk).first()
+        if partner is None:
+            return Response({"detail": "Pharmacy not found."}, status=404)
+        try:
+            partner = pt.set_status(request.user, partner, str(request.data.get("action") or ""), request.data.get("reason"))
+        except pt.PortalError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        return Response(pt.serialize_partner(partner))
+
+
+class PartnerAddToDirectoryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if request.user.role not in NETWORK_ROLES:
+            return Response({"detail": "Not allowed."}, status=403)
+        org = _target_org(request, request.query_params.get("org"))
+        if org is None:
+            return Response({"detail": "Choose a clinic."}, status=400)
+        partner = PartnerPharmacy.objects.filter(pk=pk).first()
+        if partner is None or pt.partner_problem(partner):
+            return Response({"detail": "Only an approved portal pharmacy with a valid LTO can be added."}, status=409)
+        link = PartnerDirectoryLink.objects.filter(partner=partner, pharmacy__organization=org).select_related("pharmacy").first()
+        if link is None:
+            ph = _Pharmacy.objects.create(organization=org, name=partner.name, address=partner.address, city=partner.city,
+                                          phone=partner.phone, fda_lto_number=partner.fda_lto_number)
+            link = PartnerDirectoryLink.objects.create(pharmacy=ph, partner=partner)
+        return Response(_rxs.pharmacy_json(link.pharmacy), status=201)
+
+
+class PortalRequestListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in NETWORK_ROLES:
+            return Response({"detail": "Not allowed."}, status=403)
+        qs = PortalRequest.objects.select_related("portal__prescription", "partner", "created_by", "responded_by")
+        if request.user.role != "system_admin":
+            qs = qs.filter(portal__prescription__organization_id=request.user.organization_id)
+        if request.query_params.get("prescription"):
+            qs = qs.filter(portal__prescription_id=request.query_params["prescription"])
+        if request.query_params.get("status"):
+            qs = qs.filter(status=request.query_params["status"])
+        return Response({"results": [pt.serialize_request(r) for r in qs[:200]]})
+
+
+class PortalRequestRespondView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        req = PortalRequest.objects.filter(pk=pk).select_related("portal__prescription").first()
+        if req is None or (request.user.role != "system_admin" and req.portal.prescription.organization_id != request.user.organization_id):
+            return Response({"detail": "Request not found."}, status=404)
+        try:
+            req = pt.respond(request.user, req, str(request.data.get("decision") or ""), request.data.get("response"))
+        except pt.PortalError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        except _rxs.RxError as exc:
+            return Response({"detail": str(exc)}, status=getattr(exc, "status_code", 400))
+        return Response(pt.serialize_request(req))

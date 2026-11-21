@@ -77,6 +77,18 @@ def _narrow(request, qs):
     return qs
 
 
+def _portal_summary(rx):
+    from pharmacy.portal import portal_summary
+
+    return portal_summary(rx)
+
+
+def _portal_requests(rx):
+    from pharmacy.portal import requests_for_prescription
+
+    return requests_for_prescription(rx)
+
+
 def serialize(rx, user, detail=False):
     data = {
         "id": rx.pk,
@@ -119,6 +131,9 @@ def serialize(rx, user, detail=False):
             "allergy_alerts": allergies.check_order(rx.patient, rx.drug_name, rx.code_system, rx.code) if rx.status == "draft" and rx.drug_name else [],
             "duplicates": rxs.duplicates_for(rx) if rx.status == "draft" and rx.drug_name else [],
             "clinical_snapshot": rx.clinical_snapshot or {},
+            "claim_code": rx.claim_code,
+            "portal": _portal_summary(rx),
+            "pharmacy_requests": _portal_requests(rx),
             "replaced_by": [r.pk for r in rx.replaced_by.all()],
             "events": [
                 {"id": e.pk, "type": e.event_type, "from_status": e.from_status, "to_status": e.to_status,
@@ -206,6 +221,11 @@ def _clean_fields(request, org, data, creating, rx=None):
             ph = Pharmacy.objects.filter(pk=pid, organization=org, is_active=True).first()
             if ph is None:
                 return None, Response({"detail": "That pharmacy was not found."}, status=400)
+            from pharmacy.portal import check_directory_choice
+
+            problem = check_directory_choice(ph)
+            if problem:
+                return None, Response({"detail": problem}, status=400)
             values["pharmacy"] = ph
     if "prescriber" in data or creating:
         pid = data.get("prescriber")
