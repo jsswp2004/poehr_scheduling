@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from "@mui/material";
+import { Alert, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, TextField } from "@mui/material";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { authHeader, errorText } from "./rxShared";
 
-const BLANK = { name: "", address: "", city: "", state: "", zip_code: "", phone: "", fax: "", ncpdp_id: "" };
+const BLANK = { name: "", address: "", city: "", state: "", zip_code: "", phone: "", fax: "", ncpdp_id: "", is_in_house: false, fda_lto_number: "" };
 
 /** Add a pharmacy to the clinic's directory (the fax number is what the faxing step uses). */
 export default function PharmacyDialog({ open, onClose, onSaved }) {
@@ -56,6 +56,12 @@ export default function PharmacyDialog({ open, onClose, onSaved }) {
             {field("fax", "Fax")}
           </Stack>
           {field("ncpdp_id", "NCPDP ID (optional, 7 digits)", { helperText: "Needed later for electronic prescribing." })}
+          {/* POWER Pharmacy: the clinic's own pharmacy fills prescriptions sent to it (Outpatient Rx queue) */}
+          <FormControlLabel
+            control={<Checkbox checked={form.is_in_house} onChange={(e) => setForm((f) => ({ ...f, is_in_house: e.target.checked }))} inputProps={{ "data-testid": "pharmacy-is_in_house" }} />}
+            label="This is our in-house pharmacy (fills prescriptions sent to it)"
+          />
+          {form.is_in_house && field("fda_lto_number", "FDA License to Operate (LTO) number", { helperText: "Printed on every dispensing label." })}
         </Stack>
       </DialogContent>
       <DialogActions>
