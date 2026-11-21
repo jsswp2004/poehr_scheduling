@@ -213,6 +213,11 @@ class QueueTests(Base):
         para = next(r for r in data["results"] if r["id"] == newer.pk)
         self.assertEqual(para["drug"]["display"], "Paracetamol (Biogesic)")
 
+    def test_summary_returns_counts_only(self):
+        self.med()
+        data = self.api(self.pharmacist).get("/api/pharmacy/queue/?summary=1").json()
+        self.assertEqual(data, {"counts": {"pending_verification": 1, "on_hold_clarify": 0, "verified": 0, "rejected": 0, "past_goal": 0}})
+
     def test_search_and_status_filter(self):
         o = self.med()
         self.action(o, action="verify")

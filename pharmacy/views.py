@@ -176,7 +176,7 @@ class PharmacyPatientListView(APIView):
 
 
 class VerificationQueueView(APIView):
-    """GET ?status=pending_verification|on_hold_clarify|verified|rejected|all&care=&q=&patient= -> rows and counts."""
+    """GET ?status=pending_verification|on_hold_clarify|verified|rejected|all&care=&q=&patient=[&summary=1] -> rows and counts."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -204,6 +204,8 @@ class VerificationQueueView(APIView):
         now = timezone.now()
         counts = {key: sum(1 for o in rows if o.pharmacy_status == key) for key in QUEUE_TABS}
         counts["past_goal"] = sum(1 for o in rows if svc.past_goal(o, now))
+        if p.get("summary"):  # the chart tab badge only needs the counts
+            return Response({"counts": counts})
         wanted = p.get("status") or "pending_verification"
         if wanted != "all":
             rows = [o for o in rows if o.pharmacy_status == wanted]
