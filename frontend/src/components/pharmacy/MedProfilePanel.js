@@ -9,7 +9,7 @@ import {
   DrugName, PHARMACY_CHANGED_EVENT, PHARMACY_STATUS_COLOR, VERIFY_ROLES, authHeader, directions, errorText, fmtDateTime,
 } from "./pharmacyShared";
 
-const ORDER_STATUS = { pending_cosign: "Pending cosign", active: "Active", in_progress: "In progress", completed: "Completed", discontinued: "Discontinued" };
+const ORDER_STATUS = { pending_cosign: "Pending cosign", active: "Active", in_progress: "In progress", completed: "Completed", discontinued: "Discontinued", cancelled: "Cancelled" };
 
 function Section({ title, children, testId }) {
   return (
