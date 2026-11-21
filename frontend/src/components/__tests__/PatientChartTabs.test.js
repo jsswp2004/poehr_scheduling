@@ -108,3 +108,19 @@ test("the Results tab shows how many lab results wait for review, and says how m
   rerender(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" badges={{ results: 0 }} />);
   expect(screen.queryByTestId("chart-tab-badge-results")).toBeNull();
 });
+
+test("the Outpatient Rx tab shows its count badge like the other worklist tabs", () => {
+  render(<PatientChartTabs value="patient_list" onChange={() => {}} role="pharmacist" careSetting="pharmacy" badges={{ verification_queue: 2, outpatient_rx: 4 }} badgeOverdue={{ verification_queue: 1, outpatient_rx: 0 }} />);
+  expect(screen.getByTestId("chart-tab-badge-outpatient_rx")).toHaveTextContent("4");
+  expect(screen.getByTestId("chart-tab-badge-verification_queue")).toHaveTextContent("2");
+});
+
+test("pharmacy roles are not staff-module roles: they get the Pharmacy link and no links that would refuse them", () => {
+  const { MODULE_LINKS, STAFF_MODULE_ROLES } = require("../../utils/moduleLinks");
+  for (const role of ["pharmacist", "pharmacy_tech"]) {
+    expect(STAFF_MODULE_ROLES).not.toContain(role);
+    const keys = MODULE_LINKS.filter((m) => m.roles && m.roles.includes(role)).map((m) => m.key);
+    expect(keys).toContain("pharmacy");
+    for (const k of ["patients", "documentation", "scheduler", "team", "staffing", "surgery"]) expect(keys).not.toContain(k);
+  }
+});

@@ -628,8 +628,8 @@ function PatientsPage() {
             role={userRole}
             keys={chartLayout.tabs}
             careSetting={careKey}
-            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count, inbox: worklists.inbox.count, verification_queue: worklists.pharmacy.count }}
-            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue, results: worklists.results.overdue, verification_queue: worklists.pharmacy.overdue }}
+            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count, results: worklists.results.count, inbox: worklists.inbox.count, verification_queue: worklists.pharmacy.count, outpatient_rx: worklists.outpatient.count }}
+            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue, results: worklists.results.overdue, verification_queue: worklists.pharmacy.overdue, outpatient_rx: worklists.outpatient.overdue }}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
             visitMarker={selectedPatient && openVisit ? `Visit ${openVisit.visit_number || `#${openVisit.id}`}` : null}
           />

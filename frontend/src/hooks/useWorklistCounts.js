@@ -26,6 +26,12 @@ const readPharmacy = (data) => {
   const counts = (data && data.counts) || {};
   return { count: Number(counts.pending_verification) || 0, overdue: Number(counts.past_goal) || 0 };
 };
+// POWER Pharmacy, Outpatient Rx: in-house prescriptions still to be filled or handed over (every stage but dispensed).
+const OPEN_FILL_STAGES = ["received", "data_entry", "filling", "final_check", "ready", "on_hold"];
+export const readOpenFills = (data) => {
+  const counts = (data && data.counts) || {};
+  return { count: OPEN_FILL_STAGES.reduce((n, s) => n + (Number(counts[s]) || 0), 0), overdue: 0 };
+};
 const readLabSummary = (data) => ({ count: Number(data && data.count) || 0, overdue: Number(data && data.critical) || 0 });
 
 function useQueueCount(url, allowed, eventName, read = readQueueCounts, params) {
@@ -67,5 +73,8 @@ export default function useWorklistCounts(role, enabled = true) {
   const pharmacy = useQueueCount(
     "/api/pharmacy/queue/", enabled && PHARMACY_ROLES.includes(role) && moduleEnabled("pharmacy"), "pharmacy-changed", readPharmacy, { summary: 1 }
   );
-  return { referrals, tasks, results, inbox, pharmacy };
+  const outpatient = useQueueCount(
+    "/api/pharmacy/fills/", enabled && PHARMACY_ROLES.includes(role) && moduleEnabled("pharmacy"), "pharmacy-fills-changed", readOpenFills, { summary: 1 }
+  );
+  return { referrals, tasks, results, inbox, pharmacy, outpatient };
 }
