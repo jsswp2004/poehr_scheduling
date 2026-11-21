@@ -7,6 +7,8 @@ POWER Formulary API (mounted at /api/pharmacy/formulary/, part of the POWER Phar
     POST  formulary/<id>/revert/             {field}: back to the shared value
     POST  formulary/<id>/review/             "Mark reviewed" (needs pharmacist review -> reviewed)
     GET   formulary/<id>/history/            the item's change history
+    GET   formulary/reviewers/               system admin: pharmacists and who reviews the shared formulary, with the log
+    PATCH formulary/reviewers/<user id>/     system admin: {reviewer: true|false}
     GET   formulary/export/  formulary/template/            CSV
     POST  formulary/import/                  multipart file, mode=preview|apply
     GET   formulary/imports/, formulary/imports/<id>/file/  past imports and their original file
@@ -167,6 +169,29 @@ class FormularyReviewView(APIView):
         except fm.FormularyError as exc:
             return Response({"detail": exc.message}, status=exc.status_code)
         return Response(fm.serialize(item, org))
+
+
+class FormularyReviewersView(APIView):
+    """System administrators choose the POWER formulary reviewers (who may mark SHARED items reviewed)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk=None):
+        if request.user.role != "system_admin":
+            return Response({"detail": "Only a system administrator chooses the POWER formulary reviewers."}, status=403)
+        return Response(fm.reviewers())
+
+    def patch(self, request, pk=None):
+        if request.user.role != "system_admin":
+            return Response({"detail": "Only a system administrator chooses the POWER formulary reviewers."}, status=403)
+        value = request.data.get("reviewer")
+        if not isinstance(value, bool):
+            return Response({"detail": "reviewer must be true or false."}, status=400)
+        try:
+            changed = fm.set_reviewer(request.user, pk, value)
+        except fm.FormularyError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        return Response({**fm.reviewers(), "changed": changed})
 
 
 class FormularyHistoryView(APIView):

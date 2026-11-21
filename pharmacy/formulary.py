@@ -39,7 +39,9 @@ from appointments import allergies
 from appointments.models import Orderable
 from appointments.order_tasks import ROUTES
 
-from .models import FormularyChange, FormularyImport, FormularyOverride, FormularyReview, PharmacistProfile, PharmacyPrice
+from .models import (
+    FormularyChange, FormularyImport, FormularyOverride, FormularyReview, FormularyReviewerChange, PharmacistProfile, PharmacyPrice,
+)
 
 EDIT_ROLES = ("pharmacist", "admin", "system_admin")
 VIEW_ROLES = EDIT_ROLES + ("pharmacy_tech",)
@@ -440,6 +442,52 @@ def create_item(user, org, data, source="manual", formulary_import=None):
 
 # --------------------------------------------------------------------------- review
 
+def item_needs_review(item):
+    """
+    True for a medication item not (or no longer) reviewed by a pharmacist: the soft "Not yet reviewed by a
+    pharmacist" warning when it is prescribed, ordered, verified or filled (never a block). Uses the cached
+    reverse relation when the caller select_related("formulary_review").
+    """
+    if item is None or item.category != "medication":
+        return False
+    try:
+        return item.formulary_review.status != "reviewed"
+    except FormularyReview.DoesNotExist:
+        return True
+
+
+def reviewers():
+    """Every active pharmacist (all clinics) and whether they review the SHARED formulary, plus the change log."""
+    from django.contrib.auth import get_user_model
+
+    from .services import name_of
+
+    flagged = set(PharmacistProfile.objects.filter(reviews_shared_formulary=True).values_list("user_id", flat=True))
+    users = get_user_model().objects.filter(role="pharmacist", is_active=True).select_related("organization").order_by("last_name", "first_name", "username")
+    log = FormularyReviewerChange.objects.select_related("pharmacist", "changed_by")[:50]
+    return {
+        "results": [{"id": u.pk, "name": name_of(u), "clinic": u.organization.name if u.organization_id else "", "reviewer": u.pk in flagged} for u in users],
+        "log": [{"id": c.pk, "at": c.created_at.isoformat(), "pharmacist": name_of(c.pharmacist), "by": name_of(c.changed_by) if c.changed_by_id else "System",
+                 "granted": c.granted} for c in log],
+    }
+
+
+def set_reviewer(actor, user_id, value):
+    """A system administrator adds or removes a POWER formulary reviewer (logged). Returns True if it changed."""
+    from django.contrib.auth import get_user_model
+
+    target = get_user_model().objects.filter(pk=user_id, role="pharmacist").first()
+    if target is None:
+        raise FormularyError("Pharmacist not found.", 404)
+    profile, _ = PharmacistProfile.objects.get_or_create(user=target)
+    if profile.reviews_shared_formulary == value:
+        return False
+    profile.reviews_shared_formulary = value
+    profile.save(update_fields=["reviews_shared_formulary", "updated_at"])
+    FormularyReviewerChange.objects.create(pharmacist=target, changed_by=actor, granted=value)
+    return True
+
+
 def set_needs_review(item):
     """Back to "needs pharmacist review" (the last reviewer stays on record). No row already means needs review."""
     FormularyReview.objects.filter(orderable=item, status="reviewed").update(status="needs_review")
@@ -561,7 +609,8 @@ def plan_import(user, org, text):
             errors.append({"row": n, "column": "code", "message": "That code is an orderable that is not a medication."})
             continue
         if item is not None and item.organization_id is not None and (as_admin or item.organization_id != getattr(org, "pk", None)):
-            message = "That code is a clinic's own item; the shared import can't change it." if as_admin else "That code belongs to another clinic."
+            message = ("That code is a clinic's own item; the shared import can't change it." if as_admin
+                       else "That code belongs to another clinic: give the row a new code to add it as your own item.")
             errors.append({"row": n, "column": "code", "message": message})
             continue
         if item is None:
@@ -632,9 +681,10 @@ def search(org, term, limit=15):
         return []
     items = list(scope_items(org).filter(Q(generic_name__icontains=t) | Q(brand_name__icontains=t) | Q(code__icontains=t) | Q(name__icontains=t))[:100])
     overrides, prices = _maps(items, org)
+    reviews = _reviews(items)
     out = []
     for item in items:
-        r = serialize(item, org, overrides, prices)
+        r = serialize(item, org, overrides, prices, reviews)
         if not r["is_active"]:
             continue
         out.append({
@@ -642,6 +692,7 @@ def search(org, term, limit=15):
             "strength": r["strength"], "form": r["form"], "route": r["route"],
             "system": "rxnorm" if r["rxnorm_code"] else "", "code": r["rxnorm_code"], "unit": r["unit"],
             "controlled": r["dangerous_drug"], "formulary": True, "item": item.pk,
+            "needs_review": r["review"]["status"] == "needs_review",
         })
     out.sort(key=lambda r: r["display"].lower())
     return out[:limit]
