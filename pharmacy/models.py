@@ -53,8 +53,9 @@ class PharmacyPrice(models.Model):
     """
     A selling price for a drug, per unit, in PHP, VAT included (12%) unless the drug is VAT-exempt.
     `drug_name` is matched against the prescription's drug name (generic name; longest match wins).
-    Formulary prices are tied to their item (`orderable`): with no organization it is the shared POWER price,
-    with one it is that clinic's price (overriding the shared one).
+    Formulary prices are tied to their item (`orderable`) and are PER CLINIC: each clinic sets its own price, unit and
+    VAT-exempt flag for shared items and for its own items. Rows with no organization (shared prices from before
+    prices became per clinic) are kept in the database but ignored.
     """
 
     organization = models.ForeignKey(Organization, null=True, blank=True, on_delete=models.CASCADE, related_name="pharmacy_prices")
@@ -173,6 +174,10 @@ class PharmacistProfile(models.Model):
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="pharmacist_profile")
     prc_license_number = models.CharField(max_length=40, blank=True)
+    reviews_shared_formulary = models.BooleanField(
+        default=False,
+        help_text="POWER-level formulary reviewer: may mark SHARED formulary items reviewed. Set by a system administrator.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
 
@@ -360,8 +365,8 @@ class PortalAccessLog(models.Model):
 
 # --------------------------------------------------------------------------------------------- Formulary
 # The POWER Formulary is the medication orderables (shared: no organization; clinic-only: one organization).
-# A clinic changes a SHARED item only through FormularyOverride (local flags, active) and its own PharmacyPrice
-# (price, unit, VAT-exempt); the shared item itself belongs to POWER system administrators.
+# A clinic changes a SHARED item only through FormularyOverride (local flags, active); its price, unit and
+# VAT-exempt are always the clinic's own PharmacyPrice. The shared item itself belongs to POWER system administrators.
 
 class FormularyOverride(models.Model):
     """One clinic's local values for a shared formulary item. `values` holds only the overridden fields."""
@@ -402,10 +407,28 @@ class FormularyChange(models.Model):
                                      help_text="Blank = a change to the shared item itself")
     orderable = models.ForeignKey("appointments.Orderable", on_delete=models.CASCADE, related_name="formulary_changes")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    source = models.CharField(max_length=10, default="manual")  # manual / import / revert / migration
+    source = models.CharField(max_length=10, default="manual")  # manual / import / revert / migration / starter / review
     formulary_import = models.ForeignKey(FormularyImport, null=True, blank=True, on_delete=models.SET_NULL, related_name="changes")
     changes = models.JSONField(default=dict)  # {field: [old, new]}
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
+
+
+class FormularyReview(models.Model):
+    """
+    "Needs pharmacist review" for one formulary item. No row means the item needs review: every new item, every
+    starter item and every item the flag migration touched starts that way. Marking it reviewed fills reviewed_by and
+    reviewed_at; a later change to a clinical field (names, strength, form, route, RxNorm, dangerous drug, renal
+    threshold) or any change by an import sets it back to needs review (the last reviewer stays on record).
+    A shared item is reviewed at POWER level; a clinic's own item by that clinic's pharmacist.
+    """
+
+    STATUS_CHOICES = [("needs_review", "Needs pharmacist review"), ("reviewed", "Reviewed")]
+
+    orderable = models.OneToOneField("appointments.Orderable", on_delete=models.CASCADE, related_name="formulary_review")
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default="needs_review")
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
