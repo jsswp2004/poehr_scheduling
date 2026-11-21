@@ -10,7 +10,10 @@ queue as a fill at "received". From there:
     any open stage --hold (reason)--> on_hold --release--> the stage it came from
 
 * Pharmacy staff (pharmacist, pharmacy assistant, admin) move a fill through the stages. Only a pharmacist
-  (RA 10918) does the final check: product, strength and quantity each confirmed.
+  (RA 10918) does the final check: product, strength and quantity each confirmed, and a different pharmacist
+  than the one who filled (a single pharmacist on duty may check their own fill, giving the reason).
+* Only a pharmacist dispenses (RA 10918); their PRC license number is kept on the fill and printed on the label.
+* A fill with no price in the price table can't be dispensed.
 * Every step records who did it and when (on the fill and in FillEvent).
 * Dangerous drugs (RA 9165): dispensing needs the DDB yellow prescription serial number and the prescriber's
   S2 license number, both logged, and only a pharmacist dispenses them. A dangerous drug is never refilled:
@@ -44,7 +47,7 @@ from .services import drug_names, name_of
 STAGE_LABELS = dict(FILL_STAGES)
 FILL_ROLES = ("pharmacist", "pharmacy_tech", "admin", "system_admin")
 CHECK_ROLES = ("pharmacist",)
-DISPENSE_ROLES = ("pharmacist", "pharmacy_tech")
+DISPENSE_ROLES = ("pharmacist",)  # RA 10918: dispensing is done by the pharmacist, for every drug
 DANGEROUS_DISPENSE_ROLES = ("pharmacist",)
 PRICE_ROLES = ("pharmacist", "admin", "system_admin")
 OPEN_STAGES = ("received", "data_entry", "filling", "final_check", "ready")
@@ -84,6 +87,20 @@ def _log(fill, event_type, user, from_stage="", to_stage="", detail=None):
     )
 
 
+def dangerous_partial_fills_allowed():
+    """
+    Partial fills of a dangerous drug on the same DDB yellow prescription serial: allowed by default.
+    AWAITING DDB CONFIRMATION -- set PHARMACY_ALLOW_DANGEROUS_PARTIAL_FILLS = False to block them until the
+    Dangerous Drugs Board confirms they are acceptable.
+    """
+    return bool(getattr(settings, "PHARMACY_ALLOW_DANGEROUS_PARTIAL_FILLS", True))
+
+
+def pharmacist_license(user):
+    profile = getattr(user, "pharmacist_profile", None) if getattr(user, "pk", None) else None
+    return (profile.prc_license_number if profile else "") or ""
+
+
 def is_dangerous(rx):
     return is_dangerous_drug(f"{drug_names(rx.drug_name)['generic']} {rx.drug_name}")
 
@@ -101,6 +118,7 @@ def ensure_fills(org=None, now=None):
         fill = PrescriptionFill.objects.create(
             organization_id=rx.organization_id, prescription=rx, patient_id=rx.patient_id, fill_number=1,
             stage="received", received_at=now, quantity_unit=rx.quantity_unit,
+            yellow_rx_serial=rx.yellow_rx_serial, s2_number=rx.s2_number,
         )
         _log(fill, "received", None, to_stage="received", detail={"pharmacy": rx.pharmacy.name})
         made += 1
@@ -294,6 +312,8 @@ def act(fill, user, action, data=None):
             raise FillError("Give the quantity to dispense.")
         if due is not None and quantity > due:
             raise FillError(f"Only {_num(due)} {rx.quantity_unit or 'units'} remain to be dispensed on this fill.")
+        if due is not None and quantity < due and is_dangerous(rx) and not dangerous_partial_fills_allowed():
+            raise FillError("Partial fills of a dangerous drug are switched off. Dispense the full quantity.")
         fill.quantity = quantity
         fill.quantity_unit = rx.quantity_unit
         row = price_for(fill.organization_id, rx)
@@ -335,16 +355,40 @@ def act(fill, user, action, data=None):
         checks = {k: _yes(data, k) for k in ("product_verified", "strength_verified", "quantity_verified")}
         if not all(checks.values()):
             raise FillError("Confirm the product, the strength and the quantity before passing the check.")
+        detail = dict(checks)
+        if fill.filled_by_id == user.pk:
+            reason = str(data.get("single_pharmacist_reason") or "").strip()[:300]
+            if not reason:
+                raise FillError(
+                    "A different pharmacist must do the final check. If you are the only pharmacist on duty, "
+                    "give the reason to check your own fill.", 409,
+                )
+            fill.single_pharmacist_reason = reason
+            detail["single_pharmacist_override"] = reason
         fill.product_verified = fill.strength_verified = fill.quantity_verified = True
         fill.check_note = note
-        return _move(fill, user, "ready", "checked", "checked", checks)
+        return _move(fill, user, "ready", "checked", "checked", detail)
 
     # dispense
     _expect(fill, "ready")
     dangerous = is_dangerous(rx)
     if role not in DISPENSE_ROLES:
-        raise FillError("Only pharmacy staff at the counter can dispense.", 403)
+        raise FillError("Only a pharmacist can dispense (RA 10918).", 403)
     detail = {}
+    row = price_for(fill.organization_id, rx)
+    if fill.unit_price is None and row is not None:
+        fill.unit_price = row.unit_price  # priced after data entry
+    if fill.unit_price is None:
+        raise FillError(f"There is no price for {drug_names(rx.drug_name)['generic']} in the price table. "
+                        "Add it to the price table before dispensing.", 409)
+    license_number = str(data.get("prc_license_number") or "").strip()[:40] or pharmacist_license(user)
+    if not license_number:
+        raise FillError("Enter your PRC license number: it is printed on the label.")
+    if license_number != pharmacist_license(user):
+        from .models import PharmacistProfile
+
+        PharmacistProfile.objects.update_or_create(user=user, defaults={"prc_license_number": license_number})
+    fill.pharmacist_license = license_number
     if dangerous:
         if role not in DANGEROUS_DISPENSE_ROLES:
             raise FillError("A dangerous drug (RA 9165) is dispensed by a pharmacist.", 403)
@@ -364,7 +408,6 @@ def act(fill, user, action, data=None):
         card = discount_id_for(fill.patient_id, kind)
         if card is None:
             raise FillError("There is no senior citizen or PWD ID of that kind on file for this patient.")
-    row = price_for(fill.organization_id, rx)
     amounts = compute_price(fill.unit_price, fill.quantity, bool(row and row.vat_exempt), discounted=card is not None)
     fill.gross_amount, fill.vat_exempt_amount = amounts["gross"], amounts["vat_exempt"]
     fill.discount_amount, fill.total_amount = amounts["discount"], amounts["total"]
@@ -375,6 +418,7 @@ def act(fill, user, action, data=None):
         "quantity": str(fill.quantity), "counseling_offered": fill.counseling_offered, "counseling_accepted": fill.counseling_accepted,
         "total": str(fill.total_amount) if fill.total_amount is not None else None,
         "discount_kind": fill.discount_kind, "discount_id_number": fill.discount_id_number,
+        "pharmacist_license": license_number,
     })
     fill = _move(fill, user, "dispensed", "dispensed", "dispensed", detail)
     if rx.status == "signed":
@@ -397,6 +441,8 @@ def complete_partial(fill, user):
     left = balance_after(fill)
     if not left:
         raise FillError("Nothing is left to dispense on this fill.", 409)
+    if is_dangerous(rx) and not dangerous_partial_fills_allowed():
+        raise FillError("Partial fills of a dangerous drug are switched off.", 409)
     if PrescriptionFill.objects.filter(prescription=rx, fill_number=fill.fill_number, stage__in=OPEN_STAGES + ("on_hold",)).exists():
         raise FillError("The rest of this fill is already in the queue.", 409)
     new = PrescriptionFill.objects.create(
@@ -497,6 +543,8 @@ def serialize_fill(fill, detail=False):
             "strength_verified": fill.strength_verified,
             "quantity_verified": fill.quantity_verified,
             "check_note": fill.check_note,
+            "single_pharmacist_reason": fill.single_pharmacist_reason,
+            "pharmacist_license": fill.pharmacist_license,
             "yellow_rx_serial": fill.yellow_rx_serial,
             "s2_number": fill.s2_number,
             "unit_price": _num(fill.unit_price),
@@ -554,6 +602,7 @@ def label_data(fill):
         "refills_left": max(0, rx.refills - refills_used(rx)) if not is_dangerous(rx) else 0,
         "dangerous_drug": is_dangerous(rx),
         "dispensed_by": name_of(fill.dispensed_by) if fill.dispensed_by_id else "",
+        "pharmacist_license": fill.pharmacist_license,
     }
 
 

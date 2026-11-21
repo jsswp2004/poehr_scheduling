@@ -427,6 +427,8 @@ class FillDetailView(APIView):
             "can_check": role in fx.CHECK_ROLES,
             "can_price": role in fx.PRICE_ROLES,
             "can_dispense": role in (fx.DANGEROUS_DISPENSE_ROLES if data["dangerous_drug"] else fx.DISPENSE_ROLES),
+            "my_prc_license": fx.pharmacist_license(request.user),
+            "filled_by_me": fill.filled_by_id == request.user.pk,
         })
         return Response(data)
 

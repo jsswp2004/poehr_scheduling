@@ -59,7 +59,11 @@ class PharmacyPrice(models.Model):
     drug_name = models.CharField(max_length=200, help_text="Generic name (and strength if priced per strength)")
     unit = models.CharField(max_length=30, blank=True, help_text="e.g. tablet, capsule, mL")
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="PHP per unit")
-    vat_exempt = models.BooleanField(default=False, help_text="Already VAT-exempt (e.g. medicines exempt under the Tax Code)")
+    vat_exempt = models.BooleanField(
+        default=False,
+        help_text="Already VAT-exempt under the Tax Code. A pharmacist must set this for the clinic's formulary "
+        "(e.g. certain medicines for diabetes, hypertension and high cholesterol).",
+    )
     is_active = models.BooleanField(default=True)
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     updated_at = models.DateTimeField(auto_now=True)
@@ -113,6 +117,9 @@ class PrescriptionFill(models.Model):
     strength_verified = models.BooleanField(default=False)
     quantity_verified = models.BooleanField(default=False)
     check_note = models.CharField(max_length=300, blank=True)
+    # The final check is done by a different pharmacist than the one who filled; when only one pharmacist is on
+    # duty they may check their own fill, with the reason kept here (and in the fill's history).
+    single_pharmacist_reason = models.CharField(max_length=300, blank=True)
 
     # who did each stage, and when
     received_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
@@ -139,6 +146,9 @@ class PrescriptionFill(models.Model):
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
+    # the dispensing pharmacist's PRC license number as it was at dispense (printed on the label)
+    pharmacist_license = models.CharField(max_length=40, blank=True)
+
     # counseling at the counter
     counseling_offered = models.BooleanField(null=True, blank=True)
     counseling_accepted = models.BooleanField(null=True, blank=True)
@@ -153,6 +163,14 @@ class PrescriptionFill(models.Model):
 
     def __str__(self):
         return f"Fill {self.fill_number} of Rx {self.prescription_id} ({self.stage})"
+
+
+class PharmacistProfile(models.Model):
+    """A pharmacist's PRC license number (RA 10918), printed on the labels of what they dispense."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="pharmacist_profile")
+    prc_license_number = models.CharField(max_length=40, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class FillEvent(models.Model):
