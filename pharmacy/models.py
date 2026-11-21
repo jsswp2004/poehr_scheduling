@@ -186,3 +186,168 @@ class FillEvent(models.Model):
 
     class Meta:
         ordering = ["created_at", "id"]
+
+
+# --------------------------------------------------------------------------------------------- Phase 3
+# POWER Pharmacy Portal: outside (partner) pharmacies receive, claim and dispense POWER prescriptions.
+# A partner pharmacy belongs to no clinic; its staff log in to /pharmacy-portal only.
+
+class PartnerPharmacy(models.Model):
+    """An outside pharmacy on the POWER Pharmacy Portal. Approved by a POWER administrator before it can work."""
+
+    STATUS_CHOICES = [("pending", "Pending approval"), ("approved", "Approved"), ("suspended", "Suspended")]
+
+    name = models.CharField(max_length=200)
+    address = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=80, blank=True)
+    province = models.CharField(max_length=80, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True, help_text="Where portal notices are emailed")
+    fda_lto_number = models.CharField(max_length=40)
+    lto_expiry = models.DateField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    status_reason = models.CharField(max_length=300, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        verbose_name_plural = "partner pharmacies"
+
+    def __str__(self):
+        return self.name
+
+
+class PartnerPharmacist(models.Model):
+    """A pharmacist (PRC license, RA 10918) or administrator of a partner pharmacy; `user` is their portal login."""
+
+    partner = models.ForeignKey(PartnerPharmacy, on_delete=models.CASCADE, related_name="staff")
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name="portal_membership")
+    full_name = models.CharField(max_length=160)
+    prc_number = models.CharField(max_length=40, blank=True)
+    is_admin = models.BooleanField(default=False, help_text="Manages the pharmacy's portal logins (the person who registered it)")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["full_name", "id"]
+
+
+class PartnerDirectoryLink(models.Model):
+    """A clinic's pharmacy-directory entry that is a portal partner: prescriptions sent to it go to the portal."""
+
+    pharmacy = models.OneToOneField("appointments.Pharmacy", on_delete=models.CASCADE, related_name="portal_link")
+    partner = models.ForeignKey(PartnerPharmacy, on_delete=models.CASCADE, related_name="directory_links")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+PORTAL_STATUSES = [
+    ("new", "New"),
+    ("in_progress", "In progress"),
+    ("ready", "Ready for pickup"),
+    ("partially_dispensed", "Partially dispensed"),
+    ("dispensed", "Dispensed"),
+    ("declined", "Declined"),
+    ("cancelled", "Cancelled by prescriber"),
+]
+
+
+class PortalPrescription(models.Model):
+    """Where a prescription stands at a partner pharmacy. Once claimed or routed, it is locked to that pharmacy."""
+
+    prescription = models.OneToOneField("appointments.Prescription", on_delete=models.CASCADE, related_name="portal")
+    partner = models.ForeignKey(PartnerPharmacy, null=True, blank=True, on_delete=models.PROTECT, related_name="prescriptions")
+    status = models.CharField(max_length=20, choices=PORTAL_STATUSES, default="new")
+    how = models.CharField(max_length=10, blank=True, help_text="routed (chosen by the prescriber) or claimed (claim code)")
+    fill_number = models.PositiveSmallIntegerField(default=1)
+    decline_reason = models.CharField(max_length=300, blank=True)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+
+
+class PortalDispense(models.Model):
+    """What a partner pharmacy dispensed: the actual product (generic substitution, RA 6675), who and when."""
+
+    portal = models.ForeignKey(PortalPrescription, on_delete=models.CASCADE, related_name="dispenses")
+    partner = models.ForeignKey(PartnerPharmacy, on_delete=models.PROTECT, related_name="+")
+    fill_number = models.PositiveSmallIntegerField(default=1)
+    quantity = models.DecimalField(max_digits=8, decimal_places=2)
+    is_partial = models.BooleanField(default=False)
+    generic_name = models.CharField(max_length=200)
+    brand_name = models.CharField(max_length=200, blank=True)
+    manufacturer = models.CharField(max_length=200, blank=True)
+    strength = models.CharField(max_length=60, blank=True)
+    form = models.CharField(max_length=40, blank=True)
+    yellow_rx_serial = models.CharField(max_length=40, blank=True)
+    original_in_hand = models.BooleanField(default=False)
+    discount_id_type = models.CharField(max_length=10, blank=True)  # senior / pwd
+    discount_id_number = models.CharField(max_length=40, blank=True)
+    pharmacist = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    pharmacist_prc = models.CharField(max_length=40, blank=True)
+    dispensed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-dispensed_at", "-id"]
+
+
+class PortalRequest(models.Model):
+    """A partner pharmacy asks the prescriber: a change (out of stock, other strength/form, clarification) or a renewal."""
+
+    KIND_CHOICES = [
+        ("out_of_stock", "Out of stock"),
+        ("strength_form", "Different strength or form"),
+        ("clarification", "Clarification"),
+        ("renewal", "Renewal"),
+    ]
+    STATUS_CHOICES = [("pending", "Pending"), ("approved", "Approved"), ("denied", "Denied")]
+
+    portal = models.ForeignKey(PortalPrescription, on_delete=models.CASCADE, related_name="requests")
+    partner = models.ForeignKey(PartnerPharmacy, on_delete=models.CASCADE, related_name="+")
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    message = models.CharField(max_length=1000)
+    proposed = models.CharField(max_length=300, blank=True, help_text="e.g. the strength or form the pharmacy has")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    response = models.CharField(max_length=1000, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    responded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    responded_at = models.DateTimeField(null=True, blank=True)
+    renewal_prescription = models.ForeignKey("appointments.Prescription", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class PortalNotice(models.Model):
+    """An in-app notice for a partner pharmacy (also emailed)."""
+
+    partner = models.ForeignKey(PartnerPharmacy, on_delete=models.CASCADE, related_name="notices")
+    portal = models.ForeignKey(PortalPrescription, null=True, blank=True, on_delete=models.CASCADE, related_name="notices")
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class PortalAccessLog(models.Model):
+    """Data Privacy Act (RA 10173): every view and action by a portal user, kept per user."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    partner = models.ForeignKey(PartnerPharmacy, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    prescription = models.ForeignKey("appointments.Prescription", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    action = models.CharField(max_length=40)
+    detail = models.JSONField(default=dict, blank=True)
+    ip = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["user", "created_at"])]
