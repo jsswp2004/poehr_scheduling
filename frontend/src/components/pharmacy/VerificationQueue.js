@@ -162,8 +162,11 @@ export default function VerificationQueue({ role, patient = null, onSelectPatien
                 <TableCell><DrugName drug={r.drug} dangerous={r.dangerous_drug} testId={`queue-drug-${r.id}`} /></TableCell>
                 <TableCell>{directions(r)}</TableCell>
                 <TableCell>{r.ordering_provider?.name}</TableCell>
-                <TableCell sx={{ color: r.past_goal ? "error.main" : "inherit", fontWeight: r.past_goal ? 600 : 400 }}>
+                <TableCell sx={{ color: r.past_goal ? "error.main" : "inherit", fontWeight: r.past_goal ? 600 : 400, whiteSpace: "nowrap" }}>
                   {fmtWait(r.waiting_minutes)}
+                  {r.past_goal && (
+                    <Chip size="small" color="error" label="Overdue" title={`Goal ${r.goal_minutes} min`} sx={{ ml: 0.5 }} data-testid={`queue-overdue-${r.id}`} />
+                  )}
                 </TableCell>
                 <TableCell>
                   {r.alert_counts?.high > 0 && <Chip size="small" color="error" label={`${r.alert_counts.high} high`} sx={{ mr: 0.5 }} />}

@@ -49,8 +49,12 @@ def _org_or_error(request):
     return org, None
 
 
-def _orders(request, org):
-    qs = Order.objects.filter(orderable_category="medication", status__in=svc.ACTIVE_ORDER_STATUSES)
+def _orders(request, org, include_rejected=False):
+    """Open medication orders; with include_rejected, also the ones pharmacy rejected (they are cancelled)."""
+    open_orders = Q(status__in=svc.ACTIVE_ORDER_STATUSES)
+    if include_rejected:
+        open_orders |= Q(status="cancelled", pharmacy_status="rejected")
+    qs = Order.objects.filter(open_orders, orderable_category="medication")
     if org is not None:
         qs = qs.filter(organization=org)
     q = visit_facility_q(request.user, "patient__patient_profile__registrations__")
@@ -188,7 +192,7 @@ class VerificationQueueView(APIView):
         if err:
             return err
         p = request.query_params
-        qs = _orders(request, org).exclude(pharmacy_status="")
+        qs = _orders(request, org, include_rejected=True).exclude(pharmacy_status="")
         if p.get("patient"):
             qs = qs.filter(patient_id=p["patient"])
         if p.get("q"):

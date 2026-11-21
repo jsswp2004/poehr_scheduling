@@ -63,6 +63,9 @@ describe("VerificationQueue", () => {
     expect(drug.textContent.indexOf("Piperacillin-tazobactam")).toBeLessThan(drug.textContent.indexOf("(Zosyn)"));
     expect(screen.getByTestId("queue-row-8")).toHaveTextContent("Dangerous drug");
     expect(screen.getByTestId("queue-row-7")).toHaveTextContent("STAT");
+    // past its verification goal: flagged Overdue; the order within goal is not
+    expect(screen.getByTestId("queue-overdue-7")).toHaveTextContent("Overdue");
+    expect(screen.queryByTestId("queue-overdue-8")).toBeNull();
     expect(api.get.mock.calls[0][1].params).toEqual({ status: "pending_verification" });
   });
 

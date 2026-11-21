@@ -94,13 +94,29 @@ class MarGatingTests(Base):
         self.assertEqual(self.action(order, action="verify").status_code, 200)
         self.assertGreater(OrderTask.objects.filter(order=order).count(), 0)
 
-    def test_org_without_pharmacy_module_is_unaffected(self):
-        for modules in (None, ["clinical_documentation"]):
-            self.org.enabled_modules = modules
-            self.org.save()
-            order = self.med()
-            self.assertEqual(order.pharmacy_status, "pending_verification")
-            self.assertGreater(OrderTask.objects.filter(order=order).count(), 0, modules)
+    def test_never_configured_organization_is_gated_too(self):
+        # Decision 1: modules never configured means everything is on, Pharmacy included.
+        self.org.enabled_modules = None
+        self.org.save()
+        order = self.med()
+        self.assertEqual(OrderTask.objects.filter(order=order).count(), 0)
+        self.assertEqual(self.action(order, action="verify").status_code, 200)
+        self.assertGreater(OrderTask.objects.filter(order=order).count(), 0)
+
+    def test_organization_that_chose_modules_without_pharmacy_is_not_gated(self):
+        # Nobody there can reach the verification queue (the API is blocked), so orders are given as before.
+        self.org.enabled_modules = ["clinical_documentation"]
+        self.org.save()
+        order = self.med()
+        self.assertEqual(order.pharmacy_status, "pending_verification")
+        self.assertGreater(OrderTask.objects.filter(order=order).count(), 0)
+
+    def test_orders_verified_by_the_migration_are_not_held(self):
+        order = self.med()
+        Order.objects.filter(pk=order.pk).update(pharmacy_status="verified")
+        order.refresh_from_db()
+        self.assertFalse(ot.awaiting_pharmacy(order))
+        self.assertGreater(ot.generate_tasks(order), 0)
 
     def test_prn_dose_blocked_while_pending(self):
         order = self.med(schedule={"frequency": "prn", "prn_reason": "pain"})
@@ -141,8 +157,20 @@ class VerifyActionTests(Base):
         self.assertEqual((order.schedule["dose"], order.schedule["frequency"], order.pharmacy_status), ("2.25 g", "q6h", "verified"))
         iv = PharmacyIntervention.objects.get(order=order, type="modify")
         self.assertEqual(iv.original_value, {"dose": "4.5 g", "frequency": "q8h"})
-        self.assertEqual(iv.new_value, {"dose": "2.25 g", "frequency": "q6h"})
+        self.assertEqual(iv.new_value["dose"], "2.25 g")
+        self.assertEqual(iv.new_value["frequency"], "q6h")
         self.assertEqual(iv.pharmacist, self.pharmacist)
+        # Decision 4: the prescriber is told what changed, in their inbox and on the order
+        thread = MessageThread.objects.get(pk=iv.new_value["message_thread"])
+        self.assertTrue(thread.participants.filter(user=self.doctor).exists())
+        body = thread.messages.first().body
+        self.assertIn("Dose: 4.5 g -> 2.25 g", body)
+        self.assertIn("Renal dose adjustment", body)
+        event = order.events.get(event_type="pharmacy_verified")
+        self.assertEqual(event.detail["change"], {"dose": "2.25 g", "frequency": "q6h"})
+        api = self.api(self.doctor).get(f"/api/orders/{order.pk}/").json()
+        self.assertEqual((api["pharmacy_status"], api["verified_by_name"]), ("verified", "Andres Bonifacio"))
+        self.assertEqual(api["schedule"]["dose"], "2.25 g")
 
     def test_modify_needs_a_real_change_and_a_reason(self):
         order = self.med()
@@ -162,14 +190,38 @@ class VerifyActionTests(Base):
         # a clarified order can then be verified
         self.assertEqual(self.action(order, action="verify").status_code, 200)
 
-    def test_reject_needs_reason_and_ends_review(self):
+    def test_reject_needs_reason_cancels_and_messages_prescriber(self):
         order = self.med()
         self.assertEqual(self.action(order, action="reject").status_code, 400)
+        order.refresh_from_db()
+        self.assertEqual(order.status, "active")  # nothing changed without a reason
         self.assertEqual(self.action(order, action="reject", reason="Duplicate therapy").status_code, 200)
         order.refresh_from_db()
-        self.assertEqual(order.pharmacy_status, "rejected")
-        self.assertEqual(self.action(order, action="verify").status_code, 409)
+        # Decision 5: cancelled (not discontinued), never given
+        self.assertEqual((order.status, order.pharmacy_status), ("cancelled", "rejected"))
+        self.assertIsNone(order.discontinued_at)
         self.assertEqual(OrderTask.objects.filter(order=order).count(), 0)
+        self.assertEqual(self.action(order, action="verify").status_code, 409)
+        iv = PharmacyIntervention.objects.get(order=order, type="reject")
+        self.assertEqual(iv.reason, "Duplicate therapy")
+        thread = MessageThread.objects.get(pk=iv.new_value["message_thread"])
+        self.assertTrue(thread.participants.filter(user=self.doctor).exists())
+        self.assertIn("Duplicate therapy", thread.messages.first().body)
+        self.assertIn("cancelled", thread.messages.first().body)
+        event = order.events.get(event_type="pharmacy_rejected")
+        self.assertEqual((event.from_status, event.to_status), ("active", "cancelled"))
+        # still listed on the Rejected tab
+        rows = self.api(self.pharmacist).get("/api/pharmacy/queue/?status=rejected").json()["results"]
+        self.assertEqual([r["id"] for r in rows], [order.pk])
+
+    def test_reject_cancels_tasks_already_laid_out(self):
+        order = self.med()
+        Order.objects.filter(pk=order.pk).update(pharmacy_status="verified")
+        order.refresh_from_db()
+        ot.generate_tasks(order)
+        Order.objects.filter(pk=order.pk).update(pharmacy_status="on_hold_clarify")
+        self.assertEqual(self.action(order, action="reject", reason="Allergy confirmed").status_code, 200)
+        self.assertFalse(OrderTask.objects.filter(order=order, status="pending", due_at__gt=timezone.now()).exists())
 
     def test_non_medication_order_cannot_be_verified(self):
         lab = ow.sign_order(ow.create_draft_order(self.doctor, self.appt, self.cbc), self.doctor)
@@ -253,12 +305,57 @@ class CdsTests(Base):
         self.assertAlmostEqual(float(svc.scr_mg_dl("176.8", "µmol/L")), 2.0)
         self.assertAlmostEqual(float(svc.scr_mg_dl("1.2", "mg/dL")), 1.2)
 
-    def test_renal_flag_alert_below_30(self):
-        order = self.med()
+    def test_renal_flag_alert_below_30_for_other_drugs_is_moderate(self):
+        order = self.med(self.para, {"dose": "500 mg", "route": "PO"})
         with mock.patch.object(svc, "renal_info", return_value={"renal_flag": True, "crcl": 22.5, "scr_mg_dl": 2.8, "weight_kg": 50}):
             alerts = svc.cds_alerts(order)
         self.assertEqual([a["key"] for a in alerts], ["renal"])
         self.assertEqual(alerts[0]["severity"], "moderate")
+
+    def test_renally_cleared_drug_below_its_threshold_is_high(self):
+        # Decision 2: piperacillin's threshold is 40 mL/min
+        order = self.med()
+        renal = {"renal_flag": False, "crcl": 35.0, "scr_mg_dl": 1.9, "weight_kg": 50}
+        with mock.patch.object(svc, "renal_info", return_value=renal):
+            alerts = svc.cds_alerts(order)
+            self.assertEqual([(a["key"], a["severity"]) for a in alerts], [("renal", "high")])
+            self.assertIn("below 40", alerts[0]["message"])
+            # and it blocks verification until acknowledged with a reason
+            self.assertEqual(self.action(order, action="verify").status_code, 409)
+            r = self.action(order, action="verify", acknowledged_alerts=["renal"], reason="Extended infusion per ID protocol")
+            self.assertEqual(r.status_code, 200, r.content)
+        with mock.patch.object(svc, "renal_info", return_value={**renal, "crcl": 45.0}):
+            self.assertEqual(svc.cds_alerts(order), [])
+
+    def test_renal_drug_list_is_configurable(self):
+        from .renal_drugs import renal_threshold
+
+        self.assertEqual(renal_threshold("Enoxaparin 40 mg SC"), ("enoxaparin", 30.0))
+        self.assertEqual(renal_threshold("Paracetamol 500 mg"), (None, None))
+        with override_settings(PHARMACY_RENAL_DRUGS={"paracetamol": 20}):
+            self.assertEqual(renal_threshold("Paracetamol 500 mg"), ("paracetamol", 20.0))
+            self.assertEqual(renal_threshold("Enoxaparin 40 mg SC"), (None, None))
+
+    def test_dangerous_drug_list_carries_review_note(self):
+        from . import dangerous_drugs
+
+        self.assertIn("REVIEW REQUIRED", dangerous_drugs.__doc__)
+        self.assertIn("PDEA", dangerous_drugs.__doc__)
+
+    def test_goal_times_default_and_configurable(self):
+        stat = self.med(self.morphine, {"dose": "2 mg", "frequency": "once"}, priority="stat")
+        routine = self.med()
+        self.assertEqual((svc.goal_minutes(stat), svc.goal_minutes(routine)), (15, 60))
+        Order.objects.filter(pk=stat.pk).update(signed_at=timezone.now() - timedelta(minutes=20))
+        stat.refresh_from_db()
+        self.assertTrue(svc.past_goal(stat))
+        with override_settings(PHARMACY_VERIFY_GOAL_MINUTES={"stat": 30, "routine": "bad"}):
+            self.assertEqual((svc.goal_minutes(stat), svc.goal_minutes(routine)), (30, 60))
+            self.assertFalse(svc.past_goal(stat))
+            row = next(r for r in self.api(self.pharmacist).get("/api/pharmacy/queue/").json()["results"] if r["id"] == stat.pk)
+            self.assertEqual((row["goal_minutes"], row["past_goal"]), (30, False))
+        row = next(r for r in self.api(self.pharmacist).get("/api/pharmacy/queue/").json()["results"] if r["id"] == stat.pk)
+        self.assertTrue(row["past_goal"])
 
     def test_dangerous_drug_list(self):
         self.assertTrue(is_dangerous_drug("Morphine sulfate 2 mg IV"))
