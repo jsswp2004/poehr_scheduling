@@ -1,4 +1,4 @@
-"""Rx writer: sig, controlled-drug block, signing rules, allergy/duplicate checks, print/fax audit, revise, scoping."""
+"""Rx writer: sig, dangerous drugs (RA 9165 yellow prescription), signing rules, allergy/duplicate checks, print/fax audit, revise, scoping."""
 
 from datetime import timedelta
 from decimal import Decimal
@@ -38,11 +38,14 @@ class PureTests(SimpleTestCase):
         self.assertFalse(rxs.dea_valid("AB1234560"))
         self.assertFalse(rxs.dea_valid("1234567"))
 
-    def test_controlled_detection(self):
-        for name in ("Oxycodone", "Percocet 5/325", "alprazolam", "Adderall XR", "Tramadol HCl", "zolpidem"):
+    def test_dangerous_drug_detection_follows_the_philippine_list(self):
+        for name in ("Oxycodone", "Morphine sulfate 10 mg", "alprazolam", "Midazolam 1 mg/mL", "Methylphenidate"):
             self.assertTrue(rxs.is_controlled(name), name)
-        for name in ("Amoxicillin", "Lisinopril", "Metformin", "Ibuprofen", "Hydrochlorothiazide"):
+        # US-only entries of the old block are not dangerous drugs unless the clinic configures them
+        for name in ("Amoxicillin", "Lisinopril", "Metformin", "Tramadol HCl", "Pregabalin 75 mg", "zolpidem"):
             self.assertFalse(rxs.is_controlled(name), name)
+        with override_settings(PHARMACY_DANGEROUS_DRUGS=["tramadol"]):
+            self.assertTrue(rxs.is_controlled("Tramadol HCl"))
 
     def test_sig_sentences(self):
         rx = Prescription(dose="1 tablet", route="PO", frequency="bid", duration_days=10, sig_extra="with food")
@@ -129,13 +132,11 @@ class CreateEditTests(RxBase):
         r = self.as_(self.doctor).post(LIST, self.body(patient=self.other_patient.pk), format="json")
         self.assertEqual(r.status_code, 404)
 
-    def test_controlled_substance_blocked(self):
-        r = self.as_(self.doctor).post(LIST, self.body(drug_name="Oxycodone"), format="json")
-        self.assertEqual(r.status_code, 400)
-        self.assertIn("Controlled substances", r.json()["detail"])
-        rx = self.make()
-        r = self.as_(self.doctor).patch(DETAIL.format(rx["id"]), {"drug_name": "Percocet"}, format="json")
-        self.assertEqual(r.status_code, 400)
+    def test_dangerous_drug_can_be_drafted_as_a_yellow_prescription(self):
+        rx = self.make(drug_name="Morphine sulfate", strength="10 mg", form="tablet", is_yellow_rx=True,
+                       yellow_rx_serial="DDB-2026-0001234", s2_number="S2-12345")
+        self.assertTrue(rx["controlled"])
+        self.assertEqual((rx["is_yellow_rx"], rx["yellow_rx_serial"], rx["s2_number"]), (True, "DDB-2026-0001234", "S2-12345"))
 
     def test_validation(self):
         for bad in ({"route": "Sideways"}, {"frequency": "hourly-ish"}, {"form": "brick"}, {"quantity": "-3"}, {"quantity": "abc"}, {"refills": 12}, {"days_supply": 0}, {"duration_days": "x"}):
@@ -247,11 +248,28 @@ class SignTests(RxBase):
         self.signed()
         self.assertEqual(self.make(drug_name="Lisinopril")["duplicates"], [])
 
-    def test_controlled_drug_cannot_be_signed_even_if_saved_earlier(self):
-        rx = self.make()
-        Prescription.objects.filter(pk=rx["id"]).update(drug_name="Oxycodone")
+    def test_dangerous_drug_needs_yellow_rx_s2_and_no_refills_to_sign(self):
+        rx = self.make(drug_name="Morphine sulfate", refills=1)
         r = self.act(rx["id"], "sign")
         self.assertEqual(r.status_code, 400)
+        missing = r.json()["errors"]
+        self.assertIn("DDB yellow prescription (dangerous drug)", missing)
+        self.assertIn("prescriber S2 license number", missing)
+        self.assertIn("no refills (a dangerous drug is not refilled)", missing)
+        # the S2 number on the prescriber's profile is used when the prescription has none
+        PrescriberProfile.objects.filter(user=self.doctor).update(s2_number="S2-98765")
+        self.as_(self.doctor).patch(DETAIL.format(rx["id"]), {"is_yellow_rx": True, "refills": 0}, format="json")
+        r = self.act(rx["id"], "sign")
+        self.assertEqual(r.status_code, 200, r.content)
+        signed = Prescription.objects.get(pk=rx["id"])
+        self.assertEqual((signed.status, signed.s2_number), ("signed", "S2-98765"))
+        event = signed.events.get(event_type="signed")
+        self.assertEqual(event.detail["dangerous_drug"]["s2_number"], "S2-98765")
+
+    def test_prescriber_profile_keeps_the_s2_number(self):
+        r = self.as_(self.doctor).put("/api/prescriber-profile/", {"s2_number": "S2-55555"}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["s2_number"], "S2-55555")
 
 
 class PrintFaxTests(RxBase):
