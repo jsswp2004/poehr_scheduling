@@ -25,6 +25,9 @@ import PharmacyDialog from "./PharmacyDialog";
 import FavoritesDialog from "./FavoritesDialog";
 import { authHeader, buildSig, errorText, pharmacyLine, saveFavorite } from "./rxShared";
 
+/** How a POWER Formulary item is written on the prescription: generic name first, brand in parentheses. */
+const formularyName = (o) => [o.generic_name, o.brand_name ? `(${o.brand_name})` : ""].filter(Boolean).join(" ");
+
 const BLANK = {
   drug_name: "", code_system: "", code: "", strength: "", form: "", dose: "", route: "PO", frequency: "",
   duration_days: "", prn: false, prn_reason: "", sig_extra: "", quantity: "", quantity_unit: "", days_supply: "",
@@ -116,7 +119,14 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
   const num = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value.replace(/[^\d.]/g, "") }));
 
   const pickDrug = (_, value) => {
-    if (value && typeof value === "object") {
+    if (value && typeof value === "object" && value.formulary) {
+      // a POWER Formulary item: the generic name (brand in parentheses), with its strength, form and route
+      setForm((f) => ({
+        ...f, drug_name: formularyName(value),
+        code_system: value.system || "", code: value.code || "", strength: value.strength || f.strength, form: value.form || f.form,
+        route: value.route || f.route, quantity_unit: f.quantity_unit || (value.unit ? `${value.unit}s` : ""),
+      }));
+    } else if (value && typeof value === "object") {
       setForm((f) => ({ ...f, drug_name: value.display, code_system: value.system || "", code: value.code || "" }));
     } else {
       setForm((f) => ({ ...f, drug_name: value || "", code_system: "", code: "" }));
@@ -193,7 +203,7 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
   // a dangerous drug (RA 9165): written on a DDB yellow prescription with the prescriber's S2 number, no refills
   const controlledNow =
     !!form.drug_name &&
-    (drugOptions.some((o) => o.display === form.drug_name && o.controlled) ||
+    (drugOptions.some((o) => (o.display === form.drug_name || (o.formulary && form.drug_name === formularyName(o))) && o.controlled) ||
       (editing && !!prescription.controlled && prescription.drug_name === form.drug_name));
 
   return (
@@ -223,6 +233,7 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
                 return (
                   <li key={key} {...rest}>
                     {o.display}
+                    {o.formulary && <Chip size="small" color="primary" variant="outlined" label="Formulary" sx={{ ml: 1 }} />}
                     {o.controlled && <Chip size="small" color="warning" label="Dangerous drug: yellow Rx" sx={{ ml: 1 }} />}
                   </li>
                 );
