@@ -300,6 +300,12 @@ class MedProfileView(APIView):
         rxs = Prescription.objects.filter(patient=patient).exclude(status="cancelled").select_related("prescriber").order_by("-created_at")[:100]
         home = HomeMedication.objects.filter(patient=patient).order_by("status", "drug_name")[:100]
         interventions = PharmacyIntervention.objects.filter(order__patient=patient).select_related("pharmacist")[:50]
+        dispensed = (
+            PrescriptionFill.objects.filter(patient=patient, stage="dispensed")
+            .select_related("prescription", "prescription__prescriber", "patient", "dispensed_by", "checked_by",
+                            "received_by", "entered_by", "filled_by")
+            .order_by("-dispensed_at")[:100]
+        )
         allergy_rows = PatientAllergy.objects.filter(patient=patient, status="active").order_by("substance", "id")
         return Response({
             "patient": {"id": patient.pk, "name": svc.name_of(patient), "mrn": getattr(getattr(patient, "patient_profile", None), "mrn", "")},
@@ -336,4 +342,300 @@ class MedProfileView(APIView):
                 for h in home
             ],
             "interventions": [svc.serialize_intervention(i) for i in interventions],
+            # Phase 2: what the in-house pharmacy has dispensed to this patient
+            "dispensing": [fx.serialize_fill(f) for f in dispensed],
         })
+
+
+# --------------------------------------------------------------------------------------------- Phase 2
+# In-house outpatient fill (see fills.py):
+#
+#     GET  fills/?stage=&q=                  the fill queue, with counts per stage
+#     GET  fills/<id>/                       one fill, its price quote, the patient's senior / PWD IDs, its history
+#     POST fills/<id>/action/                {action: start_entry|enter|fill|check|check_fail|dispense|hold|release, ...}
+#     POST fills/<id>/complete-partial/      start a fill for the balance of a partial fill
+#     GET  fills/<id>/label/                 what the label prints
+#     POST prescriptions/<rx_id>/refill/     start the next refill (never a dangerous drug)
+#     GET/POST prices/, PATCH/DELETE prices/<id>/                       the clinic's price table (PHP)
+#     GET/POST patients/<id>/discount-ids/, PATCH discount-ids/<id>/     senior citizen / PWD IDs on file
+
+from decimal import Decimal, InvalidOperation  # noqa: E402
+
+from . import fills as fx  # noqa: E402
+from .models import PatientDiscountId, PharmacyPrice, PrescriptionFill  # noqa: E402
+
+FILL_RELATED = ("prescription", "prescription__prescriber", "prescription__pharmacy", "patient",
+                "received_by", "entered_by", "filled_by", "checked_by", "dispensed_by")
+
+
+def _fill_error(exc):
+    return Response({"detail": exc.message}, status=exc.status_code)
+
+
+def _fill_for(request, pk):
+    org = _target_org(request, request.query_params.get("org"))
+    qs = PrescriptionFill.objects.filter(pk=pk).select_related(*FILL_RELATED)
+    if not sees_all_orgs(request.user):
+        qs = qs.filter(organization=org) if org is not None else qs.none()
+    return qs.first()
+
+
+class FillQueueView(APIView):
+    """GET ?stage=received|data_entry|filling|final_check|ready|dispensed|on_hold|all&q=[&summary=1] -> {counts, results}."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        denied = _denied(request)
+        if denied:
+            return denied
+        org, err = _org_or_error(request)
+        if err:
+            return err
+        fx.ensure_fills(org)
+        stage = request.query_params.get("stage") or "received"
+        if stage not in fx.STAGE_LABELS and stage != "all":
+            return Response({"detail": "Unknown stage."}, status=400)
+        counts, rows = fx.queue(org, None if stage == "all" else stage, (request.query_params.get("q") or "").strip())
+        if request.query_params.get("summary"):
+            return Response({"counts": counts})
+        role = request.user.role
+        return Response({
+            "counts": counts,
+            "results": [fx.serialize_fill(f) for f in rows],
+            "stages": [{"value": k, "label": v} for k, v in fx.FILL_STAGES],
+            "can_work": role in fx.FILL_ROLES,
+            "can_check": role in fx.CHECK_ROLES,
+            "can_price": role in fx.PRICE_ROLES,
+        })
+
+
+class FillDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        denied = _denied(request)
+        if denied:
+            return denied
+        fill = _fill_for(request, pk)
+        if fill is None:
+            return Response({"detail": "Fill not found."}, status=404)
+        data = fx.serialize_fill(fill, detail=True)
+        role = request.user.role
+        data.update({
+            "can_work": role in fx.FILL_ROLES,
+            "can_check": role in fx.CHECK_ROLES,
+            "can_price": role in fx.PRICE_ROLES,
+            "can_dispense": role in (fx.DANGEROUS_DISPENSE_ROLES if data["dangerous_drug"] else fx.DISPENSE_ROLES),
+        })
+        return Response(data)
+
+
+class FillActionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        fill = _fill_for(request, pk)
+        if fill is None:
+            return Response({"detail": "Fill not found."}, status=404)
+        try:
+            fill = fx.act(fill, request.user, str(request.data.get("action") or ""), request.data)
+        except fx.FillError as exc:
+            return _fill_error(exc)
+        return Response(fx.serialize_fill(PrescriptionFill.objects.select_related(*FILL_RELATED).get(pk=fill.pk), detail=True))
+
+
+class FillCompletePartialView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        fill = _fill_for(request, pk)
+        if fill is None:
+            return Response({"detail": "Fill not found."}, status=404)
+        try:
+            new = fx.complete_partial(fill, request.user)
+        except fx.FillError as exc:
+            return _fill_error(exc)
+        return Response(fx.serialize_fill(new, detail=True), status=201)
+
+
+class FillLabelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        denied = _denied(request)
+        if denied:
+            return denied
+        fill = _fill_for(request, pk)
+        if fill is None:
+            return Response({"detail": "Fill not found."}, status=404)
+        if fill.stage not in ("final_check", "ready", "dispensed"):
+            return Response({"detail": "The label is printed once the fill has been filled."}, status=409)
+        return Response(fx.label_data(fill))
+
+
+class PrescriptionRefillView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, rx_id):
+        org = _target_org(request, request.query_params.get("org"))
+        qs = Prescription.objects.filter(pk=rx_id)
+        if not sees_all_orgs(request.user):
+            qs = qs.filter(organization=org) if org is not None else qs.none()
+        rx = qs.first()
+        if rx is None:
+            return Response({"detail": "Prescription not found."}, status=404)
+        try:
+            new = fx.refill(rx, request.user)
+        except fx.FillError as exc:
+            return _fill_error(exc)
+        return Response(fx.serialize_fill(new, detail=True), status=201)
+
+
+def _price_json(p):
+    return {"id": p.pk, "drug_name": p.drug_name, "unit": p.unit, "unit_price": format(p.unit_price, "f"),
+            "vat_exempt": p.vat_exempt, "is_active": p.is_active, "currency": "PHP"}
+
+
+def _price_values(data, partial):
+    values = {}
+    if "drug_name" in data or not partial:
+        name = str(data.get("drug_name") or "").strip()[:200]
+        if not name:
+            return None, "Give the drug name."
+        values["drug_name"] = name
+    if "unit" in data:
+        values["unit"] = str(data.get("unit") or "").strip()[:30]
+    if "unit_price" in data or not partial:
+        try:
+            price = Decimal(str(data.get("unit_price")).strip())
+        except (InvalidOperation, ValueError, TypeError):
+            return None, "The unit price must be a number of pesos."
+        if price < 0:
+            return None, "The unit price can't be negative."
+        values["unit_price"] = price.quantize(Decimal("0.01"))
+    for key in ("vat_exempt", "is_active"):
+        if key in data:
+            values[key] = bool(data.get(key))
+    return values, None
+
+
+class PriceListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        denied = _denied(request)
+        if denied:
+            return denied
+        org, err = _org_or_error(request)
+        if err:
+            return err
+        qs = PharmacyPrice.objects.all() if org is None else PharmacyPrice.objects.filter(organization=org)
+        return Response({"results": [_price_json(p) for p in qs], "can_edit": request.user.role in fx.PRICE_ROLES})
+
+    def post(self, request):
+        if request.user.role not in fx.PRICE_ROLES:
+            return Response({"detail": "Only a pharmacist or an administrator can change prices."}, status=403)
+        org = _target_org(request, request.query_params.get("org"))
+        if org is None:
+            return Response({"detail": "Choose a clinic."}, status=400)
+        values, err = _price_values(request.data, partial=False)
+        if err:
+            return Response({"detail": err}, status=400)
+        p = PharmacyPrice.objects.create(organization=org, updated_by=request.user, **values)
+        return Response(_price_json(p), status=201)
+
+
+class PriceDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get(self, request, pk):
+        if request.user.role not in fx.PRICE_ROLES:
+            return None, Response({"detail": "Only a pharmacist or an administrator can change prices."}, status=403)
+        qs = PharmacyPrice.objects.filter(pk=pk)
+        if not sees_all_orgs(request.user):
+            qs = qs.filter(organization_id=request.user.organization_id)
+        p = qs.first()
+        return (p, None) if p else (None, Response({"detail": "Price not found."}, status=404))
+
+    def patch(self, request, pk):
+        p, err = self._get(request, pk)
+        if err:
+            return err
+        values, msg = _price_values(request.data, partial=True)
+        if msg:
+            return Response({"detail": msg}, status=400)
+        for k, v in values.items():
+            setattr(p, k, v)
+        p.updated_by = request.user
+        p.save()
+        return Response(_price_json(p))
+
+    def delete(self, request, pk):
+        p, err = self._get(request, pk)
+        if err:
+            return err
+        p.delete()
+        return Response(status=204)
+
+
+def _card_json(c):
+    return {"id": c.pk, "kind": c.kind, "kind_label": c.get_kind_display(), "id_number": c.id_number,
+            "issued_by": c.issued_by, "is_active": c.is_active, "created_at": c.created_at.isoformat()}
+
+
+class PatientDiscountIdsView(APIView):
+    """Senior citizen (RA 9994) and PWD (RA 10754) IDs on file for a patient."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _patient(self, request, patient_id):
+        patient = CustomUser.objects.filter(pk=patient_id, role="patient").first()
+        if patient is None or (not sees_all_orgs(request.user) and patient.organization_id != request.user.organization_id):
+            return None
+        return patient
+
+    def get(self, request, patient_id):
+        denied = _denied(request)
+        if denied:
+            return denied
+        patient = self._patient(request, patient_id)
+        if patient is None:
+            return Response({"detail": "Patient not found."}, status=404)
+        return Response({"results": [_card_json(c) for c in PatientDiscountId.objects.filter(patient=patient)]})
+
+    def post(self, request, patient_id):
+        if request.user.role not in fx.FILL_ROLES:
+            return Response({"detail": "Only pharmacy staff can record an ID."}, status=403)
+        patient = self._patient(request, patient_id)
+        if patient is None:
+            return Response({"detail": "Patient not found."}, status=404)
+        kind = str(request.data.get("kind") or "")
+        number = str(request.data.get("id_number") or "").strip()[:40]
+        if kind not in dict(PatientDiscountId.KIND_CHOICES):
+            return Response({"detail": "Choose senior citizen or PWD."}, status=400)
+        if not number:
+            return Response({"detail": "Enter the ID number."}, status=400)
+        card = PatientDiscountId.objects.create(
+            organization_id=patient.organization_id, patient=patient, kind=kind, id_number=number,
+            issued_by=str(request.data.get("issued_by") or "").strip()[:120], recorded_by=request.user,
+        )
+        return Response(_card_json(card), status=201)
+
+
+class DiscountIdDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        if request.user.role not in fx.FILL_ROLES:
+            return Response({"detail": "Only pharmacy staff can change an ID."}, status=403)
+        qs = PatientDiscountId.objects.filter(pk=pk)
+        if not sees_all_orgs(request.user):
+            qs = qs.filter(patient__organization_id=request.user.organization_id)
+        card = qs.first()
+        if card is None:
+            return Response({"detail": "ID not found."}, status=404)
+        if "is_active" in request.data:
+            card.is_active = bool(request.data.get("is_active"))
+            card.save(update_fields=["is_active"])
+        return Response(_card_json(card))

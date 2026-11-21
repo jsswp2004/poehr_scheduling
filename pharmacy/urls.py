@@ -8,4 +8,15 @@ urlpatterns = [
     path("orders/<int:pk>/", views.PharmacyOrderView.as_view(), name="pharmacy-order"),
     path("orders/<int:pk>/action/", views.PharmacyOrderActionView.as_view(), name="pharmacy-order-action"),
     path("med-profile/<int:patient_id>/", views.MedProfileView.as_view(), name="pharmacy-med-profile"),
+    # Phase 2: in-house outpatient fill
+    path("fills/", views.FillQueueView.as_view(), name="pharmacy-fills"),
+    path("fills/<int:pk>/", views.FillDetailView.as_view(), name="pharmacy-fill"),
+    path("fills/<int:pk>/action/", views.FillActionView.as_view(), name="pharmacy-fill-action"),
+    path("fills/<int:pk>/complete-partial/", views.FillCompletePartialView.as_view(), name="pharmacy-fill-complete-partial"),
+    path("fills/<int:pk>/label/", views.FillLabelView.as_view(), name="pharmacy-fill-label"),
+    path("prescriptions/<int:rx_id>/refill/", views.PrescriptionRefillView.as_view(), name="pharmacy-rx-refill"),
+    path("prices/", views.PriceListView.as_view(), name="pharmacy-prices"),
+    path("prices/<int:pk>/", views.PriceDetailView.as_view(), name="pharmacy-price"),
+    path("patients/<int:patient_id>/discount-ids/", views.PatientDiscountIdsView.as_view(), name="pharmacy-discount-ids"),
+    path("discount-ids/<int:pk>/", views.DiscountIdDetailView.as_view(), name="pharmacy-discount-id"),
 ]
