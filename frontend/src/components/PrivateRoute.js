@@ -1,15 +1,28 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import { PORTAL_HOME, PORTAL_ROLES } from '../utils/landing';
 
 // blockRoles/blockedTo: roles that may be signed in but must not open this page
 // (for example Staffing-only "staff" logins and the patient portal).
 function PrivateRoute({ children, blockRoles = [], blockedTo = '/solutions' }) {
   const token = localStorage.getItem('access_token');
+  const location = useLocation();
   console.log('🛡️ PrivateRoute: Checking authentication, token exists:', !!token);
 
   if (!token) {
     console.log('❌ PrivateRoute: No token found, redirecting to login');
     return <Navigate to="/login" />;
+  }
+
+  // POWER Pharmacy Portal accounts never open an internal page: always back to the portal (the server refuses them too).
+  let signedInRole = '';
+  try {
+    signedInRole = jwtDecode(token).role || '';
+  } catch (err) {
+    signedInRole = '';
+  }
+  if (PORTAL_ROLES.includes(signedInRole) && !(location.pathname || '').startsWith(PORTAL_HOME)) {
+    return <Navigate to={PORTAL_HOME} replace />;
   }
 
   if (blockRoles.length > 0) {

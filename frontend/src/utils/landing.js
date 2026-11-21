@@ -15,7 +15,12 @@ const SERVICE_LANDINGS = [
 
 const CLINICAL_ROLES = ['doctor', 'nurse', 'registrar', 'receptionist'];
 
+// POWER Pharmacy Portal: staff of an outside pharmacy only ever use the portal.
+export const PORTAL_ROLES = ['ext_pharmacist', 'ext_pharmacy_admin'];
+export const PORTAL_HOME = '/pharmacy-portal';
+
 export const landingPath = (role, modules) => {
+  if (PORTAL_ROLES.includes(role)) return PORTAL_HOME;
   if (role === 'admin' || role === 'system_admin') return '/admin';
   if (!role || role === 'patient') return '/dashboard';
   const all = !Array.isArray(modules);
@@ -76,6 +81,7 @@ export const solutionsFor = (role, modules) => {
  * to the Solutions page.
  */
 export const postLoginPath = (role, modules) => {
+  if (PORTAL_ROLES.includes(role)) return PORTAL_HOME;
   if (!role || role === 'patient') return '/dashboard';
   const list = solutionsFor(role, modules);
   if (list.length === 0) return '/dashboard';
