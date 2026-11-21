@@ -8,6 +8,8 @@ jest.mock("../../config/api", () => ({
     formularyRevert: (id) => `/f/${id}/revert/`,
     formularyHistory: (id) => `/f/${id}/history/`,
     formularyReview: (id) => `/f/${id}/review/`,
+    formularyReviewers: "/f/reviewers/",
+    formularyReviewer: (id) => `/f/reviewers/${id}/`,
     formularyExport: "/f/export/",
     formularyTemplate: "/f/template/",
     formularyImport: "/f/import/",
@@ -155,4 +157,21 @@ test("import: preview shows new / changed / errors, apply only when the file is 
   fireEvent.click(screen.getByTestId("fimport-apply"));
   await waitFor(() => expect(onApplied).toHaveBeenCalled());
   expect(api.post.mock.calls[2][1].get("mode")).toBe("apply");
+});
+
+test("a system administrator chooses the POWER formulary reviewers; clinics don't see the button", async () => {
+  const PEOPLE = { results: [{ id: 4, name: "Bonifacio, Andres", clinic: "Klinika ng Bayan", reviewer: false }], log: [] };
+  api.get.mockImplementation((url) => Promise.resolve({ data: url === "/f/reviewers/" ? PEOPLE : { ...META, edits_shared: true, results: [MORPHINE] } }));
+  api.patch.mockResolvedValue({ data: { results: [{ ...PEOPLE.results[0], reviewer: true }], log: [{ id: 1, at: "2026-11-21T09:00:00Z", pharmacist: "Bonifacio, Andres", by: "Admin, POWER", granted: true }], changed: true } });
+  const { unmount } = render(<FormularyPanel />);
+  fireEvent.click(await screen.findByTestId("formulary-reviewers"));
+  fireEvent.click(await screen.findByTestId("reviewer-4"));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/f/reviewers/4/", { reviewer: true }, expect.anything()));
+  expect(await screen.findByTestId("reviewers-log")).toHaveTextContent("Admin, POWER made Bonifacio, Andres a reviewer");
+  expect(screen.getByTestId("reviewer-4")).toBeChecked();
+  unmount();
+  api.get.mockResolvedValue({ data: { ...META, results: [AMOX] } });
+  render(<FormularyPanel />);
+  await screen.findByTestId("formulary-row-amoxicillin_500_capsule");
+  expect(screen.queryByTestId("formulary-reviewers")).toBeNull();
 });

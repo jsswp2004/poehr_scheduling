@@ -443,3 +443,20 @@ class FollowUpTests(Base):
         self.assertEqual(PharmacistProfile.objects.get(user=self.rph2).prc_license_number, "0099887")
         fill.refresh_from_db()
         self.assertEqual(fill.pharmacist_license, "0099887")
+
+
+class FormularyReviewWarningTests(Base):
+    """The fill shows "Not yet reviewed by a pharmacist" for a formulary item that needs review; it never blocks."""
+
+    def test_fill_detail_warns_but_fills(self):
+        from . import formulary as fm
+
+        sysadmin = mk("sys", "system_admin", None)
+        item = fm.create_item(sysadmin, None, {"code": "amoxicillin_500_capsule", "generic_name": "Amoxicillin", "strength": "500 mg", "form": "capsule"})
+        rx = self.rx()
+        fill = self.fill_for(rx)
+        self.assertTrue(self.api(self.tech).get(f"/api/pharmacy/fills/{fill.pk}/").json()["needs_review"])
+        self.assertEqual(self.to_ready(rx).stage, "ready")  # not blocked
+        fm.mark_reviewed(sysadmin, None, item)
+        self.assertFalse(self.api(self.tech).get(f"/api/pharmacy/fills/{fill.pk}/").json()["needs_review"])
+

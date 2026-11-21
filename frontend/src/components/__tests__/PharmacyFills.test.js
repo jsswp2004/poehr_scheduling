@@ -328,3 +328,12 @@ test("the medication profile also lists what a partner pharmacy dispensed, with 
   expect(row).toHaveTextContent("Lifezar (Unilab)");
   expect(row).toHaveTextContent("Mercury Drug Cubao");
 });
+
+test("the fill dialog warns about a formulary item not yet reviewed by a pharmacist, without blocking", async () => {
+  api.get.mockResolvedValue({ data: { ...FILL, needs_review: true } });
+  api.post.mockResolvedValue({ data: { ...FILL, stage: "data_entry" } });
+  render(<FillDialog open fillId={5} onClose={() => {}} />);
+  expect(await screen.findByTestId("fill-needs-review")).toHaveTextContent("Not yet reviewed by a pharmacist");
+  fireEvent.click(screen.getByTestId("fill-start"));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/fills/5/action/", { action: "start_entry" }, expect.anything()));
+});
