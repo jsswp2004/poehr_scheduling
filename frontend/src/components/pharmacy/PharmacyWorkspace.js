@@ -4,6 +4,7 @@ import VerificationQueue from "./VerificationQueue";
 import MedProfilePanel from "./MedProfilePanel";
 import OutpatientFillQueue from "./OutpatientFillQueue";
 import PortalPharmaciesPanel from "./PortalPharmaciesPanel";
+import FormularyPanel from "./FormularyPanel";
 
 /** Shown on a pharmacy tab that is planned but not built yet (none at the moment). */
 export function PharmacyComingSoon({ title, phase }) {
@@ -29,6 +30,7 @@ export default function PharmacyWorkspace({ view, role, selectedPatient, onSelec
   }
   if (view === "outpatient_rx") return <OutpatientFillQueue onSelectPatient={onSelect} />;
   if (view === "erx_routing") return <PortalPharmaciesPanel />;
+  if (view === "formulary") return <FormularyPanel />;
   return (
     <PharmacyPatientList
       selectedId={selectedPatient ? selectedPatient.id : null}

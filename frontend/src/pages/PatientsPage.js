@@ -654,7 +654,7 @@ function PatientsPage() {
             const allowed = visibleChartTabs(userRole, chartLayout.tabs, careKey).map((t) => t.value);
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
             // POWER Pharmacy: its own Patient List, Verification Queue, Med Profile and the Phase 2/3 placeholders.
-            if (careKey === "pharmacy" && ["patient_list", "verification_queue", "outpatient_rx", "erx_routing", "med_profile"].includes(current)) {
+            if (careKey === "pharmacy" && ["patient_list", "verification_queue", "outpatient_rx", "erx_routing", "med_profile", "formulary"].includes(current)) {
               if (current === "med_profile" && !selectedPatient) return <SelectPatientPrompt />;
               return (
                 <PharmacyWorkspace

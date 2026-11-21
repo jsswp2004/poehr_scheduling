@@ -346,6 +346,16 @@ export const apiEndpoints = {
     portalStaffDetail: (id) => `${API_BASE_URL}/api/pharmacy-portal/staff/${id}/`,
     pharmacyPortalReroute: (rxId) => `${API_BASE_URL}/api/pharmacy/portal-reroute/${rxId}/`,
     pharmacyPortalAccessLog: `${API_BASE_URL}/api/pharmacy/portal-access-log/`,
+    // POWER Formulary (shared, with clinic overrides)
+    formulary: `${API_BASE_URL}/api/pharmacy/formulary/`,
+    formularyItem: (id) => `${API_BASE_URL}/api/pharmacy/formulary/${id}/`,
+    formularyRevert: (id) => `${API_BASE_URL}/api/pharmacy/formulary/${id}/revert/`,
+    formularyHistory: (id) => `${API_BASE_URL}/api/pharmacy/formulary/${id}/history/`,
+    formularyExport: `${API_BASE_URL}/api/pharmacy/formulary/export/`,
+    formularyTemplate: `${API_BASE_URL}/api/pharmacy/formulary/template/`,
+    formularyImport: `${API_BASE_URL}/api/pharmacy/formulary/import/`,
+    formularyImports: `${API_BASE_URL}/api/pharmacy/formulary/imports/`,
+    formularyImportFile: (id) => `${API_BASE_URL}/api/pharmacy/formulary/imports/${id}/file/`,
 
     // Surgery module (Case List, Day Planner)
     surgeryPlanner: `${API_BASE_URL}/api/surgery/planner/`,
