@@ -1211,6 +1211,15 @@ class Orderable(models.Model):
     default_frequency = models.CharField(
         max_length=20, blank=True, help_text="Optional frequency offered first when this is ordered (e.g. bid, q8h)"
     )
+    # Medications (POWER Pharmacy). Generics Act (RA 6675 / RA 9502): the generic name is shown first,
+    # the brand in parentheses after it. Both are optional; blank falls back to `name`.
+    generic_name = models.CharField(max_length=255, blank=True, help_text="Medications: generic name, shown first")
+    brand_name = models.CharField(max_length=255, blank=True, help_text="Medications: brand name, shown in parentheses")
+    is_dangerous_drug = models.BooleanField(
+        default=False,
+        help_text="Medications: a dangerous drug under RA 9165 (PDEA / DDB). Also matched by name from the "
+        "configurable list in pharmacy.dangerous_drugs.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1382,6 +1391,20 @@ class Order(models.Model):
     discontinued_at = models.DateTimeField(null=True, blank=True)
     discontinue_reason = models.TextField(blank=True)
 
+    # --- Pharmacist verification (POWER Pharmacy). Blank for anything that is not a medication.
+    PHARMACY_STATUS_CHOICES = [
+        ("pending_verification", "Pending verification"),
+        ("verified", "Verified"),
+        ("on_hold_clarify", "On hold: clarification"),
+        ("rejected", "Rejected"),
+    ]
+    pharmacy_status = models.CharField(max_length=20, choices=PHARMACY_STATUS_CHOICES, blank=True, default="")
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="orders_verified"
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    pharmacy_note = models.TextField(blank=True)
+
     # --- Interface readiness (HL7 ORM/ORU or FHIR ServiceRequest later)
     placer_order_number = models.CharField(max_length=32, unique=True, null=True, blank=True)
     filler_order_number = models.CharField(max_length=64, blank=True)
@@ -1403,6 +1426,10 @@ class Order(models.Model):
         return f"{self.orderable_name} for {self.patient} ({self.status})"
 
     def save(self, *args, **kwargs):
+        # A new medication order waits for a pharmacist. Whether that holds back the nurse's tasks
+        # depends on the organization having POWER Pharmacy (see order_tasks.awaiting_pharmacy).
+        if self.pk is None and not self.pharmacy_status and self.orderable_category == "medication":
+            self.pharmacy_status = "pending_verification"
         super().save(*args, **kwargs)
         if not self.placer_order_number:
             self.placer_order_number = f"ORD-{self.pk:08d}"
