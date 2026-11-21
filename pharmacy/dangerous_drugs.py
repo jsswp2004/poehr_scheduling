@@ -8,12 +8,17 @@ names), which replaces this default. Tramadol is deliberately not listed: add it
 handles it as a dangerous drug.
 
 Every other module asks `is_dangerous_drug()`; nothing else should keep its own list.
+
+REVIEW REQUIRED: before go-live, a licensed pharmacist must check DEFAULT_DANGEROUS_DRUGS (or the clinic's
+PHARMACY_DANGEROUS_DRUGS setting) against the current PDEA / Dangerous Drugs Board schedules and regulations,
+and repeat that check whenever the DDB amends them. This list is not a legal reference.
 """
 
 import re
 
 from django.conf import settings
 
+# Starting list only; see REVIEW REQUIRED above.
 DEFAULT_DANGEROUS_DRUGS = [
     "morphine",
     "hydromorphone",
