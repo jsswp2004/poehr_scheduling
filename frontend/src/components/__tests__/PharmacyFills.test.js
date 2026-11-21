@@ -308,3 +308,23 @@ describe("Phase 2 follow-ups", () => {
     expect(await screen.findByTestId("price-vat-note")).toHaveTextContent("A pharmacist must mark the VAT-exempt items");
   });
 });
+
+
+test("the medication profile also lists what a partner pharmacy dispensed, with the actual product", async () => {
+  api.get.mockResolvedValue({
+    data: {
+      renal: {}, allergies: [], no_known_allergies: true, orders: [], prescriptions: [], home_medications: [], interventions: [], dispensing: [],
+      portal_dispensing: [{
+        id: "portal-7", source: "Mercury Drug Cubao", rx_number: "RX-000042", fill_number: 1, is_refill: false,
+        drug: { generic: "Losartan potassium", brand: "Lifezar", display: "Losartan potassium (Lifezar)" }, manufacturer: "Unilab",
+        strength: "50 mg", quantity: "30", quantity_unit: "tablets", is_partial: false, dangerous_drug: false,
+        dispensed: { name: "Bonifacio, Andres · Mercury Drug Cubao", at: "2026-11-21T03:00:00Z" }, total_amount: null,
+      }],
+    },
+  });
+  render(<MedProfilePanel patient={{ id: 3, name: "Reyes, Corazon" }} role="pharmacist" />);
+  const row = await screen.findByTestId("dispensed-portal-7");
+  expect(row).toHaveTextContent("Losartan potassium");
+  expect(row).toHaveTextContent("Lifezar (Unilab)");
+  expect(row).toHaveTextContent("Mercury Drug Cubao");
+});
