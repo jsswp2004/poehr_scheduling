@@ -3,8 +3,9 @@ import PharmacyPatientList from "./PharmacyPatientList";
 import VerificationQueue from "./VerificationQueue";
 import MedProfilePanel from "./MedProfilePanel";
 import OutpatientFillQueue from "./OutpatientFillQueue";
+import PortalPharmaciesPanel from "./PortalPharmaciesPanel";
 
-/** Shown on the eRx Routing tab until that phase is built. */
+/** Shown on a pharmacy tab that is planned but not built yet (none at the moment). */
 export function PharmacyComingSoon({ title, phase }) {
   return (
     <Box sx={{ p: 3 }} data-testid="pharmacy-coming-soon">
@@ -27,7 +28,7 @@ export default function PharmacyWorkspace({ view, role, selectedPatient, onSelec
     return <MedProfilePanel key={selectedPatient.id} patient={selectedPatient} role={role} />;
   }
   if (view === "outpatient_rx") return <OutpatientFillQueue onSelectPatient={onSelect} />;
-  if (view === "erx_routing") return <PharmacyComingSoon title="eRx Routing" phase={3} />;
+  if (view === "erx_routing") return <PortalPharmaciesPanel />;
   return (
     <PharmacyPatientList
       selectedId={selectedPatient ? selectedPatient.id : null}
