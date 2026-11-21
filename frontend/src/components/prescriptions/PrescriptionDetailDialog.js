@@ -187,7 +187,7 @@ export default function PrescriptionDetailDialog({ open, id, onClose, onChanged,
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
         {rx ? [rx.drug_name, rx.strength, rx.form].filter(Boolean).join(" ") : "Prescription"}
         {rx && <Chip size="small" color={STATUS_COLOR[rx.status] || "default"} label={rx.status_label} data-testid="rx-status" />}
-        {rx?.controlled && <Chip size="small" color="warning" label="Controlled" />}
+        {rx?.controlled && <Chip size="small" color="warning" label={rx.is_yellow_rx ? `Dangerous drug · yellow Rx ${rx.yellow_rx_serial || ""}`.trim() : "Dangerous drug"} data-testid="rx-dangerous-chip" />}
       </DialogTitle>
       <DialogContent dividers>
         {error && <Alert severity="error" sx={{ mb: 2 }} data-testid="rx-detail-error">{error}</Alert>}

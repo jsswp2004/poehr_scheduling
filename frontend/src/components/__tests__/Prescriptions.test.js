@@ -205,12 +205,21 @@ describe("writer form", () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  test("a controlled drug in the search can't be picked", async () => {
+  test("a dangerous drug can be picked and is written as a DDB yellow prescription", async () => {
+    api.post.mockResolvedValue({ data: RX() });
     open();
     fireEvent.change(await screen.findByTestId("rx-drug"), { target: { value: "oxyc" } });
     const option = await screen.findByRole("option", { name: /Oxycodone/ });
-    expect(option).toHaveAttribute("aria-disabled", "true");
-    expect(option).toHaveTextContent("Controlled - not available");
+    expect(option).not.toHaveAttribute("aria-disabled", "true");
+    expect(option).toHaveTextContent("Dangerous drug: yellow Rx");
+    fireEvent.click(option);
+    expect(await screen.findByTestId("rx-yellow")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("rx-yellow-check"));
+    type("rx-yellow-serial", "DDB-2026-0001234");
+    type("rx-s2", "S2-12345");
+    fireEvent.click(screen.getByTestId("rx-form-save"));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0][1]).toMatchObject({ drug_name: "Oxycodone", is_yellow_rx: true, yellow_rx_serial: "DDB-2026-0001234", s2_number: "S2-12345", refills: 0 });
   });
 
   test("shows the server's message when it refuses", async () => {

@@ -29,6 +29,7 @@ const BLANK = {
   drug_name: "", code_system: "", code: "", strength: "", form: "", dose: "", route: "PO", frequency: "",
   duration_days: "", prn: false, prn_reason: "", sig_extra: "", quantity: "", quantity_unit: "", days_supply: "",
   refills: 0, dispense_as_written: false, note_to_pharmacist: "", prescriber: "", pharmacy: null, dx: [],
+  is_yellow_rx: false, yellow_rx_serial: "", s2_number: "",
 };
 
 const fromRx = (rx, pharmacies) => ({
@@ -40,6 +41,7 @@ const fromRx = (rx, pharmacies) => ({
   dispense_as_written: !!rx.dispense_as_written, note_to_pharmacist: rx.note_to_pharmacist || "", prescriber: rx.prescriber || "",
   pharmacy: rx.pharmacy ? pharmacies.find((p) => p.id === rx.pharmacy) || { id: rx.pharmacy, name: rx.pharmacy_name } : null,
   dx: rx.indication_code ? [{ code: rx.indication_code, description: rx.indication_text || "" }] : [],
+  is_yellow_rx: !!rx.is_yellow_rx, yellow_rx_serial: rx.yellow_rx_serial || "", s2_number: rx.s2_number || "",
 });
 
 /**
@@ -138,6 +140,7 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
       days_supply: form.days_supply === "" ? null : Number(form.days_supply), refills: Number(form.refills) || 0,
       dispense_as_written: form.dispense_as_written, note_to_pharmacist: form.note_to_pharmacist,
       indication_code: dx ? dx.code : "", indication_text: dx ? dx.description || "" : "",
+      is_yellow_rx: form.is_yellow_rx, yellow_rx_serial: form.yellow_rx_serial, s2_number: form.s2_number,
     };
   };
 
@@ -187,7 +190,11 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
   const routes = meta?.routes || [];
   const forms = meta?.forms || [];
   const preview = form.dose || form.frequency ? buildSig(form) : "";
-  const controlledNow = !!form.drug_name && drugOptions.some((o) => o.display === form.drug_name && o.controlled);
+  // a dangerous drug (RA 9165): written on a DDB yellow prescription with the prescriber's S2 number, no refills
+  const controlledNow =
+    !!form.drug_name &&
+    (drugOptions.some((o) => o.display === form.drug_name && o.controlled) ||
+      (editing && !!prescription.controlled && prescription.drug_name === form.drug_name));
 
   return (
     <>
@@ -200,7 +207,7 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
           <Stack spacing={2} sx={{ mt: 0.5 }}>
             {error && <Alert severity="error" data-testid="rx-form-error">{error}</Alert>}
             <Alert severity="info" icon={false} sx={{ py: 0 }}>
-              {meta?.controlled_message || "Controlled substances (Schedule II-V) can't be written here."}
+              {meta?.controlled_message || "Dangerous drugs (RA 9165) are written on a DDB yellow prescription with the prescriber's S2 license number."}
             </Alert>
             <Autocomplete
               freeSolo
@@ -211,13 +218,12 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
               onChange={pickDrug}
               filterOptions={(o) => o}
               getOptionLabel={(o) => (typeof o === "string" ? o : o.display)}
-              getOptionDisabled={(o) => typeof o !== "string" && !!o.controlled}
               renderOption={(props, o) => {
                 const { key, ...rest } = props;
                 return (
                   <li key={key} {...rest}>
                     {o.display}
-                    {o.controlled && <Chip size="small" color="warning" label="Controlled - not available" sx={{ ml: 1 }} />}
+                    {o.controlled && <Chip size="small" color="warning" label="Dangerous drug: yellow Rx" sx={{ ml: 1 }} />}
                   </li>
                 );
               }}
@@ -265,7 +271,8 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
               <TextField size="small" fullWidth label="Unit" placeholder="tablets" value={form.quantity_unit} onChange={set("quantity_unit")} inputProps={{ "data-testid": "rx-unit" }} />
               <TextField size="small" fullWidth label="Days' supply" value={form.days_supply} onChange={num("days_supply")} inputProps={{ "data-testid": "rx-days-supply" }} />
               <TextField
-                select size="small" fullWidth label="Refills" value={form.refills} onChange={set("refills")} inputProps={{ "data-testid": "rx-refills" }}
+                select size="small" fullWidth label="Refills" value={controlledNow ? 0 : form.refills} onChange={set("refills")} inputProps={{ "data-testid": "rx-refills" }}
+                disabled={controlledNow} helperText={controlledNow ? "No refills for a dangerous drug" : ""}
               >
                 {Array.from({ length: (meta?.max_refills ?? 11) + 1 }, (_, i) => <MenuItem key={i} value={i}>{i}</MenuItem>)}
               </TextField>
@@ -300,7 +307,21 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
                 <MenuItem key={d.id} value={d.id}>{d.name}{d.ready ? "" : " (details incomplete)"}</MenuItem>
               ))}
             </TextField>
-            {controlledNow && <Alert severity="warning">That is a controlled substance and can't be prescribed here.</Alert>}
+            {controlledNow && (
+              <Stack spacing={1} data-testid="rx-yellow">
+                <Alert severity="warning">
+                  Dangerous drug (RA 9165): write it on a DDB yellow prescription. The prescriber's S2 license number is required and it can't be refilled.
+                </Alert>
+                <FormControlLabel
+                  control={<Checkbox size="small" checked={form.is_yellow_rx} onChange={(e) => setForm((f) => ({ ...f, is_yellow_rx: e.target.checked, refills: 0 }))} inputProps={{ "data-testid": "rx-yellow-check" }} />}
+                  label="This is a DDB yellow prescription"
+                />
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <TextField size="small" fullWidth label="Yellow Rx serial number" value={form.yellow_rx_serial} onChange={set("yellow_rx_serial")} inputProps={{ "data-testid": "rx-yellow-serial" }} helperText="From the DDB form, if you have it now" />
+                  <TextField size="small" fullWidth label="Prescriber S2 license number" value={form.s2_number} onChange={set("s2_number")} inputProps={{ "data-testid": "rx-s2" }} helperText="Leave blank to use the S2 number on the prescriber's profile" />
+                </Stack>
+              </Stack>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
