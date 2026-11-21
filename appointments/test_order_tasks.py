@@ -618,12 +618,13 @@ class CatalogCsvTests(Base):
         return c.post("/api/admin/orderables/upload-csv/", {"file": SimpleUploadedFile("c.csv", text.encode(), content_type="text/csv")}, format="multipart")
 
     def test_task_columns_are_applied(self):
-        r = self.upload("code,name,category,creates_tasks,default_frequency\nvit,Vitals,nursing,yes,q4h\namx,Amox,medication,,tid\nlab1,Lab,laboratory,no,\n")
+        # medications are POWER Formulary items now (Pharmacy > Formulary); the Order Builder CSV refuses them
+        r = self.upload("code,name,category,creates_tasks,default_frequency\nvit,Vitals,nursing,yes,q4h\nwound,Wound care,procedure,yes,tid\nlab1,Lab,laboratory,no,\n")
         self.assertEqual(r.status_code, 200, r.content)
         vit = Orderable.objects.get(code="vit")
         self.assertEqual((vit.creates_tasks, vit.default_frequency, vit.task_mode), (True, "q4h", "optional"))
-        amx = Orderable.objects.get(code="amx")
-        self.assertEqual((amx.creates_tasks, amx.default_frequency, amx.task_mode), (None, "tid", "required"))
+        wound = Orderable.objects.get(code="wound")
+        self.assertEqual((wound.creates_tasks, wound.default_frequency, wound.task_mode), (True, "tid", "optional"))
         self.assertEqual(Orderable.objects.get(code="lab1").task_mode, "none")
 
     def test_older_file_without_the_columns_changes_nothing(self):

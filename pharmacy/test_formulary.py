@@ -253,3 +253,138 @@ class SearchAndOrderingTests(Base):
         self.api(self.rph).patch(f"{URL}{self.amox.pk}/", {"unit_price_php": "12.50"}, format="json")
         self.assertEqual(price_for(self.manila.pk, rx).unit_price, Decimal("12.50"))
         self.assertTrue(PharmacyPrice.objects.filter(orderable=self.amox, organization=self.manila).exists())
+
+
+class StarterFormularyTests(Base):
+    """1. The starter shared PNF formulary: idempotent, never overwrites, flags from the lists, marked for review."""
+
+    def starter(self):
+        return importlib.import_module("pharmacy.migrations.0008_starter_formulary")
+
+    def test_loads_once_with_flags_and_review_note(self):
+        st = self.starter()
+        created = st.load_starter(django_apps)
+        self.assertEqual(created, len(st.STARTER) - 1)  # Amoxicillin 500 mg capsule is already a shared item (setUp)
+        self.assertEqual(st.load_starter(django_apps), 0)  # idempotent
+        items = Orderable.objects.filter(code__startswith="pnf_")
+        self.assertEqual(items.count(), len(st.STARTER) - 1)
+        self.assertFalse(items.exclude(organization__isnull=True).exists())  # all shared
+        self.assertFalse(PharmacyPrice.objects.filter(orderable__in=items).exists())  # prices left blank
+        self.assertFalse(items.exclude(external_code="").exists())  # RxNorm left blank, not guessed
+        morphine = items.get(code="pnf_morphine_sulfate_10_mg_ml_injection")
+        self.assertEqual((morphine.is_dangerous_drug, morphine.default_route, morphine.form), (True, "IV", "injection"))
+        self.assertEqual(items.get(code="pnf_metformin_500_mg_tablet").renal_threshold_crcl, 30)
+        self.assertEqual(items.get(code="pnf_vancomycin_500_mg_injection").renal_threshold_crcl, 50)
+        self.assertFalse(items.get(code="pnf_paracetamol_500_mg_tablet").is_dangerous_drug)
+        log = FormularyChange.objects.filter(source="starter")
+        self.assertEqual(log.count(), len(st.STARTER) - 1)
+        self.assertEqual(log.first().changes["note"], [None, "starter, pharmacist review required"])
+
+    def test_never_overwrites_existing_items_or_overrides(self):
+        st = self.starter()
+        # a shared Amoxicillin 500 mg capsule already exists (setUp), with a clinic override
+        self.api(self.rph).patch(f"{URL}{self.amox.pk}/", {"unit_price_php": "12.50", "is_active": False}, format="json")
+        mine = Orderable.objects.create(code="pnf_paracetamol_500_mg_tablet", name="Our paracetamol", category="medication", organization=self.manila, generic_name="Paracetamol")
+        created = st.load_starter(django_apps)
+        self.assertEqual(created, len(st.STARTER) - 2)
+        self.assertFalse(Orderable.objects.filter(code="pnf_amoxicillin_500_mg_capsule").exists())  # same drug already shared
+        mine.refresh_from_db()
+        self.assertEqual((mine.name, mine.organization), ("Our paracetamol", self.manila))
+        row = self.row(self.rph, "amoxicillin_500_capsule")
+        self.assertEqual((row["unit_price_php"], row["is_active"]), ("12.5", False))
+
+    def test_management_command_reloads_missing_items(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("load_starter_formulary", stdout=out)
+        self.assertIn("starter, pharmacist review required", out.getvalue())
+        Orderable.objects.filter(code="pnf_ibuprofen_400_mg_tablet").delete()
+        out = StringIO()
+        call_command("load_starter_formulary", stdout=out)
+        self.assertTrue(out.getvalue().startswith("Created 1 starter items"))
+
+    def test_starter_items_appear_in_every_clinics_formulary(self):
+        self.starter().load_starter(django_apps)
+        for user in (self.rph, self.rph_cebu):
+            codes = {r["code"] for r in self.api(user).get(URL, {"q": "pnf_"}).json()["results"]}
+            self.assertIn("pnf_losartan_potassium_50_mg_tablet", codes)
+
+
+class HiddenItemOrdersTests(Base):
+    """2. Hiding a shared item blocks NEW orders only; an existing active order is unaffected."""
+
+    def test_existing_active_order_keeps_running(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from appointments import order_tasks as ot
+        from appointments import orders_workflow as ow
+        from appointments.models import Appointment, Order, OrderTask
+
+        doctor, patient = mk("docm", "doctor", self.manila), mk("patm", "patient", self.manila)
+        appt = Appointment.all_objects.create(organization=self.manila, patient=patient, provider=doctor, title="Admission",
+                                              appointment_datetime=timezone.now() + timedelta(days=1))
+        draft = ow.create_draft_order(doctor, appt, self.amox, schedule={"frequency": "q8h", "dose": "500 mg", "route": "PO"})
+        Order.objects.filter(pk=draft.pk).update(pharmacy_status="verified")
+        order = ow.sign_order(draft, doctor)
+        before = OrderTask.objects.filter(order=order).count()
+        self.assertGreater(before, 0)
+        self.api(self.rph).patch(f"{URL}{self.amox.pk}/", {"is_active": False}, format="json")
+        order.refresh_from_db()
+        self.assertEqual((order.status, order.pharmacy_status), ("active", "verified"))
+        ot.ensure_tasks(self.manila, now=timezone.now() + timedelta(hours=20))
+        self.assertGreaterEqual(OrderTask.objects.filter(order=order).count(), before)
+        self.assertIn(order.pk, [o["id"] for o in self.api(doctor).get("/api/orders/", {"patient": patient.pk}).json()])
+        # but it can't be ordered again
+        self.assertNotIn(self.amox.pk, [o["id"] for o in self.api(doctor).get("/api/orderables/?category=medication").json()])
+
+
+class SharedHistoryTests(Base):
+    """3. Every clinic sees the full history of a shared item, never another clinic's overrides."""
+
+    def test_full_shared_history_without_other_clinics_overrides(self):
+        self.api(self.rph).patch(f"{URL}{self.amox.pk}/", {"unit_price_php": "12.50"}, format="json")  # Manila override
+        self.api(self.sysadmin).patch(f"{URL}{self.amox.pk}/", {"brand_name": "Himox"}, format="json")  # shared change
+        cebu = self.api(self.rph_cebu).get(f"{URL}{self.amox.pk}/history/").json()["results"]
+        self.assertEqual([(h["scope"], h["source"]) for h in cebu], [("shared", "manual"), ("shared", "manual")])
+        self.assertEqual(cebu[0]["changes"], {"brand_name": ["Amoxil", "Himox"]})
+        self.assertNotIn("unit_price_php", str(cebu))
+        manila = self.api(self.rph).get(f"{URL}{self.amox.pk}/history/").json()["results"]
+        self.assertEqual(sorted(h["scope"] for h in manila), ["clinic", "shared", "shared"])
+
+
+class OrderBuilderMedicationTests(Base):
+    """4. Medications are edited in the Formulary only; the Order Builder keeps labs, imaging and procedures."""
+
+    def test_order_builder_hides_and_refuses_medications(self):
+        cbc = Orderable.objects.create(code="cbc", name="CBC", category="laboratory")
+        c = self.api(self.admin)
+        listed = [o["code"] for o in c.get("/api/admin/orderables/").json()]
+        self.assertIn("cbc", listed)
+        self.assertNotIn("amoxicillin_500_capsule", listed)
+        r = c.post("/api/admin/orderables/", {"code": "lagundi", "name": "Lagundi 600 mg tablet", "category": "medication"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Pharmacy > Formulary", r.json()["detail"])
+        r = self.api(self.sysadmin).patch(f"/api/admin/orderables/{self.amox.pk}/", {"name": "Changed"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(self.api(self.sysadmin).patch(f"/api/admin/orderables/{cbc.pk}/", {"category": "medication"}, format="json").status_code, 400)
+        self.assertEqual(self.api(self.sysadmin).delete(f"/api/admin/orderables/{self.amox.pk}/").status_code, 400)
+
+    def test_order_builder_csv_refuses_medication_rows(self):
+        text = "code,name,category\nxray_chest,Chest X-ray,imaging\nlagundi,Lagundi 600 mg tablet,medication\n"
+        f = SimpleUploadedFile("orders.csv", text.encode(), content_type="text/csv")
+        r = self.api(self.admin).post("/api/admin/orderables/upload-csv/", {"file": f}, format="multipart")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual([(e["row"], e["column"]) for e in r.json()["errors"]], [(3, "category")])
+        self.assertIn("Pharmacy > Formulary", r.json()["errors"][0]["message"])
+        self.assertFalse(Orderable.objects.filter(code="xray_chest").exists())  # all or nothing, as before
+
+    def test_medications_stay_orderable(self):
+        doctor = mk("doc2", "doctor", self.manila)
+        ids = [o["id"] for o in self.api(doctor).get("/api/orderables/?category=medication").json()]
+        self.assertIn(self.amox.pk, ids)
+

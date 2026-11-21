@@ -148,6 +148,8 @@ class FormularyHistoryView(APIView):
             return Response({"detail": "Item not found."}, status=404)
         from django.db.models import Q
 
+        # the full history of a shared item (every change to the shared definition, whoever caused it) plus this
+        # clinic's own overrides; never another clinic's overrides, and a clinic's own items are private to it
         qs = FormularyChange.objects.filter(orderable=item).filter(Q(organization__isnull=True) | Q(organization=org)).select_related("user", "formulary_import")
         return Response({"results": [
             {"id": c.pk, "at": c.created_at.isoformat(), "user": name_of(c.user) if c.user_id else "System", "source": c.source,
