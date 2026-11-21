@@ -72,6 +72,7 @@ const STATUS_COLORS = {
   in_progress: "info",
   completed: "success",
   discontinued: "default",
+  cancelled: "error",
 };
 
 const PRIORITY_COLORS = { routine: "default", urgent: "warning", stat: "error" };
@@ -87,7 +88,7 @@ const TABS = [
   {
     key: "closed",
     label: "Completed / Discontinued",
-    match: (o) => o.status === "completed" || o.status === "discontinued",
+    match: (o) => o.status === "completed" || o.status === "discontinued" || o.status === "cancelled",
   },
   { key: "all", label: "All", match: () => true },
 ];
@@ -611,6 +612,19 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
           {order.status === "discontinued" && (
             <Typography variant="caption" color="text.secondary">
               {order.discontinue_reason}
+            </Typography>
+          )}
+          {/* POWER Pharmacy: what the pharmacist did, so the prescriber sees it on the order itself */}
+          {order.orderable_category === "medication" && order.pharmacy_status && order.status !== "draft" && (
+            <Typography
+              variant="caption"
+              component="div"
+              color={order.pharmacy_status === "rejected" ? "error.main" : "text.secondary"}
+              data-testid={`order-pharmacy-${order.id}`}
+            >
+              Pharmacy: {order.pharmacy_status_display}
+              {order.verified_by_name ? ` by ${order.verified_by_name}` : ""}
+              {order.pharmacy_note ? ` · ${order.pharmacy_note}` : ""}
             </Typography>
           )}
         </TableCell>

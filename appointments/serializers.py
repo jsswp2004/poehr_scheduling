@@ -1577,7 +1577,9 @@ class OrderSerializer(serializers.ModelSerializer):
     ordering_provider_name = serializers.SerializerMethodField()
     signed_by_name = serializers.SerializerMethodField()
     cosigned_by_name = serializers.SerializerMethodField()
+    verified_by_name = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    pharmacy_status_display = serializers.CharField(source="get_pharmacy_status_display", read_only=True)
     priority_display = serializers.CharField(source="get_priority_display", read_only=True)
     events = OrderEventSerializer(many=True, read_only=True)
     task_mode = serializers.CharField(source="orderable.task_mode", read_only=True)
@@ -1641,6 +1643,12 @@ class OrderSerializer(serializers.ModelSerializer):
             "discontinued_by",
             "discontinued_at",
             "discontinue_reason",
+            "pharmacy_status",
+            "pharmacy_status_display",
+            "verified_by",
+            "verified_by_name",
+            "verified_at",
+            "pharmacy_note",
             "filler_order_number",
             "interface_status",
             "interface_message",
@@ -1678,6 +1686,9 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_cosigned_by_name(self, obj):
         return _person_name(obj.cosigned_by)
+
+    def get_verified_by_name(self, obj):
+        return _person_name(obj.verified_by) if obj.verified_by_id else ""
 
     def create(self, validated_data):
         from .orders_workflow import create_draft_order

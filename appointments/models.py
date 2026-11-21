@@ -1291,6 +1291,7 @@ class Order(models.Model):
         ("in_progress", "In progress"),
         ("completed", "Completed"),
         ("discontinued", "Discontinued"),
+        ("cancelled", "Cancelled"),  # never given: e.g. rejected by the pharmacist (POWER Pharmacy)
     ]
     INTERFACE_STATUS_CHOICES = [
         ("not_sent", "Not sent"),
