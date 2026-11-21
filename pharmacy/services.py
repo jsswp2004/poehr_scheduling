@@ -142,9 +142,13 @@ def renal_info(patient):
     crcl = cockcroft_gault(age, weight, scr, sex == "F") if sex in ("M", "F") else None
     note = ""
     if crcl is None:
-        missing = [label for label, ok in (("age", age is not None and age >= 18), ("weight", weight),
-                                           ("serum creatinine", scr), ("sex", sex in ("M", "F"))) if not ok]
-        note = "Not calculated: " + ", ".join(missing) + " not recorded" if missing else ""
+        # say exactly why, never leave it blank: "CrCl not calculated — missing weight, serum creatinine"
+        missing = [label for label, ok in (("age", age is not None), ("weight", weight), ("serum creatinine", scr),
+                                           ("sex", sex in ("M", "F"))) if not ok]
+        reasons = ["missing " + ", ".join(missing)] if missing else []
+        if age is not None and age < 18:
+            reasons.append("patient under 18 (Cockcroft-Gault is for adults)")
+        note = "CrCl not calculated — " + "; ".join(reasons or ["not enough data"])
     return {
         "age": age,
         "sex": sex,
@@ -189,6 +193,18 @@ def cds_alerts(order, renal=None):
             "message": f"CrCl {crcl} mL/min (Cockcroft-Gault) is below {threshold:g} mL/min for {drug}. "
                        "Adjust the dose or interval, or give the reason it stands.",
             "detail": {"crcl": crcl, "threshold": threshold, "drug": drug,
+                       "scr_mg_dl": renal.get("scr_mg_dl"), "weight_kg": renal.get("weight_kg")},
+        })
+    elif drug and crcl is None:
+        # a renally cleared drug and no CrCl: say so (never "no renal alerts") so the pharmacist checks the dose
+        out.append({
+            "key": "renal",
+            "type": "renal",
+            "severity": "moderate",
+            "title": f"Renal dosing: {drug.title()}",
+            "message": f"{renal.get('crcl_note') or 'CrCl not calculated'}. {drug.title()} needs a dose check when CrCl is below "
+                       f"{threshold:g} mL/min: record the missing values or check the dose another way.",
+            "detail": {"crcl": None, "threshold": threshold, "drug": drug,
                        "scr_mg_dl": renal.get("scr_mg_dl"), "weight_kg": renal.get("weight_kg")},
         })
     elif renal.get("renal_flag"):

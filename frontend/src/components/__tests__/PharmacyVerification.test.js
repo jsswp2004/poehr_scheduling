@@ -184,3 +184,10 @@ describe("Formulary items not yet reviewed by a pharmacist", () => {
     expect(screen.getByTestId("action-verify")).toBeInTheDocument();
   });
 });
+
+test("CrCl that can't be calculated is said out loud in the verify dialog", async () => {
+  api.get.mockResolvedValue({ data: { ...ORDER, renal: { weight_kg: null, scr: null, crcl: null, crcl_note: "CrCl not calculated — missing weight, serum creatinine" } } });
+  render(<VerifyOrderDialog open orderId={7} canVerify onClose={() => {}} />);
+  expect(await screen.findByTestId("verify-crcl-missing")).toHaveTextContent("CrCl not calculated — missing weight, serum creatinine");
+  expect(screen.getByTestId("verify-renal")).toHaveTextContent("Weight not recorded");
+});

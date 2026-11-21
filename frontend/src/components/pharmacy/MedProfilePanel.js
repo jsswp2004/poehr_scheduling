@@ -67,13 +67,17 @@ export default function MedProfilePanel({ patient, role }) {
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }} data-testid="med-profile-renal">
         <Chip size="small" variant="outlined" label={`Weight ${renal.weight_kg != null ? `${renal.weight_kg} kg` : "not recorded"}`} />
         <Chip size="small" variant="outlined" label={`SCr ${renal.scr != null ? `${renal.scr} ${renal.scr_units || ""}`.trim() : "not recorded"}`} />
-        <Chip
-          size="small"
-          color={renal.renal_flag ? "error" : "default"}
-          variant={renal.renal_flag ? "filled" : "outlined"}
-          label={`CrCl ${renal.crcl != null ? `${renal.crcl} mL/min` : "not calculated"}`}
-          title={renal.crcl != null ? renal.crcl_method : renal.crcl_note}
-        />
+        {renal.crcl != null ? (
+          <Chip
+            size="small"
+            color={renal.renal_flag ? "error" : "default"}
+            variant={renal.renal_flag ? "filled" : "outlined"}
+            label={`CrCl ${renal.crcl} mL/min`}
+            title={renal.crcl_method}
+          />
+        ) : (
+          <Chip size="small" color="warning" variant="outlined" label={renal.crcl_note || "CrCl not calculated"} data-testid="med-profile-crcl-missing" />
+        )}
         {data.allergies.length > 0 ? (
           data.allergies.map((a) => <Chip key={a.substance} size="small" color="error" variant="outlined" label={`Allergy: ${a.substance}${a.reaction ? ` (${a.reaction})` : ""}`} />)
         ) : (
