@@ -102,7 +102,7 @@ def pharmacist_license(user):
 
 
 def is_dangerous(rx):
-    return is_dangerous_drug(f"{drug_names(rx.drug_name)['generic']} {rx.drug_name}")
+    return is_dangerous_drug(f"{drug_names(rx.drug_name)['generic']} {rx.drug_name}", organization=rx.organization)
 
 
 # --------------------------------------------------------------------------- the queue
@@ -167,7 +167,17 @@ def _norm(text):
 
 
 def price_for(org_id, rx):
-    """The price-table row for this prescription: the longest active drug name contained in the Rx drug + strength."""
+    """
+    The price for this prescription: the formulary item's price (the clinic's, else the shared one) when the drug
+    is a formulary item; otherwise the clinic's price-table row with the longest drug name the Rx contains.
+    """
+    from .formulary import match_item, price_row
+
+    item = match_item(rx.drug_name, rx.organization)
+    if item is not None:
+        row = price_row(item, rx.organization)
+        if row is not None:
+            return row
     generic = drug_names(rx.drug_name)["generic"]
     texts = [_norm(f"{generic} {rx.strength}"), _norm(f"{rx.drug_name} {rx.strength}"), _norm(rx.drug_name)]
     best = None

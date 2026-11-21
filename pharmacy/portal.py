@@ -364,7 +364,7 @@ def serialize(portal_rx, detail=False):
     profile = getattr(patient, "patient_profile", None)
     dob = getattr(profile, "date_of_birth", None)
     names = drug_names(rx.drug_name)
-    dangerous = is_dangerous_drug(f"{names['generic']} {rx.drug_name}")
+    dangerous = is_dangerous_drug(f"{names['generic']} {rx.drug_name}", organization=rx.organization)
     owed = (rx.quantity - dispensed_quantity(portal_rx, portal_rx.fill_number)) if rx.quantity is not None else None
     pending = list(portal_rx.requests.filter(status="pending").values_list("kind", flat=True))
     data = {
@@ -503,7 +503,7 @@ def act(user, portal_rx, action, data=None):
     if action == "refill":
         _expect(portal_rx, ("dispensed",))
         names = drug_names(rx.drug_name)
-        if is_dangerous_drug(f"{names['generic']} {rx.drug_name}"):
+        if is_dangerous_drug(f"{names['generic']} {rx.drug_name}", organization=rx.organization):
             raise PortalError("A dangerous drug (RA 9165) can't be refilled. The patient must present a new prescription.", 409)
         if portal_rx.fill_number > rx.refills:
             raise PortalError("No refills remain. Send a renewal request to the prescriber.", 409)
@@ -539,7 +539,7 @@ def _dispense(user, partner, portal_rx, rx, data):
     generic = _text(data, "generic_name", 200)
     if not generic:
         raise PortalError("Record the generic name of the product dispensed (RA 6675).")
-    dangerous = is_dangerous_drug(f"{names['generic']} {rx.drug_name}")
+    dangerous = is_dangerous_drug(f"{names['generic']} {rx.drug_name}", organization=rx.organization)
     serial = ""
     if dangerous:
         serial = _text(data, "yellow_rx_serial", 40)

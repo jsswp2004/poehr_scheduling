@@ -8,7 +8,8 @@ This is a starting list, not a dosing reference. A pharmacist must review it (dr
 clinic's references and formulary before relying on it. Replace it with the Django setting PHARMACY_RENAL_DRUGS,
 a dict of {generic name: CrCl threshold}.
 
-Every other module asks `renal_threshold()`; nothing else should keep its own list.
+Every other module asks `renal_threshold()`; nothing else should keep its own list. Since the POWER Formulary, the
+item's own renal threshold decides; this list seeds new items and covers free-text drugs that match no item.
 """
 
 import re
@@ -53,8 +54,17 @@ def renal_drugs():
     return {_norm(k): float(v) for k, v in table.items() if _norm(k)}
 
 
-def renal_threshold(name):
-    """(generic name, CrCl threshold) for the first listed drug the name contains, else (None, None)."""
+def renal_threshold(name, orderable=None, organization=None):
+    """
+    (drug, CrCl threshold) or (None, None). The formulary item decides when there is one (with the clinic's
+    override); the list below is only the fallback for a free-text drug that matches no item.
+    """
+    from .formulary import flags_for, match_item
+
+    item = orderable if getattr(orderable, "pk", None) and getattr(orderable, "category", "") == "medication" else match_item(name, organization)
+    if item is not None:
+        threshold = flags_for(item, organization)[1]
+        return (_norm(item.generic_name or item.name), float(threshold)) if threshold else (None, None)
     text = f" {_norm(name)} "
     for drug, threshold in renal_drugs().items():
         if f" {drug} " in text:

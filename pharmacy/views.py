@@ -143,7 +143,7 @@ class PharmacyPatientListView(APIView):
             mine = by_patient.get(pid, [])
             renal = svc.renal_info(patient)
             pending = [o for o in mine if o.pharmacy_status == "pending_verification"]
-            dangerous = any(is_dangerous_drug(f"{svc.drug_names(o.orderable_name, o.orderable)['generic']} {o.orderable_name}", o.orderable) for o in mine)
+            dangerous = any(is_dangerous_drug(f"{svc.drug_names(o.orderable_name, o.orderable)['generic']} {o.orderable_name}", o.orderable, o.organization) for o in mine)
             rows.append({
                 "id": pid,
                 "name": name,
@@ -317,7 +317,7 @@ class MedProfileView(APIView):
                 {
                     "id": rx.pk,
                     "drug": svc.drug_names(rx.drug_name),
-                    "dangerous_drug": is_dangerous_drug(rx.drug_name),
+                    "dangerous_drug": is_dangerous_drug(rx.drug_name, organization=rx.organization),
                     "strength": rx.strength,
                     "form": rx.form,
                     "sig": rx.sig or " ".join(x for x in (rx.dose, rx.route, rx.frequency) if x),
@@ -332,7 +332,7 @@ class MedProfileView(APIView):
                 {
                     "id": h.pk,
                     "drug": svc.drug_names(h.drug_name),
-                    "dangerous_drug": is_dangerous_drug(h.drug_name),
+                    "dangerous_drug": is_dangerous_drug(h.drug_name, organization=h.organization),
                     "strength": h.strength,
                     "dose": h.dose,
                     "route": h.route,

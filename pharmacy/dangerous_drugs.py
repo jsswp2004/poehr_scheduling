@@ -7,7 +7,9 @@ current DDB schedules; it is configurable with the Django setting PHARMACY_DANGE
 names), which replaces this default. Tramadol is deliberately not listed: add it in the setting if the clinic
 handles it as a dangerous drug.
 
-Every other module asks `is_dangerous_drug()`; nothing else should keep its own list.
+Every other module asks `is_dangerous_drug()`; nothing else should keep its own list. Since the POWER Formulary,
+the item's own flag decides (a pharmacist sets it in the Formulary); this list seeds new items and covers free-text
+drugs that match no item.
 
 REVIEW REQUIRED: before go-live, a licensed pharmacist must check DEFAULT_DANGEROUS_DRUGS (or the clinic's
 PHARMACY_DANGEROUS_DRUGS setting) against the current PDEA / Dangerous Drugs Board schedules and regulations,
@@ -46,9 +48,23 @@ def dangerous_drug_names():
     return [_norm(n) for n in names if _norm(n)]
 
 
-def is_dangerous_drug(name, orderable=None):
-    """True when the orderable is flagged or the drug name contains a listed generic name."""
-    if orderable is not None and getattr(orderable, "is_dangerous_drug", False):
-        return True
+def is_dangerous_drug(name, orderable=None, organization=None):
+    """
+    Is this a dangerous drug? The formulary item decides when there is one (the orderable, else the item whose
+    generic name the drug name contains), with the clinic's override; the name list is only the fallback for a
+    free-text drug that matches no item.
+    """
+    if orderable is not None:
+        if getattr(orderable, "pk", None) and getattr(orderable, "category", "") == "medication":
+            from .formulary import flags_for
+
+            return bool(flags_for(orderable, organization)[0])
+        if getattr(orderable, "is_dangerous_drug", False):
+            return True
+    from .formulary import flags_for, match_item
+
+    item = match_item(name, organization)
+    if item is not None:
+        return bool(flags_for(item, organization)[0])
     text = f" {_norm(name)} "
     return any(f" {n} " in text for n in dangerous_drug_names())

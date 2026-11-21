@@ -178,7 +178,7 @@ def cds_alerts(order, renal=None):
             "detail": a,
         })
     renal = renal if renal is not None else renal_info(order.patient)
-    drug, threshold = renal_threshold(f"{names['generic']} {order.orderable_name}")
+    drug, threshold = renal_threshold(f"{names['generic']} {order.orderable_name}", order.orderable, order.organization)
     crcl = renal.get("crcl")
     if drug and crcl is not None and crcl < threshold:
         out.append({
@@ -245,7 +245,7 @@ def serialize_order(order, now=None, alerts=None):
         "placer_order_number": order.placer_order_number,
         "patient": {"id": order.patient_id, "name": name_of(order.patient)},
         "drug": names,
-        "dangerous_drug": is_dangerous_drug(f"{names['generic']} {order.orderable_name}", order.orderable),
+        "dangerous_drug": is_dangerous_drug(f"{names['generic']} {order.orderable_name}", order.orderable, order.organization),
         "dose": sched.get("dose", ""),
         "route": sched.get("route", ""),
         "frequency": sched.get("frequency", ""),
@@ -391,7 +391,7 @@ def act(order, user, action, data=None):
         order.verified_at = now
         order.pharmacy_note = note
         order.save()
-        detail = {"action": action, "dangerous_drug": is_dangerous_drug(f"{names['generic']} {order.orderable_name}", order.orderable)}
+        detail = {"action": action, "dangerous_drug": is_dangerous_drug(f"{names['generic']} {order.orderable_name}", order.orderable, order.organization)}
         if change:
             detail["change"] = change
         if high:
