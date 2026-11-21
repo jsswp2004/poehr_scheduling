@@ -485,6 +485,11 @@ def _pharmacy_values(data, partial):
         return None, Response({"detail": "The NCPDP ID is 7 digits."}, status=400)
     if "is_active" in data:
         values["is_active"] = bool(data.get("is_active"))
+    # POWER Pharmacy: the clinic's own pharmacy and its FDA License to Operate number (printed on labels)
+    if "is_in_house" in data:
+        values["is_in_house"] = bool(data.get("is_in_house"))
+    if "fda_lto_number" in data:
+        values["fda_lto_number"] = str(data.get("fda_lto_number") or "").strip()[:40]
     return values, None
 
 
