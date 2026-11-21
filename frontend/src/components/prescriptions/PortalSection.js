@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Alert, Box, Button, Chip, Stack, TextField, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
@@ -12,9 +12,39 @@ import { authHeader, errorText, fmtDateTime } from "./rxShared";
 export default function PortalSection({ rx, onChanged }) {
   const [answer, setAnswer] = useState({});
   const [busy, setBusy] = useState(false);
+  const [partners, setPartners] = useState([]);
+  const [target, setTarget] = useState("");
   const portal = rx.portal;
   const requests = rx.pharmacy_requests || [];
+  const declined = portal?.status === "declined";
+
+  // a declined prescription comes back here: the portal pharmacies in the clinic's directory it can go to instead
+  useEffect(() => {
+    if (!declined) return;
+    (async () => {
+      try {
+        const res = await api.get(apiEndpoints.pharmacyNetwork, { headers: await authHeader() });
+        setPartners((res.data.results || []).filter((p) => p.in_directory && p.can_receive && p.directory_pharmacy_id));
+      } catch (err) {
+        setPartners([]);
+      }
+    })();
+  }, [declined]);
+
   if (!rx.claim_code && !portal && requests.length === 0) return null;
+
+  const reroute = async (body, message) => {
+    setBusy(true);
+    try {
+      await api.post(apiEndpoints.pharmacyPortalReroute(rx.id), body, { headers: await authHeader() });
+      toast.success(message);
+      if (onChanged) onChanged();
+    } catch (err) {
+      toast.error(errorText(err, "Could not route the prescription."));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const respond = async (req, decision) => {
     setBusy(true);
@@ -43,6 +73,21 @@ export default function PortalSection({ rx, onChanged }) {
           {portal.pharmacy && <Typography variant="body2">{portal.pharmacy}{portal.how === "claimed" ? " (claimed)" : ""}</Typography>}
           {portal.decline_reason && <Typography variant="body2" color="error.main">Declined: {portal.decline_reason}</Typography>}
         </Stack>
+      )}
+      {declined && (
+        <Box sx={{ mt: 1 }} data-testid="rx-portal-declined">
+          <Typography variant="body2" sx={{ mb: 0.5 }}>
+            The pharmacy returned this prescription. No other pharmacy can claim it until you route it, print it again or issue a new claim code.
+          </Typography>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <TextField select size="small" label="Send to portal pharmacy" value={target} onChange={(e) => setTarget(e.target.value)} sx={{ minWidth: 240 }} inputProps={{ "data-testid": "rx-portal-reroute-target" }}>
+              {partners.length === 0 && <MenuItem value="" disabled>No portal pharmacy in your directory</MenuItem>}
+              {partners.map((p) => <MenuItem key={p.id} value={String(p.directory_pharmacy_id)}>{p.name}</MenuItem>)}
+            </TextField>
+            <Button size="small" variant="contained" disabled={busy || !target} onClick={() => reroute({ pharmacy: Number(target) }, "Sent to the pharmacy.")} data-testid="rx-portal-reroute">Send</Button>
+            <Button size="small" disabled={busy} onClick={() => reroute({ new_code: true }, "New claim code issued: print the prescription again for the patient.")} data-testid="rx-portal-new-code">Issue a new claim code</Button>
+          </Stack>
+        </Box>
       )}
       {(portal?.dispenses || []).map((d) => (
         <Typography key={d.id} variant="body2" color="text.secondary">
