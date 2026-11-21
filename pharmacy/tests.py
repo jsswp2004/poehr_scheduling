@@ -330,10 +330,11 @@ class CdsTests(Base):
     def test_renal_drug_list_is_configurable(self):
         from .renal_drugs import renal_threshold
 
+        # free-text drugs that match no formulary item use the list (the items decide for themselves)
         self.assertEqual(renal_threshold("Enoxaparin 40 mg SC"), ("enoxaparin", 30.0))
-        self.assertEqual(renal_threshold("Paracetamol 500 mg"), (None, None))
-        with override_settings(PHARMACY_RENAL_DRUGS={"paracetamol": 20}):
-            self.assertEqual(renal_threshold("Paracetamol 500 mg"), ("paracetamol", 20.0))
+        self.assertEqual(renal_threshold("Ibuprofen 400 mg"), (None, None))
+        with override_settings(PHARMACY_RENAL_DRUGS={"ibuprofen": 20}):
+            self.assertEqual(renal_threshold("Ibuprofen 400 mg"), ("ibuprofen", 20.0))
             self.assertEqual(renal_threshold("Enoxaparin 40 mg SC"), (None, None))
 
     def test_dangerous_drug_list_carries_review_note(self):
