@@ -258,7 +258,7 @@ function TabManagementSettings() {
 
       <SettingsToolbarPortal>
       <ToggleButtonGroup exclusive size="small" value={care} onChange={(e, v) => v && setCare(v)} aria-label="Module">
-        {availableCareSettings().map((c) => (
+        {availableCareSettings().filter((c) => c.key !== "pharmacy").map((c) => (
           <ToggleButton key={c.key} value={c.key} data-testid={`tabs-module-${c.key}`}>
             {c.label}
           </ToggleButton>
