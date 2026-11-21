@@ -66,6 +66,16 @@ CLAIM_FAILURES_PER_HOUR = 5
 ACCESS_LOG_RETENTION_DAYS = 5 * 365 + 1
 
 
+def purge_access_log(now=None, dry_run=False):
+    """Delete (or with dry_run only count) portal access-log entries older than the retention period. Returns the count."""
+    cutoff = (now or timezone.now()) - timedelta(days=access_log_retention_days())
+    old = PortalAccessLog.objects.filter(created_at__lt=cutoff)
+    count = old.count()
+    if not dry_run and count:
+        old.delete()
+    return count
+
+
 def claim_failure_limit():
     return int(getattr(settings, "PHARMACY_PORTAL_CLAIM_FAILURES_PER_HOUR", CLAIM_FAILURES_PER_HOUR))
 
