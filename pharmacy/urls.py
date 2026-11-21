@@ -25,4 +25,6 @@ urlpatterns = [
     path("network/<int:pk>/add-to-directory/", views.PartnerAddToDirectoryView.as_view(), name="pharmacy-network-add"),
     path("portal-requests/", views.PortalRequestListView.as_view(), name="pharmacy-portal-requests"),
     path("portal-requests/<int:pk>/respond/", views.PortalRequestRespondView.as_view(), name="pharmacy-portal-request-respond"),
+    path("portal-reroute/<int:rx_id>/", views.PortalRerouteView.as_view(), name="pharmacy-portal-reroute"),
+    path("portal-access-log/", views.PortalAccessLogView.as_view(), name="pharmacy-portal-access-log"),
 ]

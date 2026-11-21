@@ -13,4 +13,5 @@ urlpatterns = [
     path("notices/", v.NoticeListView.as_view(), name="portal-notices"),
     path("notices/<int:pk>/read/", v.NoticeReadView.as_view(), name="portal-notice-read"),
     path("staff/", v.StaffView.as_view(), name="portal-staff"),
+    path("staff/<int:pk>/", v.StaffDetailView.as_view(), name="portal-staff-detail"),
 ]

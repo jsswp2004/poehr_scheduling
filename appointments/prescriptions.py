@@ -421,6 +421,10 @@ def record_print(rx, user):
     rx.save()
     log_event(rx, "printed" if first else "reprinted", user, from_status="signed" if first else "sent",
               to_status="sent", detail={"print_count": rx.print_count})
+    # POWER Pharmacy Portal: printing a prescription a pharmacy declined gives it a new claim code
+    from pharmacy import portal
+
+    portal.on_rx_printed(rx, user)
     return rx
 
 

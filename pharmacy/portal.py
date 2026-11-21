@@ -29,9 +29,10 @@ prescription) and every view and action is written to PortalAccessLog.
 """
 
 import secrets
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -59,6 +60,18 @@ STATUS_LABELS = dict(PORTAL_STATUSES)
 TABS = ("new", "in_progress", "ready", "changes", "renewals", "history")
 CLAIM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I
 CLAIMABLE_RX = ("signed", "sent")
+# Failed claims a pharmacy may make in an hour before claiming is locked for the rest of that hour.
+CLAIM_FAILURES_PER_HOUR = 5
+# Data Privacy Act: the portal access log is kept for 5 years (purge_portal_access_log removes older entries).
+ACCESS_LOG_RETENTION_DAYS = 5 * 365 + 1
+
+
+def claim_failure_limit():
+    return int(getattr(settings, "PHARMACY_PORTAL_CLAIM_FAILURES_PER_HOUR", CLAIM_FAILURES_PER_HOUR))
+
+
+def access_log_retention_days():
+    return int(getattr(settings, "PHARMACY_PORTAL_LOG_RETENTION_DAYS", ACCESS_LOG_RETENTION_DAYS))
 OPEN = ("new", "in_progress", "ready", "partially_dispensed")
 
 
@@ -165,24 +178,52 @@ def check_directory_choice(pharmacy):
 
 
 @transaction.atomic
-def claim(user, code, birthdate):
+def recent_claim_failures(partner, now=None):
+    now = now or timezone.now()
+    return PortalAccessLog.objects.filter(partner=partner, action="claim_failed", created_at__gte=now - timedelta(hours=1)).count()
+
+
+def _mobile_last4(patient):
+    profile = getattr(patient, "patient_profile", None)
+    digits = "".join(ch for ch in (getattr(profile, "phone_number", "") or getattr(patient, "phone_number", "") or "") if ch.isdigit())
+    return digits[-4:] if len(digits) >= 4 else ""
+
+
+def claim(user, code, birthdate, mobile_last4=""):
+    """
+    Claim a printed prescription: the claim code plus the patient's birthdate AND the last 4 digits of their mobile
+    number. A pharmacy that fails CLAIM_FAILURES_PER_HOUR times in an hour is locked out for the rest of the hour.
+    """
+    if getattr(user, "role", None) != "ext_pharmacist":
+        raise PortalError("Only a pharmacist can claim a prescription.", 403)
     partner = partner_of(user)
     problem = partner_problem(partner)
     if problem:
         raise PortalError(problem, 403)
+    if recent_claim_failures(partner) >= claim_failure_limit():
+        log_access(user, "claim_locked")
+        raise PortalError("Too many failed claims from your pharmacy in the last hour. Try again later.", 429)
+    return _claim(user, partner, code, birthdate, mobile_last4)
+
+
+@transaction.atomic
+def _claim(user, partner, code, birthdate, mobile_last4):
     code = str(code or "").strip().upper().replace("POWER-RX:", "").replace("-", "").replace(" ", "")
     dob = parse_date(str(birthdate or ""))
-    if not code or dob is None:
-        raise PortalError("Enter the claim code and the patient's birthdate.")
+    last4 = "".join(ch for ch in str(mobile_last4 or "") if ch.isdigit())
+    if not code or dob is None or len(last4) != 4:
+        raise PortalError("Enter the claim code, the patient's birthdate and the last 4 digits of their mobile number.")
     rx = Prescription.objects.select_for_update().filter(claim_code=code).select_related("patient__patient_profile").first()
     profile = getattr(rx.patient, "patient_profile", None) if rx is not None else None
-    # one answer for a wrong code and a wrong birthdate: the code must not reveal whether a prescription exists
-    if rx is None or getattr(profile, "date_of_birth", None) != dob:
-        raise PortalError("No prescription matches that claim code and birthdate.", 404)
+    # one answer for every mismatch: the code must not reveal whether a prescription exists
+    if rx is None or getattr(profile, "date_of_birth", None) != dob or _mobile_last4(rx.patient) != last4:
+        raise PortalError("No prescription matches that claim code, birthdate and mobile number.", 404)
     if rx.status not in CLAIMABLE_RX:
         raise PortalError("This prescription is no longer active.", 409)
     existing = getattr(rx, "portal", None) if PortalPrescription.objects.filter(prescription=rx).exists() else None
-    if existing is not None and existing.partner_id and existing.status not in ("declined",):
+    if existing is not None and existing.status == "declined":
+        raise PortalError("This prescription was returned to the prescriber. Ask them to route it again or reprint it.", 409)
+    if existing is not None and existing.partner_id and existing.status != "released":
         if existing.partner_id == partner.pk:
             return existing
         raise PortalError("This prescription has already been claimed by another pharmacy.", 409)
@@ -204,6 +245,51 @@ def _mark_sent(rx, user, event_type, detail):
     from appointments import prescriptions as rxs
 
     rxs.log_event(rx, event_type, user if getattr(user, "pk", None) else None, from_status=previous, to_status=rx.status, detail=detail)
+
+
+@transaction.atomic
+def reroute(user, rx, pharmacy):
+    """The prescriber sends a declined prescription to another portal pharmacy from the clinic's directory."""
+    if user.role not in RESPOND_ROLES or (user.role == "doctor" and rx.prescriber_id != user.pk):
+        raise PortalError("Only the prescriber or an administrator can route this prescription.", 403)
+    portal_rx = PortalPrescription.objects.select_for_update().filter(prescription=rx).first()
+    if portal_rx is None or portal_rx.status != "declined":
+        raise PortalError("Only a prescription a pharmacy declined can be routed again.", 409)
+    partner = partner_for_directory_pharmacy(pharmacy)
+    if partner is None or pharmacy.organization_id != rx.organization_id:
+        raise PortalError("Choose a portal pharmacy from your directory.")
+    problem = partner_problem(partner)
+    if problem:
+        raise PortalError(f"{partner.name} can't receive prescriptions right now.", 409)
+    portal_rx.partner, portal_rx.status, portal_rx.how = partner, "new", "routed"
+    portal_rx.locked_at, portal_rx.decline_reason = timezone.now(), ""
+    portal_rx.save()
+    _rx_event(rx, "portal_routed", user, {"pharmacy": partner.name, "rerouted": True})
+    transport.adapter_for(partner).route(portal_rx)
+    return portal_rx
+
+
+@transaction.atomic
+def release_for_claim(user, rx, reason="new_code"):
+    """
+    A declined prescription becomes claimable again with a NEW claim code (the old printout no longer works):
+    when the prescriber asks for a new code, or prints it again.
+    """
+    portal_rx = PortalPrescription.objects.select_for_update().filter(prescription=rx).first()
+    if portal_rx is None or portal_rx.status != "declined":
+        if reason == "new_code":
+            raise PortalError("Only a prescription a pharmacy declined gets a new claim code.", 409)
+        return None
+    rx.claim_code = new_claim_code()
+    Prescription.objects.filter(pk=rx.pk).update(claim_code=rx.claim_code)
+    portal_rx.status, portal_rx.how = "released", ""
+    portal_rx.save(update_fields=["status", "how", "updated_at"])
+    _rx_event(rx, "portal_released", user, {"reason": reason})
+    return portal_rx
+
+
+def on_rx_printed(rx, user):
+    return release_for_claim(user, rx, reason="reprinted")
 
 
 def on_rx_cancelled(rx, user):
@@ -371,6 +457,8 @@ def act(user, portal_rx, action, data=None):
 
     if action == "accept":
         _expect(portal_rx, ("new",))
+        if user.role != "ext_pharmacist":
+            raise PortalError("Only a pharmacist can accept a prescription.", 403)
         portal_rx.status = "in_progress"
         portal_rx.save(update_fields=["status", "updated_at"])
         _mark_sent(rx, user, "portal_accepted", {"pharmacy": partner.name})
@@ -383,7 +471,8 @@ def act(user, portal_rx, action, data=None):
             raise PortalError("Give the reason for declining.")
         portal_rx.status = "declined"
         portal_rx.decline_reason = reason
-        portal_rx.partner = None  # unlocked: the prescriber can send it elsewhere, or another pharmacy can claim it
+        # back with the prescriber only: nobody can claim it until they route it again, reprint it or issue a new code
+        portal_rx.partner = None
         portal_rx.save(update_fields=["status", "decline_reason", "partner", "updated_at"])
         _rx_event(rx, "portal_declined", user, {"pharmacy": partner.name, "reason": reason})
         transport.notify_prescriber(
@@ -593,18 +682,36 @@ def register(data):
         name=name, address=_text(data, "address", 255), city=_text(data, "city", 80), province=_text(data, "province", 80),
         phone=_text(data, "phone", 30), email=email, fda_lto_number=lto, lto_expiry=expiry,
     )
+    transaction.on_commit(lambda: _tell_power_admins(partner))
     admin_is_pharmacist = bool(_text(data, "admin_prc_number", 40))
     user = CustomUser.objects.create_user(
         username=username, email=email, password=password, role="ext_pharmacist" if admin_is_pharmacist else "ext_pharmacy_admin",
         first_name=_text(data, "first_name", 150), last_name=_text(data, "last_name", 150),
     )
     PartnerPharmacist.objects.create(partner=partner, user=user, full_name=f"{user.first_name} {user.last_name}".strip() or username,
-                                     prc_number=_text(data, "admin_prc_number", 40), is_admin=True)
+                                     prc_number=_text(data, "admin_prc_number", 40), is_admin=True, email=email)
     for p in pharmacists:
         if isinstance(p, dict) and str(p.get("prc_number") or "").strip():
             PartnerPharmacist.objects.create(partner=partner, full_name=str(p.get("full_name") or "").strip()[:160] or "Pharmacist",
-                                             prc_number=str(p.get("prc_number")).strip()[:40])
+                                             prc_number=str(p.get("prc_number")).strip()[:40], email=str(p.get("email") or "").strip()[:254])
     return partner, user
+
+
+def _tell_power_admins(partner):
+    """Email every active POWER system administrator that a pharmacy is waiting for approval."""
+    from communicator.utils import send_email
+    from users.models import CustomUser
+
+    body = (f"{partner.name} ({partner.city or 'no city given'}) registered on the POWER Pharmacy Portal and is waiting for "
+            f"approval.\n\nFDA LTO {partner.fda_lto_number}, valid until {partner.lto_expiry.isoformat()}.\n"
+            "Review it in POWER: Patients > Pharmacy > eRx Routing.")
+    for address in CustomUser.objects.filter(role="system_admin", is_active=True).exclude(email="").values_list("email", flat=True):
+        try:
+            send_email(address, f"Pharmacy waiting for approval: {partner.name}", body)
+        except Exception:  # noqa: BLE001 - email trouble must not undo a registration
+            import logging
+
+            logging.getLogger(__name__).exception("pharmacy portal: admin email failed")
 
 
 ADMIN_ACTIONS = ("approve", "suspend", "reinstate")
@@ -641,7 +748,7 @@ def serialize_partner(p, today=None):
         "fda_lto_number": p.fda_lto_number, "lto_expiry": p.lto_expiry.isoformat(), "status": p.status,
         "status_label": p.get_status_display(), "status_reason": p.status_reason,
         "lto_expired": p.lto_expiry < (today or date.today()), "can_receive": not problem,
-        "pharmacists": [{"full_name": s.full_name, "prc_number": s.prc_number, "has_login": bool(s.user_id)} for s in p.staff.all()],
+        "pharmacists": [{"full_name": s.full_name, "prc_number": s.prc_number, "email": s.email, "is_active": s.is_active, "has_login": bool(s.user_id)} for s in p.staff.all()],
         "created_at": p.created_at.isoformat(),
     }
 

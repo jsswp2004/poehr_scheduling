@@ -9,9 +9,9 @@ each pharmacy only ever sees its own prescriptions. Every view and action is wri
     GET  rx/<id>/                       one prescription (minimum patient data)
     POST rx/<id>/action/                {action: accept|decline|ready|dispense|refill, ...}
     POST rx/<id>/requests/              {kind: out_of_stock|strength_form|clarification|renewal, message, proposed}
-    POST claim/                         {code, birthdate}
+    POST claim/                         {code, birthdate, mobile_last4}   (pharmacists; 5 failures an hour lock it)
     GET  notices/, POST notices/<id>/read/
-    GET/POST staff/                     the pharmacy's pharmacists (its administrator adds logins)
+    GET/POST staff/, PATCH staff/<id>/  the pharmacy's pharmacists (its administrator adds, edits, deactivates)
 """
 
 from django.utils import timezone
@@ -124,10 +124,13 @@ class RxRequestView(PortalView):
 class ClaimView(PortalView):
     def post(self, request):
         try:
-            portal_rx = pt.claim(request.user, request.data.get("code"), request.data.get("birthdate"))
+            portal_rx = pt.claim(request.user, request.data.get("code"), request.data.get("birthdate"), request.data.get("mobile_last4"))
         except pt.PortalError as exc:
             code = str(request.data.get("code") or "")
-            pt.log_access(request.user, "claim_failed", None, request, {"code": code[:4] + "****", "reason": exc.message[:120]})
+            if exc.status_code == 404:  # a wrong code, birthdate or mobile number counts toward the lockout
+                pt.log_access(request.user, "claim_failed", None, request, {"code": code[:4] + "****"})
+            elif exc.status_code != 429:
+                pt.log_access(request.user, "claim_refused", None, request, {"code": code[:4] + "****", "reason": exc.message[:120]})
             return _error(exc)
         return Response(pt.serialize(portal_rx, detail=True), status=201)
 
@@ -151,15 +154,17 @@ class NoticeReadView(PortalView):
         return Response(status=204)
 
 
+def _staff_json(s):
+    return {"id": s.pk, "full_name": s.full_name, "prc_number": s.prc_number, "email": s.email, "is_admin": s.is_admin,
+            "username": s.user.username if s.user_id else "", "has_login": bool(s.user_id), "is_active": s.is_active}
+
+
 class StaffView(PortalView):
     needs_working_pharmacy = False
 
     def get(self, request):
         partner = pt.partner_of(request.user)
-        return Response({"results": [
-            {"id": s.pk, "full_name": s.full_name, "prc_number": s.prc_number, "username": s.user.username if s.user_id else "", "is_active": s.is_active}
-            for s in partner.staff.select_related("user")
-        ], "can_manage": pt.can_manage_staff(request.user)})
+        return Response({"results": [_staff_json(s) for s in partner.staff.select_related("user")], "can_manage": pt.can_manage_staff(request.user)})
 
     def post(self, request):
         """The pharmacy's administrator (its first account) adds a pharmacist login with a PRC number."""
@@ -171,13 +176,49 @@ class StaffView(PortalView):
         d = request.data
         username, password = str(d.get("username") or "").strip()[:150], str(d.get("password") or "")
         prc, name = str(d.get("prc_number") or "").strip()[:40], str(d.get("full_name") or "").strip()[:160]
-        if not (username and password and prc and name):
-            return Response({"detail": "Enter the name, PRC license number, username and password."}, status=400)
-        if len(password) < 10:
-            return Response({"detail": "Use a password of at least 10 characters."}, status=400)
-        if CustomUser.objects.filter(username=username).exists():
-            return Response({"detail": "That username is taken."}, status=400)
-        user = CustomUser.objects.create_user(username=username, password=password, role="ext_pharmacist", email=str(d.get("email") or "")[:254])
-        s = PartnerPharmacist.objects.create(partner=partner, user=user, full_name=name, prc_number=prc)
+        email = str(d.get("email") or "").strip()[:254]
+        if not (prc and name and email):
+            return Response({"detail": "Enter the pharmacist's name, PRC license number and email."}, status=400)
+        user = None
+        if username or password:  # a portal login is optional: some pharmacists only receive the emails
+            if len(password) < 10:
+                return Response({"detail": "Use a password of at least 10 characters."}, status=400)
+            if CustomUser.objects.filter(username=username).exists():
+                return Response({"detail": "That username is taken."}, status=400)
+            user = CustomUser.objects.create_user(username=username, password=password, role="ext_pharmacist", email=email,
+                                                  first_name=name.split(" ")[0], last_name=" ".join(name.split(" ")[1:]))
+        s = PartnerPharmacist.objects.create(partner=partner, user=user, full_name=name, prc_number=prc, email=email)
         pt.log_access(request.user, "staff_added", None, request, {"staff": s.pk})
-        return Response({"id": s.pk, "full_name": s.full_name, "prc_number": s.prc_number, "username": username}, status=201)
+        return Response(_staff_json(s), status=201)
+
+
+class StaffDetailView(PortalView):
+    """PATCH: the pharmacy's administrator edits a pharmacist (name, PRC number, email) or deactivates them."""
+
+    needs_working_pharmacy = False
+
+    def patch(self, request, pk):
+        partner = pt.partner_of(request.user)
+        if not pt.can_manage_staff(request.user):
+            return Response({"detail": "Only your pharmacy's administrator can change staff."}, status=403)
+        s = partner.staff.select_related("user").filter(pk=pk).first()
+        if s is None:
+            return Response({"detail": "Not found."}, status=404)
+        d = request.data
+        for key, limit in (("full_name", 160), ("prc_number", 40), ("email", 254)):
+            if key in d:
+                value = str(d.get(key) or "").strip()[:limit]
+                if key in ("full_name", "prc_number") and not value:
+                    return Response({"detail": "The name and PRC license number can't be blank."}, status=400)
+                setattr(s, key, value)
+        if "is_active" in d:
+            active = bool(d.get("is_active"))
+            if not active and s.user_id == request.user.pk:
+                return Response({"detail": "You can't deactivate yourself."}, status=400)
+            s.is_active = active
+            if s.user_id:  # a deactivated pharmacist can no longer sign in to the portal
+                s.user.is_active = active
+                s.user.save(update_fields=["is_active"])
+        s.save()
+        pt.log_access(request.user, "staff_changed", None, request, {"staff": s.pk, "fields": sorted(d.keys())})
+        return Response(_staff_json(s))
