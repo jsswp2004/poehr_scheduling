@@ -297,11 +297,11 @@ class CatalogAdminTests(OrdersBase):
         self.assertEqual((r.status_code, r.json()["created"]), (200, 2000), r.content)
         self.assertLess(len(q), 40)  # not one query per row
         with CaptureQueriesContext(connection) as q:
-            r = self.upload(self.big_csv(2000).replace("nursing", "medication"))
+            r = self.upload(self.big_csv(2000).replace("nursing", "procedure"))
         self.assertEqual((r.json()["created"], r.json()["updated"]), (0, 2000))
         self.assertLess(len(q), 40)
         row = Orderable.objects.get(code="item_7")
-        self.assertEqual((row.category, row.organization), ("medication", self.org))
+        self.assertEqual((row.category, row.organization), ("procedure", self.org))
 
     def test_update_by_upload_changes_every_field_and_the_time(self):
         self.upload(self.CSV)
