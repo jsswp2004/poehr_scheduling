@@ -12,7 +12,10 @@ POWER Pharmacy, Phase 1: pharmacist verification of medication orders.
   classes such as penicillins for piperacillin or amoxicillin) and a renal flag when the Cockcroft-Gault
   creatinine clearance is below 30 mL/min. A high-severity alert has to be acknowledged, with a reason,
   before the order can be verified.
-* Clarify and reject send a message to the ordering prescriber's POWER inbox.
+* A renally cleared drug (renal_drugs.py) ordered for a patient whose CrCl is below that drug's threshold
+  raises a HIGH-severity renal alert; any other medication gets a moderate warning below 30 mL/min.
+* Verify with change, clarify and reject send a message to the ordering prescriber's POWER inbox.
+  Reject also cancels the order (status "cancelled"): it is never given.
 
 Pharmacists (RA 10918) and administrators verify; pharmacy assistants (pharmacy_tech) only read.
 Medication names follow the Generics Act (RA 6675 / RA 9502): generic first, brand in parentheses.
@@ -22,6 +25,7 @@ import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -31,6 +35,7 @@ from appointments.models import Order, OrderEvent
 
 from .dangerous_drugs import is_dangerous_drug
 from .models import PharmacyIntervention
+from .renal_drugs import renal_threshold
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +46,8 @@ QUEUE_STATUSES = ("pending_verification", "on_hold_clarify")
 ACTIONS = ("verify", "modify", "clarify", "reject")
 STATUS_LABELS = dict(Order.PHARMACY_STATUS_CHOICES)
 PRIORITY_RANK = {"stat": 0, "urgent": 1, "routine": 2}
-# Minutes from signing within which a pharmacist should have verified the order.
+# Minutes from signing within which a pharmacist should have verified the order. A clinic can change them with
+# the Django setting PHARMACY_VERIFY_GOAL_MINUTES, e.g. {"stat": 10}; priorities it leaves out keep these.
 VERIFY_GOAL_MINUTES = {"stat": 15, "urgent": 30, "routine": 60}
 RENAL_CRCL_THRESHOLD = 30
 SCR_UMOL_PER_MG_DL = Decimal("88.4")
@@ -172,7 +178,20 @@ def cds_alerts(order, renal=None):
             "detail": a,
         })
     renal = renal if renal is not None else renal_info(order.patient)
-    if renal.get("renal_flag"):
+    drug, threshold = renal_threshold(f"{names['generic']} {order.orderable_name}")
+    crcl = renal.get("crcl")
+    if drug and crcl is not None and crcl < threshold:
+        out.append({
+            "key": "renal",
+            "type": "renal",
+            "severity": "high",
+            "title": f"Renal dosing: {drug.title()}",
+            "message": f"CrCl {crcl} mL/min (Cockcroft-Gault) is below {threshold:g} mL/min for {drug}. "
+                       "Adjust the dose or interval, or give the reason it stands.",
+            "detail": {"crcl": crcl, "threshold": threshold, "drug": drug,
+                       "scr_mg_dl": renal.get("scr_mg_dl"), "weight_kg": renal.get("weight_kg")},
+        })
+    elif renal.get("renal_flag"):
         out.append({
             "key": "renal",
             "type": "renal",
@@ -186,8 +205,23 @@ def cds_alerts(order, renal=None):
 
 # --------------------------------------------------------------------------- serializing
 
+def goal_table():
+    """The verification goal per priority: the defaults, overridden by PHARMACY_VERIFY_GOAL_MINUTES."""
+    table = dict(VERIFY_GOAL_MINUTES)
+    configured = getattr(settings, "PHARMACY_VERIFY_GOAL_MINUTES", None)
+    if isinstance(configured, dict):
+        for key, value in configured.items():
+            try:
+                if key in table and int(value) > 0:
+                    table[key] = int(value)
+            except (TypeError, ValueError):
+                log.warning("PHARMACY_VERIFY_GOAL_MINUTES[%r] is not a number of minutes", key)
+    return table
+
+
 def goal_minutes(order):
-    return VERIFY_GOAL_MINUTES.get(order.priority, VERIFY_GOAL_MINUTES["routine"])
+    table = goal_table()
+    return table.get(order.priority, table["routine"])
 
 
 def waiting_since(order):
@@ -363,6 +397,19 @@ def act(order, user, action, data=None):
         if high:
             detail["acknowledged_alerts"] = [a["key"] for a in high]
             detail["override_reason"] = reason
+        if change:
+            # The prescriber sees what the pharmacist changed: an inbox message, plus the intervention and order event.
+            labels = {"dose": "Dose", "frequency": "Frequency", "route": "Route", "instructions": "Instructions"}
+            lines = "\n".join(f"{labels[k]}: {original.get(k) or '(none)'} -> {v}" for k, v in change.items())
+            thread_id = _notify_prescriber(
+                order, user, f"Pharmacy changed: {names['display']}",
+                f"The order for {names['display']} ({order.placer_order_number}) was verified with a change under "
+                f"protocol.\n\n{lines}\n\nReason: {reason}" + (f"\n\n{note}" if note else ""),
+            )
+            if thread_id:
+                intervention.new_value = {**change, "message_thread": thread_id}
+                intervention.save(update_fields=["new_value"])
+                detail["message_thread"] = thread_id
         OrderEvent.objects.create(order=order, event_type="pharmacy_verified", from_status=order.status, to_status=order.status, user=user, detail=detail)
         order_tasks.generate_tasks(order)  # the nurse's administration tasks start now (no-op unless active)
         return order, intervention
@@ -376,12 +423,18 @@ def act(order, user, action, data=None):
     else:
         order.pharmacy_status = "rejected"
         subject = f"Pharmacy rejected: {names['display']}"
-        body = (f"The order for {names['display']} ({order.placer_order_number}) was not verified by pharmacy "
-                f"and will not be given.\n\nReason: {reason}")
+        body = (f"The order for {names['display']} ({order.placer_order_number}) was rejected by pharmacy and has "
+                f"been cancelled. It will not be given.\n\nReason: {reason}")
     if note:
         body += f"\n\n{note}"
     order.pharmacy_note = note or reason
+    order_status = order.status
+    if action == "reject":
+        # A rejected order is cancelled: it was never verified, so it is never given.
+        order.status = "cancelled"
     order.save()
+    if action == "reject":
+        order_tasks.cancel_future_tasks(order, user, f"Order cancelled by pharmacy: {reason}")
     thread_id = _notify_prescriber(order, user, subject, body)
     intervention = PharmacyIntervention.objects.create(
         organization_id=order.organization_id, order=order, type=action, reason=reason, note=note, pharmacist=user,
@@ -389,7 +442,7 @@ def act(order, user, action, data=None):
     )
     OrderEvent.objects.create(
         order=order, event_type=f"pharmacy_{'clarification' if action == 'clarify' else 'rejected'}",
-        from_status=order.status, to_status=order.status, user=user,
+        from_status=order_status, to_status=order.status, user=user,
         detail={"reason": reason, "from_pharmacy_status": from_status, "message_thread": thread_id},
     )
     return order, intervention
