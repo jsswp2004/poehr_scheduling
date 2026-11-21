@@ -352,6 +352,8 @@ export const apiEndpoints = {
     formularyRevert: (id) => `${API_BASE_URL}/api/pharmacy/formulary/${id}/revert/`,
     formularyHistory: (id) => `${API_BASE_URL}/api/pharmacy/formulary/${id}/history/`,
     formularyReview: (id) => `${API_BASE_URL}/api/pharmacy/formulary/${id}/review/`,
+    formularyReviewers: `${API_BASE_URL}/api/pharmacy/formulary/reviewers/`,
+    formularyReviewer: (id) => `${API_BASE_URL}/api/pharmacy/formulary/reviewers/${id}/`,
     formularyExport: `${API_BASE_URL}/api/pharmacy/formulary/export/`,
     formularyTemplate: `${API_BASE_URL}/api/pharmacy/formulary/template/`,
     formularyImport: `${API_BASE_URL}/api/pharmacy/formulary/import/`,

@@ -8,6 +8,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import FormularyItemDialog from "./FormularyItemDialog";
 import FormularyImportDialog, { FormularyImportsDialog, downloadCsv } from "./FormularyImportDialog";
+import FormularyReviewersDialog from "./FormularyReviewersDialog";
 import { DrugName, authHeader, errorText, peso } from "./pharmacyShared";
 
 const FILTERS = [
@@ -33,6 +34,7 @@ export default function FormularyPanel() {
   const [open, setOpen] = useState(null); // {item} | {item: null} for a new one
   const [importOpen, setImportOpen] = useState(false);
   const [importsOpen, setImportsOpen] = useState(false);
+  const [reviewersOpen, setReviewersOpen] = useState(false);
   const seq = useRef(0);
 
   const load = useCallback(async () => {
@@ -73,6 +75,7 @@ export default function FormularyPanel() {
         <Button size="small" onClick={() => downloadCsv(apiEndpoints.formularyExport, "formulary.csv")} data-testid="formulary-export">Export CSV</Button>
         {canEdit && <Button size="small" onClick={() => setImportOpen(true)} data-testid="formulary-import">Import CSV</Button>}
         <Button size="small" onClick={() => setImportsOpen(true)}>Imports</Button>
+        {meta?.edits_shared && <Button size="small" onClick={() => setReviewersOpen(true)} data-testid="formulary-reviewers">Reviewers</Button>}
         {canEdit && <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setOpen({ item: null })} data-testid="formulary-add">Add item</Button>}
       </Stack>
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
@@ -139,6 +142,7 @@ export default function FormularyPanel() {
       />
       <FormularyImportDialog open={importOpen} sharedScope={!!meta?.edits_shared} onClose={() => setImportOpen(false)} onApplied={() => { setImportOpen(false); load(); }} />
       <FormularyImportsDialog open={importsOpen} onClose={() => setImportsOpen(false)} />
+      <FormularyReviewersDialog open={reviewersOpen} onClose={() => setReviewersOpen(false)} />
     </Box>
   );
 }
