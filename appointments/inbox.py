@@ -34,7 +34,7 @@ from .models import (
 )
 
 User = get_user_model()
-STAFF_ROLES = ("doctor", "nurse", "registrar", "admin", "system_admin")
+STAFF_ROLES = ("doctor", "nurse", "registrar", "admin", "system_admin", "pharmacist", "pharmacy_tech")
 DONE_DAYS = 30
 LIMIT = 300
 FOLDERS = ("all", "messages", "alerts", "sign", "cosign", "sent", "done")

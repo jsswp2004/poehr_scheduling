@@ -190,6 +190,10 @@ ROLE_DEFAULT_RIGHTS = {
         "lab_results.upload",
     },
     "system_admin": _ALL_RIGHTS,
+    # POWER Pharmacy: pharmacists and pharmacy assistants read orders and results; verification itself is
+    # checked by role in pharmacy.services (pharmacist / admin only).
+    "pharmacist": {"orders.view", "lab_results.view"},
+    "pharmacy_tech": {"orders.view", "lab_results.view"},
 }
 
 

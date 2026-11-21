@@ -924,7 +924,8 @@ def get_patients(request):
             f"🔍 get_patients called by user: {user.username} (role: {user.role})"
         )
 
-        if user.role not in ["doctor", "nurse", "registrar", "admin", "system_admin"]:
+        # Pharmacists and pharmacy assistants (POWER Pharmacy) read the org-wide list too.
+        if user.role not in ["doctor", "nurse", "registrar", "admin", "system_admin", "pharmacist", "pharmacy_tech"]:
             logger.warning(
                 f"❌ Access denied for user {user.username} with role {user.role}"
             )
