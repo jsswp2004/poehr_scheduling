@@ -785,7 +785,7 @@ class PortalAccessLogView(APIView):
     def get(self, request):
         import csv
 
-        from django.http import HttpResponse
+        from django.http import StreamingHttpResponse
         from django.utils.dateparse import parse_date
 
         from .models import PortalAccessLog
@@ -806,18 +806,26 @@ class PortalAccessLogView(APIView):
             qs = qs.filter(created_at__date__gte=parse_date(p["date_from"]))
         if parse_date(p.get("date_to") or ""):
             qs = qs.filter(created_at__date__lte=parse_date(p["date_to"]))
-        rows = [
-            {"id": e.pk, "at": e.created_at.isoformat(), "user": e.user.username, "name": svc.name_of(e.user),
-             "pharmacy": e.partner.name if e.partner_id else "", "action": e.action,
-             "prescription": f"RX-{e.prescription_id:06d}" if e.prescription_id else "", "ip": e.ip, "detail": e.detail}
-            for e in qs[:5000 if p.get("export") == "csv" else 500]
-        ]
+        def row(e):
+            return {"id": e.pk, "at": e.created_at.isoformat(), "user": e.user.username, "name": svc.name_of(e.user),
+                    "pharmacy": e.partner.name if e.partner_id else "", "action": e.action,
+                    "prescription": f"RX-{e.prescription_id:06d}" if e.prescription_id else "", "ip": e.ip, "detail": e.detail}
+
         if p.get("export") == "csv":
-            response = HttpResponse(content_type="text/csv")
+            # the whole log (no cap), streamed row by row so a large export never sits in memory
+            class Echo:
+                def write(self, value):
+                    return value
+
+            writer = csv.writer(Echo())
+
+            def lines():
+                yield writer.writerow(["When", "Username", "Name", "Pharmacy", "Action", "Prescription", "IP", "Detail"])
+                for e in qs.iterator(chunk_size=2000):
+                    r = row(e)
+                    yield writer.writerow([r["at"], r["user"], r["name"], r["pharmacy"], r["action"], r["prescription"], r["ip"], r["detail"]])
+
+            response = StreamingHttpResponse(lines(), content_type="text/csv")
             response["Content-Disposition"] = 'attachment; filename="portal-access-log.csv"'
-            writer = csv.writer(response)
-            writer.writerow(["When", "Username", "Name", "Pharmacy", "Action", "Prescription", "IP", "Detail"])
-            for r in rows:
-                writer.writerow([r["at"], r["user"], r["name"], r["pharmacy"], r["action"], r["prescription"], r["ip"], r["detail"]])
             return response
-        return Response({"results": rows, "retention_days": pt.access_log_retention_days()})
+        return Response({"results": [row(e) for e in qs[:500]], "retention_days": pt.access_log_retention_days()})
