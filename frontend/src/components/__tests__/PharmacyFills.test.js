@@ -337,3 +337,14 @@ test("the fill dialog warns about a formulary item not yet reviewed by a pharmac
   fireEvent.click(screen.getByTestId("fill-start"));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith("/fills/5/action/", { action: "start_entry" }, expect.anything()));
 });
+
+test("the medication profile says why CrCl is not calculated", async () => {
+  api.get.mockResolvedValue({
+    data: {
+      renal: { weight_kg: 61, scr: null, crcl: null, crcl_note: "CrCl not calculated — missing serum creatinine" },
+      allergies: [], no_known_allergies: true, orders: [], prescriptions: [], home_medications: [], interventions: [], dispensing: [],
+    },
+  });
+  render(<MedProfilePanel patient={{ id: 3, name: "Dela Cruz, Juan" }} role="pharmacist" />);
+  expect(await screen.findByTestId("med-profile-crcl-missing")).toHaveTextContent("CrCl not calculated — missing serum creatinine");
+});

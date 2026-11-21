@@ -145,9 +145,12 @@ export default function VerifyOrderDialog({ open, orderId, onClose, onDone, canV
                   <Typography variant="caption" color="text.secondary">Renal function</Typography>
                   <Typography variant="body2">
                     Weight {order.renal.weight_kg != null ? `${order.renal.weight_kg} kg` : "not recorded"} · SCr{" "}
-                    {order.renal.scr != null ? `${order.renal.scr} ${order.renal.scr_units || ""}`.trim() : "not recorded"} · CrCl{" "}
-                    {order.renal.crcl != null ? `${order.renal.crcl} mL/min (Cockcroft-Gault)` : order.renal.crcl_note || "not calculated"}
+                    {order.renal.scr != null ? `${order.renal.scr} ${order.renal.scr_units || ""}`.trim() : "not recorded"}
+                    {order.renal.crcl != null && ` · CrCl ${order.renal.crcl} mL/min (Cockcroft-Gault)`}
                   </Typography>
+                  {order.renal.crcl == null && (
+                    <Alert severity="warning" sx={{ mt: 0.5, py: 0 }} data-testid="verify-crcl-missing">{order.renal.crcl_note || "CrCl not calculated"}</Alert>
+                  )}
                 </Grid>
               )}
             </Grid>

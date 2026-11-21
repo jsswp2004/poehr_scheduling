@@ -142,7 +142,9 @@ export default function PharmacyPatientList({ selectedId, onSelect, onOpenChart,
                         {r.crcl} mL/min
                       </Typography>
                     ) : (
-                      <Tooltip title={r.crcl_note || "Not calculated"}><span>—</span></Tooltip>
+                      <Typography variant="caption" color="warning.dark" data-testid={`pharmacy-crcl-missing-${r.id}`}>
+                        {(r.crcl_note || "CrCl not calculated").replace(/^CrCl not calculated — /, "Not calculated — ")}
+                      </Typography>
                     )}
                   </TableCell>
                   <TableCell>
