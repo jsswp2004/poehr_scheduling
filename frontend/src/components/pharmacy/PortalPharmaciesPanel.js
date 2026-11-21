@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { authHeader, errorText } from "./pharmacyShared";
+import PortalAccessLogDialog from "./PortalAccessLogDialog";
 
 const STATUS_COLOR = { pending: "warning", approved: "success", suspended: "error" };
 
@@ -21,6 +22,7 @@ export default function PortalPharmaciesPanel() {
   const [error, setError] = useState("");
   const [suspend, setSuspend] = useState(null);
   const [reason, setReason] = useState("");
+  const [logOpen, setLogOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,6 +67,8 @@ export default function PortalPharmaciesPanel() {
     <Box sx={{ px: 2, py: 1 }} data-testid="portal-pharmacies">
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>eRx Routing: POWER Pharmacy Portal</Typography>
+        <span style={{ flexGrow: 1 }} />
+        {canApprove && <Button size="small" onClick={() => setLogOpen(true)} data-testid="open-access-log">Access log</Button>}
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Prescriptions sent to a portal pharmacy reach it electronically. Any approved pharmacy can also claim a printed prescription with its claim code and the patient's birthdate.
@@ -116,6 +120,7 @@ export default function PortalPharmaciesPanel() {
           </TableBody>
         </Table>
       </TableContainer>
+      <PortalAccessLogDialog open={logOpen} onClose={() => setLogOpen(false)} pharmacies={rows} />
       <Dialog open={!!suspend} onClose={() => setSuspend(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Suspend {suspend?.name}</DialogTitle>
         <DialogContent dividers>
