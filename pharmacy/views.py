@@ -275,8 +275,27 @@ class PharmacyOrderActionView(APIView):
         return Response(data)
 
 
+def _patient_in_scope(request, patient, org):
+    """
+    The Med Profile follows the verification queue's scope: the active clinic (your own; a system administrator's
+    chosen ?org=, or every clinic when they have not chosen one), and, for someone limited to some facilities, a patient
+    registered at one of them (or with no facility, or not registered anywhere yet).
+    """
+    if org is not None and patient.organization_id != org.pk:
+        return False
+    q = visit_facility_q(request.user, "patient_profile__registrations__")
+    if q is None:
+        return True
+    base = CustomUser.objects.filter(pk=patient.pk)
+    return not base.filter(patient_profile__registrations__isnull=False).exists() or base.filter(q).exists()
+
+
 class MedProfileView(APIView):
-    """GET the patient's medication profile: medication orders, prescriptions, home medications, allergies, renal data."""
+    """
+    GET the patient's medication profile: medication orders, prescriptions, home medications, allergies, renal data.
+    Scoped to the active clinic like the verification queue (see _patient_in_scope); the orders, prescriptions, home
+    medications, interventions and fills listed are that clinic's.
+    """
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -284,24 +303,29 @@ class MedProfileView(APIView):
         denied = _denied(request)
         if denied:
             return denied
+        org, err = _org_or_error(request)
+        if err:
+            return err
         patient = CustomUser.objects.filter(pk=patient_id, role="patient").select_related("patient_profile").first()
-        if patient is None or (not sees_all_orgs(request.user) and patient.organization_id != request.user.organization_id):
+        if patient is None or not _patient_in_scope(request, patient, org):
             return Response({"detail": "Patient not found."}, status=404)
+        mine = {} if org is None else {"organization": org}
         now = timezone.now()
         renal = svc.renal_info(patient)
         since = now - timedelta(days=30)
         orders = (
-            Order.objects.filter(patient=patient, orderable_category="medication")
+            Order.objects.filter(patient=patient, orderable_category="medication", **mine)
             .exclude(status="draft")
             .filter(Q(status__in=svc.ACTIVE_ORDER_STATUSES) | Q(updated_at__gte=since))
             .select_related(*ORDER_RELATED)
         )
         orders = sorted(orders, key=lambda o: (o.status not in svc.ACTIVE_ORDER_STATUSES, _rank(o)))
-        rxs = Prescription.objects.filter(patient=patient).exclude(status="cancelled").select_related("prescriber").order_by("-created_at")[:100]
-        home = HomeMedication.objects.filter(patient=patient).order_by("status", "drug_name")[:100]
-        interventions = PharmacyIntervention.objects.filter(order__patient=patient).select_related("pharmacist")[:50]
+        rxs = Prescription.objects.filter(patient=patient, **mine).exclude(status="cancelled").select_related("prescriber").order_by("-created_at")[:100]
+        home = HomeMedication.objects.filter(patient=patient, **mine).order_by("status", "drug_name")[:100]
+        interventions = PharmacyIntervention.objects.filter(
+            order__patient=patient, **({} if org is None else {"order__organization": org})).select_related("pharmacist")[:50]
         dispensed = (
-            PrescriptionFill.objects.filter(patient=patient, stage="dispensed")
+            PrescriptionFill.objects.filter(patient=patient, stage="dispensed", **mine)
             .select_related("prescription", "prescription__prescriber", "patient", "dispensed_by", "checked_by",
                             "received_by", "entered_by", "filled_by")
             .order_by("-dispensed_at")[:100]
