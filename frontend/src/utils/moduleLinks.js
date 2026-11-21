@@ -16,6 +16,10 @@ import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
 
 // Roles that can use the clinical/staff modules (matches the login redirects
 // and the Staffing page guard).
+// The POWER Pharmacy roles (pharmacist, pharmacy_tech) are left out on purpose: these links (Patients,
+// Documentation, Scheduler, Team, Staffing, Surgery), Reports and the global patient search lead to
+// endpoints that refuse them. They reach their work through the Pharmacy link below (the Patients page in the
+// Pharmacy care setting) and read orders, prescriptions and results there.
 export const STAFF_MODULE_ROLES = [
   "admin",
   "system_admin",
