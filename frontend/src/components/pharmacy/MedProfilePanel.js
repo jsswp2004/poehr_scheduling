@@ -6,7 +6,8 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import VerifyOrderDialog from "./VerifyOrderDialog";
 import {
-  DrugName, PHARMACY_CHANGED_EVENT, PHARMACY_STATUS_COLOR, VERIFY_ROLES, authHeader, directions, errorText, fmtDateTime,
+  DrugName, FILLS_CHANGED_EVENT, PHARMACY_CHANGED_EVENT, PHARMACY_STATUS_COLOR, VERIFY_ROLES, authHeader, directions, errorText,
+  fmtDateTime, peso,
 } from "./pharmacyShared";
 
 const ORDER_STATUS = { pending_cosign: "Pending cosign", active: "Active", in_progress: "In progress", completed: "Completed", discontinued: "Discontinued", cancelled: "Cancelled" };
@@ -49,7 +50,11 @@ export default function MedProfilePanel({ patient, role }) {
 
   useEffect(() => {
     window.addEventListener(PHARMACY_CHANGED_EVENT, load);
-    return () => window.removeEventListener(PHARMACY_CHANGED_EVENT, load);
+    window.addEventListener(FILLS_CHANGED_EVENT, load);
+    return () => {
+      window.removeEventListener(PHARMACY_CHANGED_EVENT, load);
+      window.removeEventListener(FILLS_CHANGED_EVENT, load);
+    };
   }, [load]);
 
   if (loading && !data) return <Box sx={{ p: 2 }}><CircularProgress size={24} /></Box>;
@@ -135,6 +140,42 @@ export default function MedProfilePanel({ patient, role }) {
               {h.status === "stopped" && <Chip size="small" variant="outlined" label="Stopped" />}
             </Box>
           ))
+        )}
+      </Section>
+
+      <Section title="Dispensing history" testId="med-profile-dispensing">
+        {(data.dispensing || []).length === 0 ? (
+          <Typography variant="body2" color="text.secondary">Nothing dispensed by the in-house pharmacy yet.</Typography>
+        ) : (
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small" aria-label="Dispensing history">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Dispensed</TableCell>
+                  <TableCell>Medication</TableCell>
+                  <TableCell>Quantity</TableCell>
+                  <TableCell>Rx</TableCell>
+                  <TableCell>By</TableCell>
+                  <TableCell align="right">Total</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {data.dispensing.map((f) => (
+                  <TableRow key={f.id} data-testid={`dispensed-${f.id}`}>
+                    <TableCell>{fmtDateTime(f.dispensed?.at)}</TableCell>
+                    <TableCell><DrugName drug={f.drug} dangerous={f.dangerous_drug} detail={f.strength} /></TableCell>
+                    <TableCell>
+                      {f.quantity} {f.quantity_unit}
+                      {f.is_partial && <Chip size="small" color="warning" label={`Balance ${f.balance}`} sx={{ ml: 0.5 }} />}
+                    </TableCell>
+                    <TableCell>{f.rx_number}{f.is_refill ? ` · Refill ${f.fill_number - 1}` : ""}</TableCell>
+                    <TableCell>{f.dispensed?.name}</TableCell>
+                    <TableCell align="right">{peso(f.total_amount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
       </Section>
 
