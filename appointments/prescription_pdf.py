@@ -34,6 +34,25 @@ def _qty(rx):
     return f"{text} {rx.quantity_unit}".strip()
 
 
+def _draw_claim(c, rx, right, y):
+    """The POWER Pharmacy Portal claim code, as text and as a QR code (POWER-RX:<code>), at the right of the body."""
+    from reportlab.graphics import renderPDF
+    from reportlab.graphics.barcode import qr
+    from reportlab.graphics.shapes import Drawing
+
+    from pharmacy.portal import ensure_claim_code
+
+    code = ensure_claim_code(rx)
+    widget = qr.QrCodeWidget(f"POWER-RX:{code}")
+    x0, y0, x1, y1 = widget.getBounds()
+    size = 0.9 * inch
+    drawing = Drawing(size, size, transform=[size / (x1 - x0), 0, 0, size / (y1 - y0), 0, 0])
+    drawing.add(widget)
+    renderPDF.draw(drawing, c, right - size, y - size + 10)
+    c.setFont("Helvetica", 8)
+    c.drawRightString(right, y - size + 2, f"Claim code {code}")
+
+
 def build_pdf(rx, reprint=False):
     """Returns the PDF bytes. A draft is watermarked; a signed Rx uses what was frozen when it was signed."""
     snap = rx.clinical_snapshot or rxs.clinical_snapshot(rx)
@@ -116,6 +135,8 @@ def build_pdf(rx, reprint=False):
         c.setFont("Helvetica", 11.5)
         c.drawString(body_left + 1.1 * inch, y, value)
         y -= 17
+    if rx.status in ("signed", "sent") or rx.claim_code:
+        _draw_claim(c, rx, right, y)
     if rx.is_yellow_rx:
         c.setFont("Helvetica-Bold", 11.5)
         c.drawString(body_left, y, f"DDB yellow prescription  Serial {rx.yellow_rx_serial or '________'}  S2 {rx.s2_number or '________'}")

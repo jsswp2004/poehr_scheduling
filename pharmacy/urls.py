@@ -19,4 +19,10 @@ urlpatterns = [
     path("prices/<int:pk>/", views.PriceDetailView.as_view(), name="pharmacy-price"),
     path("patients/<int:patient_id>/discount-ids/", views.PatientDiscountIdsView.as_view(), name="pharmacy-discount-ids"),
     path("discount-ids/<int:pk>/", views.DiscountIdDetailView.as_view(), name="pharmacy-discount-id"),
+    # Phase 3: POWER Pharmacy Portal (clinic side)
+    path("network/", views.PartnerNetworkView.as_view(), name="pharmacy-network"),
+    path("network/<int:pk>/status/", views.PartnerStatusView.as_view(), name="pharmacy-network-status"),
+    path("network/<int:pk>/add-to-directory/", views.PartnerAddToDirectoryView.as_view(), name="pharmacy-network-add"),
+    path("portal-requests/", views.PortalRequestListView.as_view(), name="pharmacy-portal-requests"),
+    path("portal-requests/<int:pk>/respond/", views.PortalRequestRespondView.as_view(), name="pharmacy-portal-request-respond"),
 ]
