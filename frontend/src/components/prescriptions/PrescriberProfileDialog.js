@@ -5,7 +5,7 @@ import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "./rxShared";
 
-const KEYS = ["npi", "license_number", "license_state", "dea_number", "practice_name", "address", "phone", "fax"];
+const KEYS = ["npi", "license_number", "license_state", "dea_number", "s2_number", "practice_name", "address", "phone", "fax"];
 
 /**
  * What a prescription must show about the prescriber. A doctor fills in their own; an administrator can
@@ -74,6 +74,7 @@ export default function PrescriberProfileDialog({ open, onClose, onSaved, userId
               {field("license_state", "License state", { inputProps: { maxLength: 2, "data-testid": "profile-license_state" } })}
             </Stack>
             {field("dea_number", "DEA number (optional)", { helperText: "Kept for later electronic prescribing; not printed." })}
+            {field("s2_number", "PDEA S2 license number", { helperText: "Needed to prescribe dangerous drugs on a DDB yellow prescription (RA 9165)." })}
             {field("practice_name", "Practice name (blank = clinic name)")}
             {field("address", "Practice address")}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

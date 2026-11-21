@@ -101,12 +101,12 @@ test("shows when and by whom the list was last confirmed", async () => {
   expect(screen.getByTestId("home-med-last-review")).toHaveTextContent("Checked with daughter");
 });
 
-test("flags controlled medicines and allergy alerts, and won't prescribe a controlled one", async () => {
+test("flags dangerous drugs and allergy alerts; a dangerous drug can still be prescribed (yellow Rx)", async () => {
   meds = [MED({ id: 22, drug_name: "Oxycodone", controlled: true }), MED({ id: 23, drug_name: "Amoxicillin", allergy_alerts: ["Allergy to penicillins."] })];
   render(<HomeMedsPanel patient={PATIENT} me={ME} />);
   await screen.findByTestId("home-med-row-22");
-  expect(screen.getByTestId("home-med-row-22")).toHaveTextContent("Controlled");
-  expect(screen.getByTestId("home-med-prescribe-22")).toBeDisabled();
+  expect(screen.getByTestId("home-med-row-22")).toHaveTextContent("Dangerous drug");
+  expect(screen.getByTestId("home-med-prescribe-22")).not.toBeDisabled();
   expect(screen.getByTestId("home-med-allergy-23")).toBeInTheDocument();
   expect(screen.getByTestId("home-med-prescribe-23")).not.toBeDisabled();
 });

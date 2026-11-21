@@ -95,7 +95,7 @@ export default function HomeMedFormDialog({ open, onClose, onSaved, patient, med
               return (
                 <li key={key} {...rest}>
                   {o.display}
-                  {o.controlled && <Chip size="small" color="warning" label="Controlled" sx={{ ml: 1 }} />}
+                  {o.controlled && <Chip size="small" color="warning" label="Dangerous drug" sx={{ ml: 1 }} />}
                 </li>
               );
             }}

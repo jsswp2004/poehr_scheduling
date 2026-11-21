@@ -159,7 +159,7 @@ export default function HomeMedsPanel({ patient, me, onPrescribe }) {
                 <TableRow key={m.id} data-testid={`home-med-row-${m.id}`}>
                   <TableCell>
                     {[m.drug_name, m.strength, m.form].filter(Boolean).join(" ")}
-                    {m.controlled && <Chip size="small" color="warning" label="Controlled" sx={{ ml: 0.5 }} />}
+                    {m.controlled && <Chip size="small" color="warning" label="Dangerous drug" sx={{ ml: 0.5 }} />}
                     {m.allergy_alerts?.length > 0 && (
                       <Tooltip title={m.allergy_alerts.join(" ")}>
                         <Chip size="small" color="error" label="Allergy alert" sx={{ ml: 0.5 }} data-testid={`home-med-allergy-${m.id}`} />
@@ -190,9 +190,9 @@ export default function HomeMedsPanel({ patient, me, onPrescribe }) {
                           <Button size="small" onClick={async () => { if (await act(m, "confirm")) load(); }} data-testid={`home-med-confirm-${m.id}`}>Confirm</Button>
                           <Button size="small" onClick={() => setForm({ med: m })} data-testid={`home-med-edit-${m.id}`}>Edit</Button>
                           <Button size="small" onClick={() => { setDialogError(""); setStopping(m); }} data-testid={`home-med-stop-${m.id}`}>Stop</Button>
-                          <Tooltip title={m.controlled ? "Controlled substances can't be prescribed here." : ""}>
+                          <Tooltip title={m.controlled ? "A dangerous drug is written on a DDB yellow prescription." : ""}>
                             <span>
-                              <Button size="small" disabled={m.controlled} onClick={() => onPrescribe && onPrescribe(m)} data-testid={`home-med-prescribe-${m.id}`}>Prescribe</Button>
+                              <Button size="small" onClick={() => onPrescribe && onPrescribe(m)} data-testid={`home-med-prescribe-${m.id}`}>Prescribe</Button>
                             </span>
                           </Tooltip>
                         </>
