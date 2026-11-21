@@ -1220,6 +1220,15 @@ class Orderable(models.Model):
         help_text="Medications: a dangerous drug under RA 9165 (PDEA / DDB). Also matched by name from the "
         "configurable list in pharmacy.dangerous_drugs.",
     )
+    # POWER Pharmacy Formulary (medications). A formulary item is a medication orderable: shared when it has no
+    # organization (owned by POWER system administrators), clinic-only when it has one. Clinics override shared
+    # items with pharmacy.FormularyOverride and their own PharmacyPrice row.
+    strength = models.CharField(max_length=60, blank=True, help_text="Medications: e.g. 500 mg")
+    form = models.CharField(max_length=40, blank=True, help_text="Medications: tablet, capsule, ...")
+    default_route = models.CharField(max_length=20, blank=True, help_text="Medications: PO, IV, ...")
+    renal_threshold_crcl = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Medications: review the dose when CrCl (mL/min) is below this; blank = no renal flag",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1228,6 +1237,20 @@ class Orderable(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.code})"
+
+    def save(self, *args, **kwargs):
+        # A NEW medication starts with the reference lists' defaults (POWER Pharmacy): flagged as a dangerous drug
+        # (RA 9165) and given a renal threshold when its generic name is on those lists. After that the item's own
+        # flags decide; a pharmacist can change them in the Formulary.
+        if self.pk is None and self.category == "medication":
+            from pharmacy.formulary import list_defaults
+
+            dangerous, renal = list_defaults(f"{self.generic_name} {self.name}")
+            if dangerous:
+                self.is_dangerous_drug = True
+            if self.renal_threshold_crcl is None and renal is not None:
+                self.renal_threshold_crcl = renal
+        super().save(*args, **kwargs)
 
     @property
     def task_mode(self):

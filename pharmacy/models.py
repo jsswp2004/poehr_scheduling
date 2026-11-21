@@ -51,11 +51,14 @@ FILL_STAGES = [
 
 class PharmacyPrice(models.Model):
     """
-    The clinic's selling price for a drug, per unit, in PHP, VAT included (12%) unless the drug is VAT-exempt.
+    A selling price for a drug, per unit, in PHP, VAT included (12%) unless the drug is VAT-exempt.
     `drug_name` is matched against the prescription's drug name (generic name; longest match wins).
+    Formulary prices are tied to their item (`orderable`): with no organization it is the shared POWER price,
+    with one it is that clinic's price (overriding the shared one).
     """
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="pharmacy_prices")
+    organization = models.ForeignKey(Organization, null=True, blank=True, on_delete=models.CASCADE, related_name="pharmacy_prices")
+    orderable = models.ForeignKey("appointments.Orderable", null=True, blank=True, on_delete=models.CASCADE, related_name="prices")
     drug_name = models.CharField(max_length=200, help_text="Generic name (and strength if priced per strength)")
     unit = models.CharField(max_length=30, blank=True, help_text="e.g. tablet, capsule, mL")
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="PHP per unit")
@@ -353,3 +356,56 @@ class PortalAccessLog(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["user", "created_at"])]
+
+
+# --------------------------------------------------------------------------------------------- Formulary
+# The POWER Formulary is the medication orderables (shared: no organization; clinic-only: one organization).
+# A clinic changes a SHARED item only through FormularyOverride (local flags, active) and its own PharmacyPrice
+# (price, unit, VAT-exempt); the shared item itself belongs to POWER system administrators.
+
+class FormularyOverride(models.Model):
+    """One clinic's local values for a shared formulary item. `values` holds only the overridden fields."""
+
+    OVERRIDABLE = ("is_active", "dangerous_drug", "renal_threshold_crcl")
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="formulary_overrides")
+    orderable = models.ForeignKey("appointments.Orderable", on_delete=models.CASCADE, related_name="formulary_overrides")
+    values = models.JSONField(default=dict, blank=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organization", "orderable"], name="uniq_formulary_override")]
+
+
+class FormularyImport(models.Model):
+    """A CSV applied to the formulary, with the original file (kept as uploaded)."""
+
+    organization = models.ForeignKey(Organization, null=True, blank=True, on_delete=models.CASCADE, related_name="+",
+                                     help_text="Blank = the shared POWER formulary")
+    filename = models.CharField(max_length=255)
+    content = models.TextField()
+    created = models.PositiveIntegerField(default=0)
+    changed = models.PositiveIntegerField(default=0)
+    unchanged = models.PositiveIntegerField(default=0)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class FormularyChange(models.Model):
+    """Change history: who changed which formulary item, when, from what to what, by hand or by an import."""
+
+    organization = models.ForeignKey(Organization, null=True, blank=True, on_delete=models.CASCADE, related_name="+",
+                                     help_text="Blank = a change to the shared item itself")
+    orderable = models.ForeignKey("appointments.Orderable", on_delete=models.CASCADE, related_name="formulary_changes")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    source = models.CharField(max_length=10, default="manual")  # manual / import / revert / migration
+    formulary_import = models.ForeignKey(FormularyImport, null=True, blank=True, on_delete=models.SET_NULL, related_name="changes")
+    changes = models.JSONField(default=dict)  # {field: [old, new]}
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
