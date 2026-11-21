@@ -15,6 +15,7 @@ const FILTERS = [
   { key: "dangerous", label: "Dangerous drug", options: [["", "Any"], ["yes", "Yes"], ["no", "No"]] },
   { key: "renal", label: "Renal flag", options: [["", "Any"], ["yes", "Yes"], ["no", "No"]] },
   { key: "active", label: "Status", options: [["", "Any"], ["yes", "Active"], ["no", "Hidden"]] },
+  { key: "review", label: "Review", options: [["", "Any"], ["needs_review", "Needs pharmacist review"], ["reviewed", "Reviewed"]] },
 ];
 
 /**
@@ -26,7 +27,7 @@ export default function FormularyPanel() {
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
   const [q, setQ] = useState("");
-  const [filters, setFilters] = useState({ scope: "", dangerous: "", renal: "", active: "" });
+  const [filters, setFilters] = useState({ scope: "", dangerous: "", renal: "", active: "", review: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(null); // {item} | {item: null} for a new one
@@ -107,7 +108,12 @@ export default function FormularyPanel() {
                   </Stack>
                 </TableCell>
                 <TableCell align="right">{r.unit_price_php ? `${peso(r.unit_price_php)}${r.unit ? ` / ${r.unit}` : ""}` : "—"}</TableCell>
-                <TableCell>{r.is_active ? "Active" : "Hidden"}</TableCell>
+                <TableCell>
+                  {r.is_active ? "Active" : "Hidden"}
+                  {r.review?.status === "needs_review" && (
+                    <Chip size="small" color="warning" variant="outlined" sx={{ ml: 0.5 }} label="Needs review" data-testid={`formulary-review-${r.code}`} />
+                  )}
+                </TableCell>
                 <TableCell>
                   <Chip size="small" variant="outlined" label={r.scope === "shared" ? "Shared" : "Our clinic"} />
                   {r.overridden.length > 0 && <Chip size="small" color="warning" sx={{ ml: 0.5 }} label={`${r.overridden.length} overridden`} data-testid={`formulary-overridden-${r.code}`} />}
