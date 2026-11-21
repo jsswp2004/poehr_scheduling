@@ -544,7 +544,11 @@ def serialize_fill(fill, detail=False):
         "created_at": _iso(fill.created_at),
     }
     if detail:
+        from .formulary import item_needs_review, match_item
+
         data.update({
+            # the formulary item this Rx matches is not yet reviewed by a pharmacist: a warning, never a block
+            "needs_review": item_needs_review(match_item(rx.drug_name, rx.organization)),
             "product_name": fill.product_name,
             "product_strength": fill.product_strength,
             "lot_number": fill.lot_number,

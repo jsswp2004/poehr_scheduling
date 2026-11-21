@@ -235,6 +235,12 @@ def past_goal(order, now=None):
     return (now - waiting_since(order)).total_seconds() / 60 > goal_minutes(order)
 
 
+def _needs_review(orderable):
+    from .formulary import item_needs_review
+
+    return item_needs_review(orderable)
+
+
 def serialize_order(order, now=None, alerts=None):
     now = now or timezone.now()
     sched = order.schedule or {}
@@ -246,6 +252,7 @@ def serialize_order(order, now=None, alerts=None):
         "patient": {"id": order.patient_id, "name": name_of(order.patient)},
         "drug": names,
         "dangerous_drug": is_dangerous_drug(f"{names['generic']} {order.orderable_name}", order.orderable, order.organization),
+        "needs_review": _needs_review(order.orderable),
         "dose": sched.get("dose", ""),
         "route": sched.get("route", ""),
         "frequency": sched.get("frequency", ""),

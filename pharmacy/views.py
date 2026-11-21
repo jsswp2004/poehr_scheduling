@@ -30,7 +30,7 @@ from . import services as svc
 from .dangerous_drugs import is_dangerous_drug
 from .models import PharmacyIntervention
 
-ORDER_RELATED = ("patient", "orderable", "ordering_provider", "verified_by")
+ORDER_RELATED = ("patient", "orderable", "orderable__formulary_review", "ordering_provider", "verified_by")
 CARE_LABELS = dict(Registration.CARE_SETTING_CHOICES)
 QUEUE_TABS = ("pending_verification", "on_hold_clarify", "verified", "rejected")
 MAX_ROWS = 300

@@ -1403,6 +1403,7 @@ class OrderableSerializer(serializers.ModelSerializer):
     code_system_display = serializers.CharField(source="get_code_system_display", read_only=True)
     detail_template_detail = serializers.SerializerMethodField()
     task_mode = serializers.CharField(read_only=True)
+    needs_review = serializers.SerializerMethodField()
 
     class Meta:
         model = Orderable
@@ -1424,7 +1425,14 @@ class OrderableSerializer(serializers.ModelSerializer):
             "is_active",
             "task_mode",
             "default_frequency",
+            "needs_review",
         ]
+
+    def get_needs_review(self, obj):
+        """POWER Formulary: a medication not yet reviewed by a pharmacist (a soft warning, never a block)."""
+        from pharmacy.formulary import item_needs_review
+
+        return item_needs_review(obj)
 
     def get_detail_template_detail(self, obj):
         if not obj.detail_template_id:
