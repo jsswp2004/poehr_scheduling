@@ -26,6 +26,11 @@ export function LabelBody({ label }) {
       <Typography sx={{ fontSize: 12, mt: 0.5 }}>
         Prescriber: {label.prescriber}{label.prescriber_license ? ` · PRC Lic. ${label.prescriber_license}` : ""}
       </Typography>
+      {label.dispensed_by && (
+        <Typography sx={{ fontSize: 12 }} data-testid="label-pharmacist">
+          Dispensed by {label.dispensed_by}{label.pharmacist_license ? ` · PRC Lic. ${label.pharmacist_license}` : ""}
+        </Typography>
+      )}
       <Typography sx={{ fontSize: 12 }}>
         Lot {label.lot_number || "—"} · Exp {label.expiry_date || "—"}
         {label.dangerous_drug ? " · No refills (dangerous drug)" : ` · Refills left: ${label.refills_left}`}
