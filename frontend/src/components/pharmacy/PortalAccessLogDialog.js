@@ -58,7 +58,8 @@ export default function PortalAccessLogDialog({ open, onClose, pharmacies = [] }
       <DialogTitle>Portal access log</DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Every view and action by portal pharmacy staff (Data Privacy Act, RA 10173). Kept for 5 years.
+          Every view and action by portal pharmacy staff (Data Privacy Act, RA 10173). Kept for 5 years. The screen shows
+          the latest 500 matching entries; Export CSV gives all of them.
         </Typography>
         {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
         <Grid container spacing={1} sx={{ mb: 1 }}>
