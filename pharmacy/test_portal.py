@@ -49,6 +49,8 @@ class Base(TestCase):
         self.doctor2 = mk("doc2", "doctor", self.org, "Emilio", "Aguinaldo")
         self.nurse = mk("nurse", "nurse", self.org)
         self.sysadmin = mk("sys", "system_admin")
+        self.sysadmin.email = "power-admin@example.ph"
+        self.sysadmin.save()
         self.patient = mk("pat", "patient", self.org, "Corazon", "Reyes")
         profile = Patient.objects.get(user=self.patient)
         profile.date_of_birth, profile.organization, profile.address, profile.phone_number = BIRTHDATE, self.org, "45 Mabini St, Manila", "09171234567"
@@ -192,7 +194,7 @@ class RoutingClaimTests(Base):
         prx = self.portal_rx(rx)
         self.assertEqual((prx.partner, prx.status, prx.how), (self.mercury, "new", "routed"))
         self.assertTrue(PortalNotice.objects.filter(partner=self.mercury, title="New prescription").exists())
-        self.assertEqual(mail.outbox[-1].to, ["mercury@example.ph"])
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ["clerk@example.ph", "rph@example.ph"])  # each pharmacist gets it
         self.assertNotIn("Reyes", mail.outbox[-1].body)  # no patient details by email
         self.assertTrue(rx.events.filter(event_type="portal_routed").exists())
 
@@ -200,14 +202,14 @@ class RoutingClaimTests(Base):
         rx = self.signed(pharmacy=None)
         self.assertFalse(PortalPrescription.objects.filter(prescription=rx).exists())
         c = self.api(self.rph_w)
-        self.assertEqual(c.post("/api/pharmacy-portal/claim/", {"code": rx.claim_code, "birthdate": "1960-01-01"}, format="json").status_code, 404)
-        r = c.post("/api/pharmacy-portal/claim/", {"code": f"POWER-RX:{rx.claim_code.lower()}", "birthdate": BIRTHDATE.isoformat()}, format="json")
+        self.assertEqual(c.post("/api/pharmacy-portal/claim/", {"code": rx.claim_code, "birthdate": "1960-01-01", "mobile_last4": "4567"}, format="json").status_code, 404)
+        r = c.post("/api/pharmacy-portal/claim/", {"code": f"POWER-RX:{rx.claim_code.lower()}", "birthdate": BIRTHDATE.isoformat(), "mobile_last4": "4567"}, format="json")
         self.assertEqual(r.status_code, 201, r.content)
         prx = self.portal_rx(rx)
         self.assertEqual((prx.partner, prx.status, prx.how), (self.watsons, "in_progress", "claimed"))
         rx.refresh_from_db()
         self.assertEqual((rx.status, rx.delivery_method), ("sent", "portal"))
-        r = self.api(self.rph).post("/api/pharmacy-portal/claim/", {"code": rx.claim_code, "birthdate": BIRTHDATE.isoformat()}, format="json")
+        r = self.api(self.rph).post("/api/pharmacy-portal/claim/", {"code": rx.claim_code, "birthdate": BIRTHDATE.isoformat(), "mobile_last4": "4567"}, format="json")
         self.assertEqual(r.status_code, 409)
         self.assertTrue(PortalAccessLog.objects.filter(user=self.rph_w, action="claim_failed").exists())
 
@@ -222,7 +224,8 @@ class StageTests(Base):
     def test_accept_ready_dispense_updates_the_prescription(self):
         rx = self.signed()
         prx = self.portal_rx(rx)
-        self.assertEqual(self.do(self.clerk, prx, "accept").status_code, 200)
+        self.assertEqual(self.do(self.clerk, prx, "accept").status_code, 403)  # not a pharmacist
+        self.assertEqual(self.do(self.rph, prx, "accept").status_code, 200)
         rx.refresh_from_db()
         self.assertEqual((rx.status, rx.delivery_method), ("sent", "portal"))
         self.assertEqual(self.do(self.clerk, prx, "ready").status_code, 200)
@@ -262,9 +265,10 @@ class StageTests(Base):
         self.assertEqual((prx.status, prx.partner), ("declined", None))
         alert = InboxAlert.objects.get(recipient=self.doctor, source_type="portal_declined")
         self.assertIn("Not stocked at this branch", alert.body)
-        # unlocked: another pharmacy may claim it now
-        r = self.api(self.rph_w).post("/api/pharmacy-portal/claim/", {"code": rx.claim_code, "birthdate": BIRTHDATE.isoformat()}, format="json")
-        self.assertEqual(r.status_code, 201)
+        # back with the prescriber only: no other pharmacy can claim it
+        r = self.api(self.rph_w).post("/api/pharmacy-portal/claim/", {"code": rx.claim_code, "birthdate": BIRTHDATE.isoformat(), "mobile_last4": "4567"}, format="json")
+        self.assertEqual(r.status_code, 409)
+        self.assertIn("returned to the prescriber", r.json()["detail"])
 
     def test_senior_or_pwd_id_is_recorded_without_pricing(self):
         prx = self.portal_rx(self.signed())
@@ -355,11 +359,11 @@ class RequestCancelTests(Base):
 
 class StaffTests(Base):
     def test_pharmacy_admin_adds_a_pharmacist_login(self):
-        r = self.api(self.clerk).post("/api/pharmacy-portal/staff/", {"full_name": "Melchora Aquino", "prc_number": "0055667", "username": "melchora", "password": "a-long-password-2"}, format="json")
+        r = self.api(self.clerk).post("/api/pharmacy-portal/staff/", {"full_name": "Melchora Aquino", "prc_number": "0055667", "email": "melchora@example.ph", "username": "melchora", "password": "a-long-password-2"}, format="json")
         self.assertEqual(r.status_code, 201, r.content)
         u = User.objects.get(username="melchora")
         self.assertEqual((u.role, u.portal_membership.partner), ("ext_pharmacist", self.mercury))
-        self.assertEqual(self.api(self.rph).post("/api/pharmacy-portal/staff/", {"full_name": "X", "prc_number": "1", "username": "x2", "password": "a-long-password-3"}, format="json").status_code, 403)
+        self.assertEqual(self.api(self.rph).post("/api/pharmacy-portal/staff/", {"full_name": "X", "prc_number": "1", "email": "x@example.ph", "username": "x2", "password": "a-long-password-3"}, format="json").status_code, 403)
 
 
 class TransportTests(Base):
@@ -381,3 +385,151 @@ class TransportTests(Base):
             tr.CHANNELS.pop()
         self.assertEqual(sent, ["Hello"])
         self.assertIsInstance(tr.adapter_for(self.mercury), tr.PowerPortalAdapter)
+
+
+class FollowUpTests(Base):
+    """Jessie's answers to the Phase 3 questions."""
+
+    def claim(self, user, rx, **extra):
+        body = {"code": rx.claim_code, "birthdate": BIRTHDATE.isoformat(), "mobile_last4": "4567", **extra}
+        return self.api(user).post("/api/pharmacy-portal/claim/", body, format="json")
+
+    def test_1_claim_needs_birthdate_and_mobile_last4(self):
+        rx = self.signed(pharmacy=None)
+        self.assertEqual(self.claim(self.rph_w, rx, mobile_last4="").status_code, 400)
+        r = self.claim(self.rph_w, rx, mobile_last4="0000")
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.json()["detail"], "No prescription matches that claim code, birthdate and mobile number.")
+        self.assertEqual(self.claim(self.rph_w, rx).status_code, 201)
+
+    def test_1_failed_claims_lock_the_pharmacy_for_the_hour(self):
+        rx = self.signed(pharmacy=None)
+        for _ in range(5):
+            self.assertEqual(self.claim(self.rph_w, rx, mobile_last4="0000").status_code, 404)
+        r = self.claim(self.rph_w, rx)  # even the right answer is refused while locked
+        self.assertEqual(r.status_code, 429)
+        self.assertTrue(PortalAccessLog.objects.filter(partner=self.watsons, action="claim_locked").exists())
+        self.assertEqual(self.claim(self.rph, rx).status_code, 201)  # another pharmacy is not affected
+        # an hour later the lock is gone
+        PortalAccessLog.objects.filter(action="claim_failed").update(created_at=timezone.now() - timedelta(hours=2))
+        self.assertEqual(self.claim(self.rph_w, self.signed(pharmacy=None, drug="Amlodipine besylate")).status_code, 201)
+
+    def test_2_only_external_pharmacists_claim_or_accept(self):
+        rx = self.signed(pharmacy=None)
+        r = self.claim(self.clerk, rx)
+        self.assertEqual(r.status_code, 403)
+        prx = self.portal_rx(self.signed(drug="Amlodipine besylate"))
+        self.assertEqual(self.do(self.clerk, prx, "accept").status_code, 403)
+        self.assertEqual(self.do(self.rph, prx, "accept").status_code, 200)
+
+    def test_4_declined_back_to_prescriber_then_rerouted(self):
+        other = Pharmacy.objects.create(organization=self.org, name="Watsons Iloilo")
+        PartnerDirectoryLink.objects.create(pharmacy=other, partner=self.watsons)
+        rx = self.signed()
+        prx = self.portal_rx(rx)
+        self.do(self.rph, prx, "decline", reason="Out of stock")
+        url = f"/api/pharmacy/portal-reroute/{rx.pk}/"
+        self.assertEqual(self.api(self.doctor2).post(url, {"pharmacy": other.pk}, format="json").status_code, 403)
+        r = self.api(self.doctor).post(url, {"pharmacy": other.pk}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        prx.refresh_from_db()
+        self.assertEqual((prx.partner, prx.status), (self.watsons, "new"))
+        self.assertEqual(self.api(self.doctor).post(url, {"pharmacy": other.pk}, format="json").status_code, 409)  # not declined now
+
+    def test_4_new_code_or_reprint_makes_it_claimable_again(self):
+        rx = self.signed()
+        self.do(self.rph, self.portal_rx(rx), "decline", reason="Out of stock")
+        old_code = rx.claim_code
+        r = self.api(self.doctor).post(f"/api/pharmacy/portal-reroute/{rx.pk}/", {"new_code": True}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        rx.refresh_from_db()
+        self.assertNotEqual(rx.claim_code, old_code)
+        self.assertEqual(self.claim(self.rph_w, rx, code=old_code).status_code, 404)  # the old printout no longer works
+        self.assertEqual(self.claim(self.rph_w, rx).status_code, 201)
+        # a reprint does the same
+        rx2 = self.signed(drug="Amlodipine besylate")
+        self.do(self.rph, self.portal_rx(rx2), "decline", reason="Closed for inventory")
+        rxs.record_print(rx2, self.doctor)
+        rx2.refresh_from_db()
+        self.assertEqual(self.portal_rx(rx2).status, "released")
+        self.assertEqual(self.claim(self.rph_w, rx2).status_code, 201)
+
+    def test_5_staff_screen_add_edit_deactivate(self):
+        url = "/api/pharmacy-portal/staff/"
+        c = self.api(self.clerk)
+        self.assertEqual(c.post(url, {"full_name": "Melchora Aquino", "prc_number": "0055667"}, format="json").status_code, 400)  # email needed
+        r = c.post(url, {"full_name": "Melchora Aquino", "prc_number": "0055667", "email": "melchora@example.ph"}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertFalse(r.json()["has_login"])  # a login is optional
+        r = c.post(url, {"full_name": "Teodora Alonso", "prc_number": "0066778", "email": "teodora@example.ph", "username": "teodora", "password": "a-long-password-4"}, format="json")
+        staff_id = r.json()["id"]
+        r = c.patch(f"{url}{staff_id}/", {"prc_number": "0066779", "email": "t.alonso@example.ph"}, format="json")
+        self.assertEqual((r.json()["prc_number"], r.json()["email"]), ("0066779", "t.alonso@example.ph"))
+        r = c.patch(f"{url}{staff_id}/", {"is_active": False}, format="json")
+        self.assertFalse(r.json()["is_active"])
+        self.assertFalse(User.objects.get(username="teodora").is_active)
+        self.assertEqual(self.api(self.rph).patch(f"{url}{staff_id}/", {"is_active": True}, format="json").status_code, 403)
+        self.assertEqual(self.api(self.rph_w).patch(f"{url}{staff_id}/", {"is_active": True}, format="json").status_code, 403)
+        clerk_row = PartnerPharmacist.objects.get(user=self.clerk)
+        self.assertEqual(c.patch(f"{url}{clerk_row.pk}/", {"is_active": False}, format="json").status_code, 400)
+
+    def test_6_access_log_admin_view_filter_and_csv(self):
+        prx = self.portal_rx(self.signed())
+        self.api(self.rph).get(f"/api/pharmacy-portal/rx/{prx.pk}/")
+        self.api(self.rph_w).get("/api/pharmacy-portal/rx/")
+        url = "/api/pharmacy/portal-access-log/"
+        self.assertEqual(self.api(self.doctor).get(url).status_code, 403)
+        data = self.api(self.sysadmin).get(url, {"pharmacy": self.mercury.pk}).json()
+        self.assertEqual([r["action"] for r in data["results"]], ["view"])
+        self.assertEqual(data["results"][0]["prescription"], f"RX-{prx.prescription_id:06d}")
+        self.assertEqual(data["retention_days"], 5 * 365 + 1)
+        r = self.api(self.sysadmin).get(url, {"export": "csv", "user": "rphw"})
+        self.assertEqual(r["Content-Type"], "text/csv")
+        lines = r.content.decode().strip().splitlines()
+        self.assertEqual(lines[0].split(",")[:5], ["When", "Username", "Name", "Pharmacy", "Action"])
+        self.assertEqual(len(lines), 2)
+        self.assertIn("rphw", lines[1])
+
+    def test_6_purge_removes_only_entries_older_than_5_years(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        pt.log_access(self.rph, "view")
+        old = pt.log_access(self.rph, "view")
+        PortalAccessLog.objects.filter(pk=PortalAccessLog.objects.order_by("id").last().pk).update(created_at=timezone.now() - timedelta(days=5 * 365 + 10))
+        out = StringIO()
+        call_command("purge_portal_access_log", "--dry-run", stdout=out)
+        self.assertIn("1 portal access-log entries", out.getvalue())
+        self.assertEqual(PortalAccessLog.objects.count(), 2)
+        call_command("purge_portal_access_log", stdout=StringIO())
+        self.assertEqual(PortalAccessLog.objects.count(), 1)
+        self.assertIsNone(old)
+
+    def test_7_power_admins_are_emailed_when_a_pharmacy_registers(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            r = self.api().post("/api/pharmacy-portal/register/", {
+                "name": "Botica Boie Davao", "fda_lto_number": "LTO-3000033333", "lto_expiry": NEXT_YEAR.isoformat(),
+                "email": "boie@example.ph", "username": "boie_admin", "password": "a-long-password-1",
+                "pharmacists": [{"full_name": "Juan Dela Cruz", "prc_number": "0033445", "email": "juan@example.ph"}],
+            }, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        sent = [m for m in mail.outbox if m.to == ["power-admin@example.ph"]]
+        self.assertEqual(len(sent), 1)
+        self.assertIn("Botica Boie Davao", sent[0].subject)
+        self.assertEqual(PartnerPharmacist.objects.get(prc_number="0033445").email, "juan@example.ph")
+
+    def test_8_notices_go_to_each_active_pharmacist_with_pharmacy_fallback(self):
+        from . import portal_transport as tr
+
+        PartnerPharmacist.objects.filter(user=self.rph).update(email="andres.b@example.ph")
+        PartnerPharmacist.objects.create(partner=self.mercury, full_name="Inactive", prc_number="1", email="gone@example.ph", is_active=False)
+        mail.outbox.clear()
+        tr.notify_pharmacy(self.mercury, "Hello", "Body")
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ["andres.b@example.ph", "clerk@example.ph"])
+        # a pharmacy with no pharmacist email falls back to its own email
+        lone = self.partner("Botika Uno", "uno@example.ph", "LTO-1")
+        PartnerPharmacist.objects.create(partner=lone, full_name="No email", prc_number="2")
+        mail.outbox.clear()
+        tr.notify_pharmacy(lone, "Hello", "Body")
+        self.assertEqual([m.to for m in mail.outbox], [["uno@example.ph"]])
