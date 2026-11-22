@@ -586,3 +586,38 @@ class PurgeScheduleAndExportTests(Base):
         self.assertEqual(len(lines), 5101)  # header + every entry, no 5,000 cap
         self.assertEqual(len(self.api(self.sysadmin).get("/api/pharmacy/portal-access-log/").json()["results"]), 500)
 
+
+
+class QrClaimLinkTests(Base):
+    """The prescription's QR code is a link to the portal's Claim page; old and new QR texts and typed codes all claim."""
+
+    def test_codes_from_every_format(self):
+        from django.test import override_settings
+
+        from .portal import claim_link, normalize_claim_code
+
+        for raw in ("K7PQ2M9X", " k7pq-2m9x ", "POWER-RX:K7PQ2M9X", "power-rx:k7pq2m9x",
+                    "https://www.powerhealthit.com/pharmacy-portal/claim?code=k7pq2m9x",
+                    "https://www.powerhealthit.com/pharmacy-portal/claim?code=K7PQ2M9X&utm=print"):
+            self.assertEqual(normalize_claim_code(raw), "K7PQ2M9X", raw)
+        self.assertEqual(normalize_claim_code("https://www.powerhealthit.com/pharmacy-portal/claim"), "")
+        with override_settings(FRONTEND_BASE_URL="https://staging.powerhealthit.com/"):
+            self.assertEqual(claim_link("K7PQ2M9X"), "https://staging.powerhealthit.com/pharmacy-portal/claim?code=K7PQ2M9X")
+
+    def test_claim_with_the_scanned_link(self):
+        from .portal import claim_link
+
+        rx = self.signed(pharmacy=None)
+        r = self.api(self.rph_w).post("/api/pharmacy-portal/claim/", {"code": claim_link(rx.claim_code), "birthdate": BIRTHDATE.isoformat(), "mobile_last4": "4567"}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(self.portal_rx(rx).how, "claimed")
+
+    def test_the_pdf_qr_holds_the_claim_link(self):
+        from unittest import mock
+
+        from appointments import prescription_pdf
+
+        rx = self.signed(pharmacy=None)
+        with mock.patch("reportlab.graphics.barcode.qr.QrCodeWidget", wraps=__import__("reportlab.graphics.barcode.qr", fromlist=["QrCodeWidget"]).QrCodeWidget) as widget:
+            prescription_pdf.build_pdf(rx)
+        self.assertEqual(widget.call_args[0][0], f"https://www.powerhealthit.com/pharmacy-portal/claim?code={rx.claim_code}")
