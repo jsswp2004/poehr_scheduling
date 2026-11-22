@@ -207,6 +207,7 @@ class PartnerPharmacy(models.Model):
 
     name = models.CharField(max_length=200)
     address = models.CharField(max_length=255, blank=True)
+    barangay = models.CharField(max_length=100, blank=True)
     city = models.CharField(max_length=80, blank=True)
     province = models.CharField(max_length=80, blank=True)
     phone = models.CharField(max_length=30, blank=True)
@@ -443,6 +444,30 @@ class FormularyReviewerChange(models.Model):
     pharmacist = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
     changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     granted = models.BooleanField(help_text="True: made a reviewer; False: no longer a reviewer")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class PartnerPharmacyChange(models.Model):
+    """
+    A change to a partner pharmacy's details, made in the portal ("Pharmacy details"): contact details apply at once
+    (status applied); the registered name and LTO wait for a POWER System Admin (pending -> approved / rejected).
+    `changes` is {field: [old, new]}. Together the rows are the pharmacy's change history.
+    """
+
+    KIND_CHOICES = [("contact", "Contact details"), ("regulatory", "Registered name / LTO")]
+    STATUS_CHOICES = [("applied", "Applied"), ("pending", "Pending POWER review"), ("approved", "Approved"), ("rejected", "Rejected")]
+
+    partner = models.ForeignKey(PartnerPharmacy, on_delete=models.CASCADE, related_name="changes")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    changes = models.JSONField(default=dict)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=300, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

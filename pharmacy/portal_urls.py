@@ -12,6 +12,7 @@ urlpatterns = [
     path("claim/", v.ClaimView.as_view(), name="portal-claim"),
     path("notices/", v.NoticeListView.as_view(), name="portal-notices"),
     path("notices/<int:pk>/read/", v.NoticeReadView.as_view(), name="portal-notice-read"),
+    path("pharmacy/", v.PharmacyDetailsView.as_view(), name="portal-pharmacy-details"),
     path("staff/", v.StaffView.as_view(), name="portal-staff"),
     path("staff/<int:pk>/", v.StaffDetailView.as_view(), name="portal-staff-detail"),
 ]

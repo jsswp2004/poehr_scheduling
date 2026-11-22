@@ -70,6 +70,7 @@ class MeView(PortalView):
             "pharmacy": pt.serialize_partner(partner),
             "problem": pt.partner_problem(partner),
             "unread_notices": partner.notices.filter(read_at__isnull=True).count(),
+            "details_pending_review": partner.changes.filter(status="pending").exists(),
         })
 
 
@@ -157,6 +158,28 @@ class NoticeReadView(PortalView):
 def _staff_json(s):
     return {"id": s.pk, "full_name": s.full_name, "prc_number": s.prc_number, "email": s.email, "mobile": s.mobile, "is_admin": s.is_admin,
             "username": s.user.username if s.user_id else "", "has_login": bool(s.user_id), "is_active": s.is_active}
+
+
+class PharmacyDetailsView(PortalView):
+    """GET the pharmacy's details, pending review and history; PATCH (administrator): contact now, name/LTO for review."""
+
+    needs_working_pharmacy = False  # an expired LTO must still be renewable here
+
+    def get(self, request):
+        from . import portal_details as pd
+
+        return Response(pd.details(request.user, pt.partner_of(request.user)))
+
+    def patch(self, request):
+        from . import portal_details as pd
+
+        partner = pt.partner_of(request.user)
+        try:
+            applied, pending = pd.submit(request.user, partner, request.data)
+        except pt.PortalError as exc:
+            return _error(exc)
+        partner.refresh_from_db()
+        return Response({**pd.details(request.user, partner), "applied": bool(applied), "submitted_for_review": bool(pending)})
 
 
 class StaffView(PortalView):
