@@ -705,8 +705,49 @@ class PartnerNetworkView(APIView):
             data["directory_pharmacy_id"] = linked.get(p.pk)
             if request.user.role != "system_admin":
                 data.pop("pharmacists")
+                data.pop("sms_mobile")
+            else:
+                from . import portal_details as pd
+
+                pending = pd.pending_change(p)
+                data["pending_change"] = pd.serialize_change(pending) if pending else None
             rows.append(data)
         return Response({"results": rows, "can_approve": request.user.role == "system_admin"})
+
+
+class PartnerChangesView(APIView):
+    """GET a partner pharmacy's details history (System Admins)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        from . import portal_details as pd
+
+        if request.user.role != "system_admin":
+            return Response({"detail": "Only a POWER System Admin can see this."}, status=403)
+        partner = PartnerPharmacy.objects.filter(pk=pk).first()
+        if partner is None:
+            return Response({"detail": "Pharmacy not found."}, status=404)
+        return Response({"results": [pd.serialize_change(c) for c in partner.changes.select_related("user", "reviewed_by")[:100]]})
+
+
+class PartnerChangeReviewView(APIView):
+    """POST {decision: approve|reject, note}: a System Admin reviews a pending registered name / LTO change."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, change_id):
+        from . import portal_details as pd
+        from .models import PartnerPharmacyChange
+
+        change = PartnerPharmacyChange.objects.filter(pk=change_id, partner_id=pk).first()
+        if change is None:
+            return Response({"detail": "Change not found."}, status=404)
+        try:
+            change = pd.review(request.user, change, str(request.data.get("decision") or ""), request.data.get("note"))
+        except pt.PortalError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        return Response({**pt.serialize_partner(change.partner), "change": pd.serialize_change(change)})
 
 
 class PartnerStatusView(APIView):

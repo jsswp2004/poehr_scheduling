@@ -824,7 +824,8 @@ def set_status(admin, partner, action, reason=""):
 def serialize_partner(p, today=None):
     problem = partner_problem(p, today)
     return {
-        "id": p.pk, "name": p.name, "address": p.address, "city": p.city, "province": p.province, "phone": p.phone, "email": p.email,
+        "id": p.pk, "name": p.name, "address": p.address, "barangay": p.barangay, "city": p.city, "province": p.province, "phone": p.phone,
+        "email": p.email, "sms_mobile": p.sms_mobile,
         "fda_lto_number": p.fda_lto_number, "lto_expiry": p.lto_expiry.isoformat(), "status": p.status,
         "status_label": p.get_status_display(), "status_reason": p.status_reason,
         "lto_expired": p.lto_expiry < (today or date.today()), "can_receive": not problem,
