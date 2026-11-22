@@ -136,6 +136,7 @@ export const MODULE_LINKS = [
     to: "/patients?care=pharmacy",
     Icon: LocalPharmacyIcon,
     roles: ["admin", "system_admin", "pharmacist", "pharmacy_tech"],
+    right: "pharmacy_view", // the 'pharmacy.view' right decides when the sign-in carries it (e.g. a doctor granted it)
     isActive: () => false, // it shares /patients with the Patients link, which stays the highlighted one
   },
   {
@@ -185,6 +186,10 @@ export const MODULE_LINKS = [
   },
 ];
 
+
+/** Whether this person gets a header link: its right when the sign-in carries it, else its roles. */
+export const linkAllowed = (m, role, claims = {}) =>
+  m.right && typeof claims[m.right] === "boolean" ? claims[m.right] : !m.roles || m.roles.includes(role);
 
 /** Where a header link goes for this organization: the standalone page when Clinical Notes is off. */
 export const linkTarget = (m, hasNotes) => (m.standaloneTo && !hasNotes ? m.standaloneTo : m.to);

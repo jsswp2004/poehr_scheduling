@@ -9,7 +9,7 @@ import HotelIcon from "@mui/icons-material/Hotel";
 import HealingIcon from "@mui/icons-material/Healing";
 import LocalPharmacyIcon from "@mui/icons-material/LocalPharmacy";
 import { moduleEnabled } from "../../utils/orgModules";
-import { currentSignIn } from "../../utils/landing";
+import { canViewPharmacy, currentSignIn } from "../../utils/landing";
 
 export const CARE_SETTINGS = [
   { key: "ambulatory", label: "Ambulatory Care", Icon: MedicalServicesIcon },
@@ -38,7 +38,8 @@ export const availableCareSettings = (role = signedInRole()) =>
   CARE_SETTINGS.filter((c) => {
     if (PHARMACY_ONLY_ROLES.includes(role)) return c.key === "pharmacy" && moduleEnabled("pharmacy");
     if (c.key === "surgery") return moduleEnabled("surgery");
-    if (c.key === "pharmacy") return moduleEnabled("pharmacy") && PHARMACY_CARE_ROLES.includes(role);
+    // the 'pharmacy.view' right: on for these roles by default, granted per person to others (e.g. a doctor, read-only)
+    if (c.key === "pharmacy") return moduleEnabled("pharmacy") && (role === signedInRole() ? canViewPharmacy() : PHARMACY_CARE_ROLES.includes(role));
     return true;
   });
 

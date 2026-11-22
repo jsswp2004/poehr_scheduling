@@ -46,6 +46,7 @@ import {
   SelectPatientPrompt,
   COMING_SOON,
   visibleChartTabs,
+  signedInPharmacyView,
 } from "../components/patients/PatientChartTabs";
 import OrdersPanel from "../components/OrdersPanel";
 import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
@@ -651,7 +652,7 @@ function PatientsPage() {
         {/* Tab Content */}
         <Box sx={{ flex: 1, overflow: "auto", minHeight: 0, ...(tab === "patients" ? {} : SIDE_GAP) }}>
           {tab === "patients" && (() => {
-            const allowed = visibleChartTabs(userRole, chartLayout.tabs, careKey).map((t) => t.value);
+            const allowed = visibleChartTabs(userRole, chartLayout.tabs, careKey, signedInPharmacyView()).map((t) => t.value);
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
             // POWER Pharmacy: its own Patient List, Verification Queue, Med Profile and the Phase 2/3 placeholders.
             if (careKey === "pharmacy" && ["patient_list", "verification_queue", "outpatient_rx", "erx_routing", "med_profile", "formulary"].includes(current)) {

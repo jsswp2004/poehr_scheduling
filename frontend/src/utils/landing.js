@@ -65,14 +65,30 @@ export const SOLUTIONS = [
   // POWER MDS runs as its own app (own database); sign-in and organization come from this site.
   { key: 'mds', label: 'POWER MDS', module: 'mds', path: '/mds', roles: ['admin', 'system_admin', 'doctor', 'nurse'] },
   // POWER Pharmacy is the Pharmacy care setting of the Patients page (?care= picks it).
-  { key: 'pharmacy', label: 'POWER Pharmacy', module: 'pharmacy', path: '/patients?care=pharmacy', roles: ['admin', 'system_admin', 'pharmacist', 'pharmacy_tech'] },
+  // Also anyone granted the 'pharmacy.view' right (sign-in claim pharmacy_view), e.g. a doctor, read-only.
+  { key: 'pharmacy', label: 'POWER Pharmacy', module: 'pharmacy', path: '/patients?care=pharmacy', roles: ['admin', 'system_admin', 'pharmacist', 'pharmacy_tech'], right: 'pharmacy_view' },
 ];
 
+/**
+ * POWER Pharmacy: the roles that work in it, and whether this sign-in may open it. The 'pharmacy.view' right
+ * travels as the pharmacy_view sign-in claim (a doctor granted it in Security Settings sees the module read-only);
+ * a sign-in from before the claim existed falls back to the role.
+ */
+export const PHARMACY_STAFF_ROLES = ['admin', 'system_admin', 'pharmacist', 'pharmacy_tech'];
+export const canViewPharmacy = (me = currentSignIn()) => {
+  if (!me) return false;
+  if (typeof me.pharmacy_view === 'boolean') return me.pharmacy_view;
+  return PHARMACY_STAFF_ROLES.includes(me.role);
+};
+/** Granted the right without a pharmacy role (e.g. a doctor): Verification Queue, Med Profile and Formulary, read-only. */
+export const pharmacyReadOnly = (me = currentSignIn()) => canViewPharmacy(me) && !PHARMACY_STAFF_ROLES.includes(me?.role);
+
 /** The solutions a person may open: their organization has the service and their role may use it. */
-export const solutionsFor = (role, modules) => {
+export const solutionsFor = (role, modules, claims = {}) => {
   const all = !Array.isArray(modules);
   const have = withIncluded(modules);
-  return SOLUTIONS.filter((t) => t.roles.includes(role) && (t.module === null || all || have.includes(t.module)));
+  const mayOpen = (t) => (t.right && typeof claims[t.right] === 'boolean' ? claims[t.right] : t.roles.includes(role));
+  return SOLUTIONS.filter((t) => mayOpen(t) && (t.module === null || all || have.includes(t.module)));
 };
 
 /**
@@ -80,10 +96,10 @@ export const solutionsFor = (role, modules) => {
  * solution straight into it, everyone else (administrators included, who also have the Management Portal tile)
  * to the Solutions page.
  */
-export const postLoginPath = (role, modules) => {
+export const postLoginPath = (role, modules, claims = {}) => {
   if (PORTAL_ROLES.includes(role)) return PORTAL_HOME;
   if (!role || role === 'patient') return '/dashboard';
-  const list = solutionsFor(role, modules);
+  const list = solutionsFor(role, modules, claims);
   if (list.length === 0) return '/dashboard';
   if (list.length === 1) return list[0].path;
   return '/solutions';
@@ -94,9 +110,9 @@ export const currentSignIn = () => {
   try {
     const token = localStorage.getItem('access_token');
     if (!token) return null;
-    const { role, modules, exp } = jwtDecode(token);
+    const { role, modules, exp, pharmacy_view } = jwtDecode(token);
     if (exp && exp * 1000 < Date.now()) return null;
-    return { role, modules };
+    return { role, modules, pharmacy_view };
   } catch (e) {
     return null;
   }
@@ -105,5 +121,5 @@ export const currentSignIn = () => {
 /** Post-login destination for the person signed in right now, or null when nobody is. */
 export const postLoginForCurrentUser = () => {
   const me = currentSignIn();
-  return me ? postLoginPath(me.role, me.modules) : null;
+  return me ? postLoginPath(me.role, me.modules, me) : null;
 };

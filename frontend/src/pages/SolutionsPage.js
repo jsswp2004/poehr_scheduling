@@ -36,7 +36,7 @@ const IMAGES = {
 export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();
   const me = useMemo(() => currentSignIn(), []);
-  const tiles = useMemo(() => (me ? solutionsFor(me.role, me.modules) : []), [me]);
+  const tiles = useMemo(() => (me ? solutionsFor(me.role, me.modules, me) : []), [me]);
 
   useEffect(() => {
     if (!me) navigate("/login", { replace: true });

@@ -3,6 +3,7 @@ import axios from "axios";
 import { API_BASE_URL } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import { moduleEnabled } from "../utils/orgModules";
+import { canViewPharmacy } from "../utils/landing";
 
 const REFERRAL_ROLES = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 const TASK_ROLES = ["doctor", "nurse", "admin", "system_admin"];
@@ -71,7 +72,7 @@ export default function useWorklistCounts(role, enabled = true) {
   const results = useQueueCount("/api/lab-reports/inbox/", enabled && LAB_ROLES.includes(role), "lab-inbox-changed", readLabSummary, { summary: 1 });
   const inbox = useQueueCount("/api/inbox/counts/", enabled && INBOX_ROLES.includes(role), "inbox-changed", readInbox);
   const pharmacy = useQueueCount(
-    "/api/pharmacy/queue/", enabled && PHARMACY_ROLES.includes(role) && moduleEnabled("pharmacy"), "pharmacy-changed", readPharmacy, { summary: 1 }
+    "/api/pharmacy/queue/", enabled && canViewPharmacy() && moduleEnabled("pharmacy"), "pharmacy-changed", readPharmacy, { summary: 1 }
   );
   const outpatient = useQueueCount(
     "/api/pharmacy/fills/", enabled && PHARMACY_ROLES.includes(role) && moduleEnabled("pharmacy"), "pharmacy-fills-changed", readOpenFills, { summary: 1 }

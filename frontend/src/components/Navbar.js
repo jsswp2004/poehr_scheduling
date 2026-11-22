@@ -37,7 +37,7 @@ import { moduleEnabled } from "../utils/orgModules";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
 
-import { MODULE_LINKS, SECURE_MESSAGE_ROLES, STAFF_MODULE_ROLES, linkTarget } from "../utils/moduleLinks";
+import { MODULE_LINKS, SECURE_MESSAGE_ROLES, STAFF_MODULE_ROLES, linkAllowed, linkTarget } from "../utils/moduleLinks";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -355,9 +355,10 @@ function Navbar() {
   // Module links this user may see, with the current page flagged.
   const currentTab = new URLSearchParams(location.search).get("tab");
   const currentChart = new URLSearchParams(location.search).get("chart");
+  const signIn = currentSignIn() || {};
   const moduleLinks = MODULE_LINKS.filter(
     (m) =>
-      (!m.roles || m.roles.includes(role)) &&
+      linkAllowed(m, role, signIn) &&
       !(m.notFor && m.notFor.includes(role)) &&
       moduleEnabled(m.module)
   ).map((m) => ({ ...m, to: linkTarget(m, moduleEnabled("clinical_documentation")), active: m.isActive(location.pathname, currentTab, currentChart) }));
@@ -380,7 +381,7 @@ function Navbar() {
   const showAccount = role === "admin" || role === "system_admin";
   // Back to the Solutions page: only for people who have something to choose there (two or more solutions).
   const me = currentSignIn();
-  const showSolutions = isAuthenticated && !!me && solutionsFor(me.role, me.modules).length >= 2;
+  const showSolutions = isAuthenticated && !!me && solutionsFor(me.role, me.modules, me).length >= 2;
   const onSolutions = location.pathname === "/solutions";
   const showReports = STAFF_MODULE_ROLES.includes(role);  // Reports is always on, for every organization
   const goTo = (path) => {
