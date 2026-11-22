@@ -167,6 +167,17 @@ describe("one prescription", () => {
     await waitFor(() => expect(api.post.mock.calls[0][1]).toEqual({ action: "decline", reason: "Not stocked" }));
   });
 
+  test("Filled sits beside Accept: accept and mark ready for pickup in one click", async () => {
+    api.get.mockResolvedValue({ data: DETAIL });
+    api.post.mockResolvedValue({ data: { ...DETAIL, status: "ready" } });
+    render(<PortalRxDialog open rxId={9} me={ME} onClose={() => {}} />);
+    const filled = await screen.findByTestId("portal-filled");
+    expect(screen.getByTestId("portal-accept")).toBeInTheDocument();
+    expect(filled).toHaveTextContent("Filled");
+    fireEvent.click(filled);
+    await waitFor(() => expect(api.post.mock.calls[0][1]).toEqual({ action: "filled" }));
+  });
+
   test("dispense records the actual product (generic substitution) and the senior ID", async () => {
     api.get.mockResolvedValue({ data: { ...DETAIL, status: "ready", status_label: "Ready for pickup" } });
     api.post.mockResolvedValue({ data: { ...DETAIL, status: "dispensed" } });
@@ -236,9 +247,11 @@ test("registration sends the LTO and the pharmacists' PRC numbers", async () => 
   type("reg-password", "a-long-password-1");
   type("reg-ph-name-0", "Juan Dela Cruz");
   type("reg-ph-prc-0", "0033445");
+  type("reg-sms_mobile", "0917 555 0101");
+  type("reg-ph-mobile-0", "0919 555 0103");
   fireEvent.click(screen.getByTestId("reg-submit"));
   expect(await screen.findByTestId("reg-done")).toHaveTextContent("Botica Boie Davao is registered");
-  expect(api.post.mock.calls[0][1]).toMatchObject({ fda_lto_number: "LTO-3000033333", lto_expiry: "2027-11-21", pharmacists: [{ full_name: "Juan Dela Cruz", prc_number: "0033445" }] });
+  expect(api.post.mock.calls[0][1]).toMatchObject({ fda_lto_number: "LTO-3000033333", lto_expiry: "2027-11-21", pharmacists: [{ full_name: "Juan Dela Cruz", prc_number: "0033445", mobile: "0919 555 0103" }], sms_mobile: "0917 555 0101" });
 });
 
 describe("clinic side", () => {
@@ -296,6 +309,7 @@ describe("Phase 3 follow-ups", () => {
     render(<PortalRxDialog open rxId={9} me={adminMe} onClose={() => {}} />);
     await screen.findByTestId("portal-decline");
     expect(screen.queryByTestId("portal-accept")).toBeNull();
+    expect(screen.queryByTestId("portal-filled")).toBeNull();
   });
 
   test("staff screen: add with PRC and email, edit, deactivate", async () => {
@@ -312,8 +326,9 @@ describe("Phase 3 follow-ups", () => {
     await waitFor(() => expect(api.post.mock.calls[0][1]).toMatchObject({ full_name: "Melchora Aquino", prc_number: "0055667", email: "melchora@example.ph" }));
     fireEvent.click(screen.getByTestId("staff-edit-2"));
     fireEvent.change(screen.getByTestId("staff-edit-email"), { target: { value: "a.bonifacio@example.ph" } });
+    fireEvent.change(screen.getByTestId("staff-edit-mobile"), { target: { value: "0917 123 4567" } });
     fireEvent.click(screen.getByTestId("staff-edit-save"));
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/portal/staff/2/", { full_name: "Andres Bonifacio", prc_number: "0045678", email: "a.bonifacio@example.ph" }, expect.anything()));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/portal/staff/2/", { full_name: "Andres Bonifacio", prc_number: "0045678", email: "a.bonifacio@example.ph", mobile: "0917 123 4567" }, expect.anything()));
     fireEvent.click(await screen.findByTestId("staff-toggle-2"));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/portal/staff/2/", { is_active: false }, expect.anything()));
   });

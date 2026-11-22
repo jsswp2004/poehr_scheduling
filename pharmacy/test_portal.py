@@ -621,3 +621,101 @@ class QrClaimLinkTests(Base):
         with mock.patch("reportlab.graphics.barcode.qr.QrCodeWidget", wraps=__import__("reportlab.graphics.barcode.qr", fromlist=["QrCodeWidget"]).QrCodeWidget) as widget:
             prescription_pdf.build_pdf(rx)
         self.assertEqual(widget.call_args[0][0], f"https://www.powerhealthit.com/pharmacy-portal/claim?code={rx.claim_code}")
+
+
+class SmsAcceptFilledTests(Base):
+    """New-prescription SMS to the pharmacy, the prescriber told on Accept, and the one-step Filled button."""
+
+    SEND = "communicator.utils.send_sms"
+
+    def test_ph_mobile_numbers(self):
+        from .portal import PortalError, normalize_ph_mobile
+
+        for raw in ("0917 123 4567", "09171234567", "+63 917 123 4567", "639171234567", "917-123-4567"):
+            self.assertEqual(normalize_ph_mobile(raw), "+639171234567", raw)
+        self.assertEqual(normalize_ph_mobile(""), "")
+        for bad in ("(02) 8555 0142", "12345"):
+            with self.assertRaises(PortalError):
+                normalize_ph_mobile(bad)
+
+    def test_new_prescription_texts_each_pharmacist_after_signing(self):
+        from unittest import mock
+
+        PartnerPharmacist.objects.filter(user=self.rph).update(mobile="+639171112222")
+        PartnerPharmacist.objects.filter(user=self.clerk).update(mobile="+639173334444")
+        with mock.patch(self.SEND) as send, self.captureOnCommitCallbacks(execute=True):
+            rx = self.signed()
+        self.assertEqual(sorted(c.args[0] for c in send.call_args_list), ["+639171112222", "+639173334444"])
+        text = send.call_args.args[1]
+        self.assertIn("New POWER e-Rx for Mercury Drug Cubao", text)
+        self.assertIn("/pharmacy-portal", text)
+        for private in ("Losartan", "Reyes", "Corazon"):
+            self.assertNotIn(private, text)  # no drug, no patient in an SMS
+        self.assertEqual(send.call_args.kwargs["organization"], self.org)
+        self.assertEqual(self.portal_rx(rx).status, "new")
+
+    def test_falls_back_to_the_pharmacy_mobile_and_never_blocks_signing(self):
+        from unittest import mock
+
+        with mock.patch(self.SEND) as send, self.captureOnCommitCallbacks(execute=True):
+            self.signed()
+        send.assert_not_called()  # no numbers entered: nothing is sent
+        self.mercury.sms_mobile = "+639175556666"
+        self.mercury.save()
+        with mock.patch(self.SEND, side_effect=Exception("Twilio down")) as send, self.captureOnCommitCallbacks(execute=True):
+            rx = self.signed(drug="Amlodipine")
+        self.assertEqual([c.args[0] for c in send.call_args_list], ["+639175556666"])
+        self.assertEqual(rx.status, "signed")  # the failed SMS was logged, the prescription is fine
+
+    def test_registration_and_staff_screens_take_mobile_numbers(self):
+        r = self.api().post("/api/pharmacy-portal/register/", {
+            "name": "Botika ng Bayan", "fda_lto_number": "LTO-3000033333", "lto_expiry": NEXT_YEAR.isoformat(),
+            "email": "botika@example.ph", "username": "botika_admin", "password": "Sampaguita-2026!", "sms_mobile": "0917 555 0101",
+            "admin_mobile": "09185550102", "pharmacists": [{"full_name": "Leonor Rivera", "prc_number": "0077001", "mobile": "0919 555 0103"}],
+        }, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        partner = PartnerPharmacy.objects.get(name="Botika ng Bayan")
+        self.assertEqual(partner.sms_mobile, "+639175550101")
+        self.assertEqual(sorted(partner.staff.values_list("mobile", flat=True)), ["+639185550102", "+639195550103"])
+        bad = self.api().post("/api/pharmacy-portal/register/", {
+            "name": "X", "fda_lto_number": "L", "lto_expiry": NEXT_YEAR.isoformat(), "email": "x@example.ph", "username": "x_admin",
+            "password": "Sampaguita-2026!", "sms_mobile": "(02) 8555 0142", "pharmacists": [{"full_name": "A", "prc_number": "1"}],
+        }, format="json")
+        self.assertEqual(bad.status_code, 400)
+        staff = PartnerPharmacist.objects.get(user=self.rph)
+        c = self.api(self.clerk)
+        self.assertEqual(c.patch(f"/api/pharmacy-portal/staff/{staff.pk}/", {"mobile": "0917 123 4567"}, format="json").json()["mobile"], "+639171234567")
+        self.assertEqual(c.patch(f"/api/pharmacy-portal/staff/{staff.pk}/", {"mobile": "12345"}, format="json").status_code, 400)
+
+    def test_accept_tells_the_prescriber(self):
+        from django.core import mail
+
+        from appointments.models import InboxAlert
+
+        prx = self.portal_rx(self.signed())
+        mail.outbox.clear()
+        self.assertEqual(self.do(self.rph, prx, "accept").status_code, 200)
+        to_doctor = [m for m in mail.outbox if m.to == [self.doctor.email]]
+        self.assertEqual(len(to_doctor), 1)
+        self.assertIn("accepted", to_doctor[0].subject.lower())
+        self.assertIn("Mercury Drug Cubao accepted the prescription for Losartan", to_doctor[0].body)
+        self.assertTrue(InboxAlert.objects.filter(recipient=self.doctor, source_type="portal_accepted").exists())
+
+    def test_filled_accepts_and_marks_ready_in_one_step(self):
+        from django.core import mail
+
+        prx = self.portal_rx(self.signed())
+        self.assertEqual(self.do(self.clerk, prx, "filled").status_code, 403)  # pharmacists only
+        mail.outbox.clear()
+        r = self.do(self.rph, prx, "filled")
+        self.assertEqual(r.status_code, 200, r.content)
+        prx.refresh_from_db()
+        self.assertEqual(prx.status, "ready")
+        rx = prx.prescription
+        rx.refresh_from_db()
+        self.assertEqual(rx.status, "sent")
+        self.assertEqual(list(rx.events.filter(event_type__in=["portal_accepted", "portal_ready"]).values_list("event_type", flat=True).order_by("id")),
+                         ["portal_accepted", "portal_ready"])
+        self.assertTrue(any("accepted and filled (ready for pickup)" in m.body for m in mail.outbox if m.to == [self.doctor.email]))
+        self.assertEqual(self.do(self.rph, prx, "filled").status_code, 409)  # only from New
+        self.assertEqual(self.do(self.rph, prx, "dispense", **self.dispense_body()).status_code, 200)  # then dispense as usual
