@@ -415,7 +415,12 @@ class MRNCounter(models.Model):
 
 
 class Organization(models.Model):
+    COUNTRY_CHOICES = [("PH", "Philippines"), ("US", "United States")]
+
     name = models.CharField(max_length=255)
+    # Which country's rules the clinic follows. Prescriptions: PH (the default) needs the prescriber's PRC license
+    # number; US needs a valid NPI and a license number (kept for a later US e-prescribing adapter).
+    country = models.CharField(max_length=2, choices=COUNTRY_CHOICES, default="PH")
     logo = models.ImageField(upload_to="org_logos/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
