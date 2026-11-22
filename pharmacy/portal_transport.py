@@ -91,7 +91,41 @@ def pharmacist_addresses(partner):
     return out
 
 
-# SMS later: class SmsChannel(Channel): ... and add SmsChannel() here.
+def pharmacist_mobiles(partner):
+    """The SMS number of every active pharmacist of the pharmacy, without repeats."""
+    out = []
+    for member in partner.staff.filter(is_active=True).exclude(mobile=""):
+        if member.mobile not in out:
+            out.append(member.mobile)
+    return out
+
+
+def sms_pharmacy(partner, text, organization=None):
+    """
+    A short text through POWER's existing SMS setup (Twilio, communicator.utils.send_sms) to each active pharmacist's
+    mobile, or the pharmacy's 'Mobile number for SMS' when none has one. Nothing is sent to numbers that weren't
+    entered. Every send is logged in MessageLog by send_sms; a failure is logged here and never raised.
+    """
+    from communicator.utils import send_sms
+
+    numbers = pharmacist_mobiles(partner) or ([partner.sms_mobile] if partner.sms_mobile else [])
+    for number in numbers:
+        try:
+            send_sms(number, text, organization=organization)
+        except Exception:  # noqa: BLE001 - an SMS problem must never stop the prescription
+            log.exception("pharmacy portal: SMS to the pharmacy %s failed", partner.pk)
+    return numbers
+
+
+def new_rx_sms_text(partner):
+    """No drug, diagnosis or patient in an SMS (RA 10173): only that something is waiting, and where."""
+    from django.conf import settings
+
+    base = getattr(settings, "FRONTEND_BASE_URL", "https://www.powerhealthit.com").rstrip("/")
+    return f"New POWER e-Rx for {partner.name}. Open the portal: {base}/pharmacy-portal"
+
+
+# SMS for every notice would cost a text each; only new prescriptions are texted (sms_pharmacy, from route()).
 CHANNELS = [InAppChannel(), EmailChannel()]
 
 
@@ -137,6 +171,11 @@ class PowerPortalAdapter(RoutingAdapter):
             portal_rx.partner, "New prescription",
             f"A new prescription from {rx.organization.name} is waiting in your portal inbox (RX-{rx.pk:06d}).", portal_rx,
         )
+        # and a text, once the signing is saved (a failed or slow SMS never blocks signing)
+        from django.db import transaction
+
+        partner, org = portal_rx.partner, rx.organization
+        transaction.on_commit(lambda: sms_pharmacy(partner, new_rx_sms_text(partner), org))
 
     def cancel(self, portal_rx):
         rx = portal_rx.prescription
