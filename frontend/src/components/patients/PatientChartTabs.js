@@ -1,4 +1,5 @@
 import { Box, Tabs, Tab, Typography } from "@mui/material";
+import { canViewPharmacy, currentSignIn } from "../../utils/landing";
 
 /**
  * The chart tab strip under the patient header on the Patients page.
@@ -29,6 +30,9 @@ export const CHART_TABS = [
   { value: "formulary", label: "Formulary", clinical: false, onlyIn: "pharmacy" },
 ];
 
+/** The signed-in person's 'pharmacy.view' right, or undefined when nobody is signed in (the role decides). */
+export const signedInPharmacyView = () => (currentSignIn() ? canViewPharmacy() : undefined);
+
 /** The Pharmacy care setting's tabs, in order: its own worklists, then the usual chart tabs a pharmacist reads. */
 export const PHARMACY_TABS = [
   "patient_list",
@@ -44,6 +48,11 @@ export const PHARMACY_TABS = [
 ];
 /** Roles that read the clinical tabs (Orders, Prescriptions, Results) in the Pharmacy care setting. */
 export const PHARMACY_TAB_ROLES = ["pharmacist", "pharmacy_tech", "admin", "system_admin"];
+/**
+ * Someone granted the 'pharmacy.view' right without a pharmacy role (e.g. a doctor): the read-only Pharmacy tabs.
+ * No Outpatient Rx (filling) or eRx Routing (partner pharmacies); their actions stay with the pharmacy roles.
+ */
+export const PHARMACY_VIEWER_TABS = ["patient_list", "verification_queue", "med_profile", "formulary", "orders", "prescriptions", "results", "patient_info"];
 
 // Tabs that have no page behind them yet (none at the moment: every chart tab has its page).
 export const COMING_SOON = {};
@@ -55,12 +64,15 @@ export const CLINICAL_ROLES = ["doctor", "nurse", "admin", "system_admin"];
  * the current module: only those tabs, in that order. The Patient List is always kept, since it
  * is how a patient gets chosen.
  */
-export function visibleChartTabs(role, keys = null, careSetting = null) {
+export function visibleChartTabs(role, keys = null, careSetting = null, pharmacyView = undefined) {
   if (careSetting === "pharmacy") {
     // Pharmacy has a fixed set of tabs (the clinic's tab layouts cover the other care settings only).
-    if (!PHARMACY_TAB_ROLES.includes(role)) return CHART_TABS.filter((t) => t.value === "patient_list");
+    // `pharmacyView`: the 'pharmacy.view' right of the person signed in (undefined: decided by the role alone)
     const byKey = Object.fromEntries(CHART_TABS.map((t) => [t.value, t]));
-    return PHARMACY_TABS.map((k) => byKey[k]);
+    if (pharmacyView === false) return CHART_TABS.filter((t) => t.value === "patient_list");
+    if (PHARMACY_TAB_ROLES.includes(role)) return PHARMACY_TABS.map((k) => byKey[k]);
+    if (pharmacyView) return PHARMACY_VIEWER_TABS.map((k) => byKey[k]);
+    return CHART_TABS.filter((t) => t.value === "patient_list");
   }
   const clinical = CLINICAL_ROLES.includes(role);
   // some tabs belong to one module only (ED Follow-up is Emergency's, the Pharmacy tabs are Pharmacy's);
@@ -76,7 +88,7 @@ export function visibleChartTabs(role, keys = null, careSetting = null) {
 }
 
 export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null, careSetting = null, badges = {}, badgeOverdue = {}, visitMarker = null }) {
-  const tabs = visibleChartTabs(role, keys, careSetting);
+  const tabs = visibleChartTabs(role, keys, careSetting, signedInPharmacyView());
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
     <Box sx={{ flexShrink: 0, mb: 0.5, borderBottom: 1, borderColor: "divider", bgcolor: "#eff6ff", display: "flex", alignItems: "center" }}>
