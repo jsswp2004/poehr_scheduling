@@ -719,3 +719,85 @@ class SmsAcceptFilledTests(Base):
         self.assertTrue(any("accepted and filled (ready for pickup)" in m.body for m in mail.outbox if m.to == [self.doctor.email]))
         self.assertEqual(self.do(self.rph, prx, "filled").status_code, 409)  # only from New
         self.assertEqual(self.do(self.rph, prx, "dispense", **self.dispense_body()).status_code, 200)  # then dispense as usual
+
+
+class PharmacyDetailsTests(Base):
+    """The portal's Pharmacy details: contact applies now, name/LTO wait for POWER, history, permissions."""
+
+    URL = "/api/pharmacy-portal/pharmacy/"
+
+    def review(self, change_id, decision, user=None, **body):
+        return self.api(user or self.sysadmin).post(f"/api/pharmacy/network/{self.mercury.pk}/changes/{change_id}/review/",
+                                                     {"decision": decision, **body}, format="json")
+
+    def test_contact_details_apply_at_once_and_reach_the_clinic_directory(self):
+        r = self.api(self.clerk).patch(self.URL, {"address": "1200 Aurora Blvd", "barangay": "Pansol", "city": "Quezon City",
+                                                  "phone": "(02) 8555 0142", "email": "cubao@example.ph", "sms_mobile": "0917 555 0101"}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual((r.json()["applied"], r.json()["submitted_for_review"], r.json()["pending"]), (True, False, None))
+        self.mercury.refresh_from_db()
+        self.assertEqual((self.mercury.barangay, self.mercury.sms_mobile, self.mercury.email), ("Pansol", "+639175550101", "cubao@example.ph"))
+        self.directory.refresh_from_db()
+        self.assertEqual((self.directory.address, self.directory.phone), ("1200 Aurora Blvd, Pansol", "(02) 8555 0142"))
+        h = r.json()["history"][0]
+        self.assertEqual((h["kind"], h["status"], h["user"]), ("contact", "applied", "Gabriela Silang"))  # the name on the staff list
+        self.assertEqual(h["changes"]["sms_mobile"], ["", "+639175550101"])
+
+    def test_name_and_lto_wait_for_power_then_approve(self):
+        r = self.api(self.clerk).patch(self.URL, {"name": "Mercury Drug Cubao-Aurora", "fda_lto_number": "LTO-3000011999",
+                                                  "lto_expiry": "2028-06-30"}, format="json").json()
+        self.assertEqual((r["applied"], r["submitted_for_review"]), (False, True))
+        self.assertEqual(r["pending"]["status"], "pending")
+        self.mercury.refresh_from_db()
+        self.assertEqual(self.mercury.name, "Mercury Drug Cubao")  # nothing changes yet
+        # one pending change at a time
+        self.assertEqual(self.api(self.clerk).patch(self.URL, {"fda_lto_number": "LTO-1"}, format="json").status_code, 409)
+        # System Admins see it on eRx Routing
+        row = next(x for x in self.api(self.sysadmin).get("/api/pharmacy/network/").json()["results"] if x["id"] == self.mercury.pk)
+        self.assertEqual(row["pending_change"]["changes"]["name"], ["Mercury Drug Cubao", "Mercury Drug Cubao-Aurora"])
+        self.assertEqual(self.review(r["pending"]["id"], "approve", user=self.doctor).status_code, 403)
+        self.assertEqual(self.review(r["pending"]["id"], "approve").status_code, 200)
+        self.mercury.refresh_from_db()
+        self.assertEqual((self.mercury.name, self.mercury.fda_lto_number, self.mercury.lto_expiry.isoformat()),
+                         ("Mercury Drug Cubao-Aurora", "LTO-3000011999", "2028-06-30"))
+        self.directory.refresh_from_db()
+        self.assertEqual(self.directory.name, "Mercury Drug Cubao-Aurora")
+        self.assertEqual(self.review(r["pending"]["id"], "approve").status_code, 409)  # already reviewed
+        hist = self.api(self.sysadmin).get(f"/api/pharmacy/network/{self.mercury.pk}/changes/").json()["results"]
+        self.assertEqual((hist[0]["status"], hist[0]["reviewed_by"]), ("approved", "sys"))
+
+    def test_reject_needs_a_reason_and_changes_nothing(self):
+        r = self.api(self.clerk).patch(self.URL, {"fda_lto_number": "LTO-3000011999"}, format="json").json()
+        self.assertEqual(self.review(r["pending"]["id"], "reject").status_code, 400)
+        self.assertEqual(self.review(r["pending"]["id"], "reject", note="LTO number doesn't match the FDA record").status_code, 200)
+        self.mercury.refresh_from_db()
+        self.assertEqual(self.mercury.fda_lto_number, "LTO-3000011111")
+        d = self.api(self.clerk).get(self.URL).json()
+        self.assertIsNone(d["pending"])
+        self.assertEqual((d["history"][0]["status"], d["history"][0]["review_note"]), ("rejected", "LTO number doesn't match the FDA record"))
+
+    def test_expired_lto_stays_blocked_until_the_renewal_is_approved(self):
+        from datetime import date, timedelta
+
+        PartnerPharmacy.objects.filter(pk=self.mercury.pk).update(lto_expiry=date.today() - timedelta(days=1))
+        self.assertEqual(self.api(self.rph).get("/api/pharmacy-portal/rx/").status_code, 403)  # blocked
+        c = self.api(self.clerk)
+        self.assertEqual(c.get(self.URL).status_code, 200)  # but the details screen opens
+        self.assertEqual(c.patch(self.URL, {"lto_expiry": (date.today() - timedelta(days=2)).isoformat()}, format="json").status_code, 400)
+        r = c.patch(self.URL, {"lto_expiry": (date.today() + timedelta(days=365)).isoformat()}, format="json").json()
+        self.assertEqual(self.api(self.rph).get("/api/pharmacy-portal/rx/").status_code, 403)  # still blocked while pending
+        self.review(r["pending"]["id"], "approve")
+        self.assertEqual(self.api(self.rph).get("/api/pharmacy-portal/rx/").status_code, 200)
+
+    def test_permissions(self):
+        self.assertEqual(self.api(self.rph).get(self.URL).json()["can_edit"], False)  # pharmacists read
+        self.assertEqual(self.api(self.rph).patch(self.URL, {"city": "Pasig"}, format="json").status_code, 403)
+        self.assertEqual(self.api(self.doctor).get(self.URL).status_code, 403)  # clinic staff: not a portal user
+        # a pharmacy only ever sees and edits its own details
+        self.api(self.rph_w).patch(self.URL, {"city": "Iloilo City"}, format="json")
+        self.mercury.refresh_from_db()
+        self.assertEqual(self.mercury.city, "Quezon City")
+        PartnerPharmacy.objects.filter(pk=self.mercury.pk).update(status="suspended", status_reason="FDA inspection")
+        self.assertEqual(self.api(self.clerk).get(self.URL).json()["can_edit"], False)  # suspended: view only
+        self.assertEqual(self.api(self.clerk).patch(self.URL, {"city": "Pasig"}, format="json").status_code, 403)
+        self.assertEqual(self.api(self.clerk).patch(self.URL, {"sms_mobile": "(02) 8555 0142"}, format="json").status_code, 403)
