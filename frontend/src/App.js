@@ -9,6 +9,7 @@ import { autoMigrateTokens } from './utils/authMigration';
 import LoginPage from './pages/LoginPage';
 import PharmacyPortalPage from './pages/PharmacyPortalPage';
 import PharmacyPortalRegisterPage from './pages/PharmacyPortalRegisterPage';
+import PharmacyPortalClaimLinkPage from './pages/PharmacyPortalClaimLinkPage';
 import RegisterPage from './pages/RegisterPage';
 import RegistrationWorkspacePage from './pages/RegistrationWorkspacePage';
 import DashboardPage from './pages/DashboardPage';
@@ -230,6 +231,7 @@ function AppContent() {
         {/* POWER Pharmacy Portal: partner pharmacies (their own landing; internal pages redirect them here) */}
         <Route path="/pharmacy-portal" element={<PrivateRoute><PharmacyPortalPage /></PrivateRoute>} />
         <Route path="/pharmacy-portal/register" element={<PharmacyPortalRegisterPage />} />
+        <Route path="/pharmacy-portal/claim" element={<PharmacyPortalClaimLinkPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/patients" element={<PrivateRoute><PatientsPage /></PrivateRoute>} />
         <Route path="/patients/:id" element={<PrivateRoute><PatientDetailPage /></PrivateRoute>} />
