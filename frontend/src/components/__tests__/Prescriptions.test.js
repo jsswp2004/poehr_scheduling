@@ -467,8 +467,24 @@ describe("detail dialog", () => {
 });
 
 describe("prescriber details", () => {
-  test("loads and saves", async () => {
-    api.get.mockResolvedValue({ data: { name: "Dr Who", npi: "", license_number: "", license_state: "", dea_number: "", practice_name: "", address: "", phone: "", fax: "" } });
+  test("a Philippine clinic asks for the PRC license number (PTR optional); the NPI is optional", async () => {
+    api.get.mockResolvedValue({ data: { name: "Dela Cruz, Maria", rules: "PH", npi: "", license_number: "", ptr_number: "", license_state: "", dea_number: "", practice_name: "", address: "", phone: "", fax: "" } });
+    api.put.mockResolvedValue({ data: { ready: true } });
+    const onSaved = jest.fn();
+    render(<PrescriberProfileDialog open onClose={jest.fn()} onSaved={onSaved} />);
+    expect(await screen.findByTestId("profile-rules")).toHaveTextContent("without your PRC license number");
+    expect(screen.getByLabelText(/PRC license number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/NPI \(US only, optional\)/)).toBeInTheDocument();
+    expect(screen.queryByTestId("profile-license_state")).toBeNull();
+    fireEvent.change(screen.getByTestId("profile-license_number"), { target: { value: "0123456" } });
+    fireEvent.change(screen.getByTestId("profile-ptr_number"), { target: { value: "8812345" } });
+    fireEvent.click(screen.getByTestId("profile-save"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(api.put.mock.calls[0][1]).toMatchObject({ license_number: "0123456", ptr_number: "8812345", npi: "" });
+  });
+
+  test("a US clinic: loads and saves the NPI, license and state", async () => {
+    api.get.mockResolvedValue({ data: { name: "Dr Who", rules: "US", npi: "", license_number: "", license_state: "", dea_number: "", practice_name: "", address: "", phone: "", fax: "" } });
     api.put.mockResolvedValue({ data: { ready: true } });
     const onSaved = jest.fn();
     render(<PrescriberProfileDialog open onClose={jest.fn()} onSaved={onSaved} />);

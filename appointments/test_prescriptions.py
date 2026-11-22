@@ -185,7 +185,10 @@ class SignTests(RxBase):
         self.assertIn("quantity", r.json()["errors"])
         self.assertIn("days' supply", r.json()["errors"])
 
-    def test_prescriber_needs_npi_license_and_patient_dob(self):
+    def test_us_prescriber_needs_npi_license_and_patient_dob(self):
+        # the US path (a clinic set to US rules) still needs a valid NPI and a license number
+        self.org.country = "US"
+        self.org.save()
         rx = self.make(user=self.doctor2, prescriber=self.doctor2.pk)
         r = self.act(rx["id"], "sign", user=self.doctor2)
         self.assertEqual(r.status_code, 400)
@@ -515,3 +518,54 @@ class MetaAndSearchTests(RxBase):
         self.assertTrue(all(not x["display"].endswith("(class)") for x in r["results"]))
         self.assertEqual(self.as_(self.doctor).get(DRUGS, {"q": "a"}).json()["results"], [])
         self.assertEqual(self.as_(self.registrar).get(DRUGS, {"q": "amox"}).status_code, 403)
+
+
+class PhilippinePrescriberTests(RxBase):
+    """Philippine clinics (the default): the PRC license number signs, not a US NPI; PTR optional; S2 as before."""
+
+    def test_org_defaults_to_philippine_rules(self):
+        self.assertEqual(self.org.country, "PH")
+        r = self.as_(self.doctor2).get(PROFILE).json()
+        self.assertEqual((r["rules"], r["missing"], r["ready"]), ("PH", ["prescriber PRC license number"], False))
+
+    def test_ph_doctor_with_prc_and_no_npi_can_sign(self):
+        r = self.as_(self.doctor2).put(PROFILE, {"license_number": "0123456", "ptr_number": "8812345"}, format="json").json()
+        self.assertEqual((r["npi"], r["ready"], r["ptr_number"]), ("", True, "8812345"))
+        rx = self.make(user=self.doctor2, prescriber=self.doctor2.pk)
+        out = self.act(rx["id"], "sign", user=self.doctor2)
+        self.assertEqual(out.status_code, 200, out.content)
+        pres = out.json()["clinical_snapshot"]["prescriber"]
+        self.assertEqual((pres["rules"], pres["license_number"], pres["ptr_number"], pres["npi"]), ("PH", "0123456", "8812345", ""))
+        self.assertTrue(self.as_(self.doctor2).get(PDF.format(rx["id"])).content.startswith(b"%PDF"))
+
+    def test_missing_prc_blocks_signing(self):
+        rx = self.make(user=self.doctor2, prescriber=self.doctor2.pk)
+        r = self.act(rx["id"], "sign", user=self.doctor2)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("prescriber PRC license number", r.json()["errors"])
+        self.assertNotIn("prescriber NPI", r.json()["errors"])
+
+    def test_npi_is_optional_but_checked_when_entered(self):
+        self.assertEqual(self.as_(self.doctor2).put(PROFILE, {"npi": "123"}, format="json").status_code, 400)
+        self.assertEqual(self.as_(self.doctor2).put(PROFILE, {"npi": "", "license_number": "0123456"}, format="json").status_code, 200)
+
+    def test_us_clinic_shows_the_us_rule(self):
+        self.org.country = "US"
+        self.org.save()
+        self.as_(self.doctor2).put(PROFILE, {"license_number": "0123456"}, format="json")
+        r = self.as_(self.doctor2).get(PROFILE).json()
+        self.assertEqual((r["rules"], r["missing"]), ("US", ["prescriber NPI"]))
+
+    def test_printout_shows_prc_ptr_s2_for_the_philippines_and_npi_for_the_us(self):
+        from appointments.prescription_pdf import _prescriber_ids, _signature_id
+
+        ph = {"rules": "PH", "npi": "", "license_number": "0123456", "ptr_number": "8812345", "s2_number": "S2-0045"}
+        self.assertEqual(_prescriber_ids(ph), "PRC Lic. No. 0123456   PTR No. 8812345   S2 No. S2-0045")
+        self.assertEqual(_signature_id(ph), "PRC Lic. No. 0123456")
+        self.assertEqual(_prescriber_ids({"rules": "PH", "license_number": "0123456"}), "PRC Lic. No. 0123456")
+        us = {"rules": "US", "npi": GOOD_NPI, "license_number": "123456", "license_state": "NY"}
+        self.assertEqual(_prescriber_ids(us), f"NPI {GOOD_NPI}  License NY 123456")  # unchanged from before
+        self.assertEqual(_signature_id(us), f"NPI {GOOD_NPI}")
+        # prescriptions signed before this change (no `rules` in the snapshot): an NPI means the US printout
+        self.assertEqual(_signature_id({"npi": GOOD_NPI, "license_number": "123456"}), f"NPI {GOOD_NPI}")
+
