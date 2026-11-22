@@ -2376,6 +2376,7 @@ class PrescriberProfile(models.Model):
     license_state = models.CharField(max_length=2, blank=True)
     dea_number = models.CharField(max_length=15, blank=True)  # kept for later e-prescribing; not used on printed Rx yet
     s2_number = models.CharField(max_length=40, blank=True)  # PDEA S2 license: needed to prescribe dangerous drugs (RA 9165)
+    ptr_number = models.CharField(max_length=40, blank=True)  # Professional Tax Receipt number (Philippines), optional, printed if set
     practice_name = models.CharField(max_length=200, blank=True)
     address = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=30, blank=True)
