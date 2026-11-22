@@ -14,6 +14,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             token['first_name'] = user.first_name or ''
             token['last_name'] = user.last_name or ''
             token['role'] = user.role or 'none'
+            # POWER Pharmacy: whether the Pharmacy module shows (the 'pharmacy.view' right; refreshed at each sign-in)
+            try:
+                from .rights import user_has_right
+
+                token['pharmacy_view'] = user_has_right(user, 'pharmacy.view')
+            except Exception:  # noqa: BLE001 - never block a sign-in over this
+                token['pharmacy_view'] = False
             
             # Safely handle organization relationship
             try:

@@ -36,8 +36,14 @@ QUEUE_TABS = ("pending_verification", "on_hold_clarify", "verified", "rejected")
 MAX_ROWS = 300
 
 
-def _denied(request):
-    if getattr(request.user, "role", None) not in svc.READ_ROLES:
+def _denied(request, staff_only=False):
+    """
+    Read access to the Pharmacy module: the 'pharmacy.view' right (a doctor may hold it, read-only). `staff_only`
+    pages (outpatient fills, the price table, discount IDs) also need a pharmacy role.
+    """
+    if not svc.can_view_pharmacy(request.user):
+        return Response({"detail": "Not allowed."}, status=403)
+    if staff_only and getattr(request.user, "role", None) not in svc.READ_ROLES:
         return Response({"detail": "Not allowed."}, status=403)
     return None
 
@@ -412,7 +418,7 @@ class FillQueueView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        denied = _denied(request)
+        denied = _denied(request, staff_only=True)
         if denied:
             return denied
         org, err = _org_or_error(request)
@@ -440,7 +446,7 @@ class FillDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        denied = _denied(request)
+        denied = _denied(request, staff_only=True)
         if denied:
             return denied
         fill = _fill_for(request, pk)
@@ -491,7 +497,7 @@ class FillLabelView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        denied = _denied(request)
+        denied = _denied(request, staff_only=True)
         if denied:
             return denied
         fill = _fill_for(request, pk)
@@ -552,7 +558,7 @@ class PriceListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        denied = _denied(request)
+        denied = _denied(request, staff_only=True)
         if denied:
             return denied
         org, err = _org_or_error(request)
@@ -624,7 +630,7 @@ class PatientDiscountIdsView(APIView):
         return patient
 
     def get(self, request, patient_id):
-        denied = _denied(request)
+        denied = _denied(request, staff_only=True)
         if denied:
             return denied
         patient = self._patient(request, patient_id)

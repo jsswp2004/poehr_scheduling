@@ -39,7 +39,17 @@ from .renal_drugs import renal_threshold
 
 log = logging.getLogger(__name__)
 
-READ_ROLES = ("pharmacist", "pharmacy_tech", "admin", "system_admin")
+READ_ROLES = ("pharmacist", "pharmacy_tech", "admin", "system_admin")  # the pharmacy roles (outpatient fills, prices)
+
+
+def can_view_pharmacy(user):
+    """
+    The 'pharmacy.view' right (Security Settings): on by default for the pharmacy roles and administrators; granted per
+    person to anyone else (a doctor, say), who then reads the Verification Queue, Med Profile and Formulary only.
+    """
+    from users.rights import user_has_right
+
+    return bool(user and user.is_authenticated and user_has_right(user, "pharmacy.view"))
 VERIFY_ROLES = ("pharmacist", "admin", "system_admin")
 ACTIVE_ORDER_STATUSES = ("pending_cosign", "active", "in_progress")
 QUEUE_STATUSES = ("pending_verification", "on_hold_clarify")

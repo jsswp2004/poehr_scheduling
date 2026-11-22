@@ -35,8 +35,11 @@ def _org(request):
 
 
 def _denied(request, edit=False):
-    roles = fm.EDIT_ROLES if edit else fm.VIEW_ROLES
-    if getattr(request.user, "role", None) not in roles:
+    from .services import can_view_pharmacy
+
+    # reading: the 'pharmacy.view' right (a doctor may be granted it); changing: the formulary's editing roles
+    allowed = (getattr(request.user, "role", None) in fm.EDIT_ROLES and can_view_pharmacy(request.user)) if edit else can_view_pharmacy(request.user)
+    if not allowed:
         return Response({"detail": "Not allowed." if not edit else "Only a pharmacist or an administrator can change the formulary."}, status=403)
     if request.user.role != "system_admin" and _target_org(request) is None:
         return Response({"detail": "Choose a clinic."}, status=400)

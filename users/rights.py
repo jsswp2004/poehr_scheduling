@@ -35,6 +35,9 @@ RIGHTS = [
     ("immunizations.record", "Record vaccines given or not done, and historical entries", "Clinical Documentation"),
     ("immunization_rules.manage", "Manage vaccine and screening schedules (Vaccine Manager builder)", "Clinical Documentation"),
 
+    # POWER Pharmacy
+    ("pharmacy.view", "Open the Pharmacy module (Verification Queue, Med Profile, Formulary); read-only without a pharmacy role", "Pharmacy"),
+
     # Orders
     ("orders.view", "View orders", "Orders"),
     ("orders.place", "Place, edit draft, discontinue and replace orders", "Orders"),
@@ -192,8 +195,8 @@ ROLE_DEFAULT_RIGHTS = {
     "system_admin": _ALL_RIGHTS,
     # POWER Pharmacy: pharmacists and pharmacy assistants read orders and results; verification itself is
     # checked by role in pharmacy.services (pharmacist / admin only).
-    "pharmacist": {"orders.view", "lab_results.view"},
-    "pharmacy_tech": {"orders.view", "lab_results.view"},
+    "pharmacist": {"orders.view", "lab_results.view", "pharmacy.view"},
+    "pharmacy_tech": {"orders.view", "lab_results.view", "pharmacy.view"},
 }
 
 
@@ -215,6 +218,12 @@ ROLE_DEFAULT_RIGHTS["admin"] = set(ROLE_DEFAULT_RIGHTS["admin"]) | {"immunizatio
 for _role in ("doctor", "nurse", "receptionist", "registrar", "admin"):
     ROLE_DEFAULT_RIGHTS[_role] = set(ROLE_DEFAULT_RIGHTS[_role]) | {"secure_messaging.use"}
 ROLE_DEFAULT_RIGHTS["admin"] = set(ROLE_DEFAULT_RIGHTS["admin"]) | {"secure_messaging.audit"}
+
+
+# POWER Pharmacy: administrators open the Pharmacy module by default (pharmacists and pharmacy assistants above; System
+# Admins have every right). Anyone else, a doctor for example, only when an administrator grants it in Security
+# Settings: they then see it read-only (verifying, filling and formulary edits stay with the pharmacy roles).
+ROLE_DEFAULT_RIGHTS["admin"] = set(ROLE_DEFAULT_RIGHTS["admin"]) | {"pharmacy.view"}
 
 
 def role_default_rights(role):
