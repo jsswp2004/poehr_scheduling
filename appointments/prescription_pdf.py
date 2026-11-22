@@ -16,6 +16,30 @@ from . import prescriptions as rxs
 WATERMARKS = {"draft": "DRAFT - NOT VALID", "cancelled": "CANCELLED"}
 
 
+def _ph(pres):
+    """Philippine printout unless the prescriber snapshot says US rules (old snapshots without `rules` with an NPI: US)."""
+    rules = pres.get("rules")
+    return rules == "PH" or (rules is None and not pres.get("npi"))
+
+
+def _prescriber_ids(pres):
+    """The prescriber's numbers on the header line: PRC (and PTR, S2) for the Philippines; NPI and license for the US."""
+    if _ph(pres):
+        parts = [f"PRC Lic. No. {pres.get('license_number') or '________'}"]
+        if pres.get("ptr_number"):
+            parts.append(f"PTR No. {pres['ptr_number']}")
+        if pres.get("s2_number"):
+            parts.append(f"S2 No. {pres['s2_number']}")
+        return "   ".join(parts)
+    ids = f"NPI {pres.get('npi', '')}"
+    if pres.get("license_number"):
+        ids += f"   License {pres.get('license_state', '')} {pres['license_number']}".replace("  ", " ")
+    return ids
+
+
+def _signature_id(pres):
+    return f"PRC Lic. No. {pres.get('license_number', '')}" if _ph(pres) else f"NPI {pres.get('npi', '')}"
+
 def _fmt_date(value):
     if not value:
         return ""
@@ -81,9 +105,7 @@ def build_pdf(rx, reprint=False):
     c.setFont("Helvetica-Bold", 10)
     c.drawString(left, y, f"{pres.get('name', '')}")
     c.setFont("Helvetica", 9.5)
-    ids = f"NPI {pres.get('npi', '')}"
-    if pres.get("license_number"):
-        ids += f"   License {pres.get('license_state', '')} {pres['license_number']}".replace("  ", " ")
+    ids = _prescriber_ids(pres)
     c.drawString(left + c.stringWidth(pres.get("name", "") + "   ", "Helvetica-Bold", 10), y, ids)
     y -= 8
     c.setLineWidth(1.2)
@@ -194,7 +216,7 @@ def build_pdf(rx, reprint=False):
         c.setFont("Helvetica-Oblique", 11)
         c.drawString(left, y + 16, pres.get("name", ""))
         c.setFont("Helvetica", 8.5)
-        c.drawString(left, y, f"Electronically signed {timezone.localtime(rx.signed_at).strftime('%m/%d/%Y %H:%M')}  -  {pres.get('name', '')}, NPI {pres.get('npi', '')}")
+        c.drawString(left, y, f"Electronically signed {timezone.localtime(rx.signed_at).strftime('%m/%d/%Y %H:%M')}  -  {pres.get('name', '')}, {_signature_id(pres)}")
     else:
         c.drawString(left, y, "Prescriber signature")
     y -= 12

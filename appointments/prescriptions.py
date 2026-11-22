@@ -116,6 +116,24 @@ def build_sig(rx):
 # ---------------------------------------------------------------- number checks
 
 
+def us_rules(org):
+    """True when the clinic follows US prescribing rules (NPI). Philippine clinics (the default) use the PRC license."""
+    return getattr(org, "country", "PH") == "US"
+
+
+def prescriber_missing(user, org):
+    """
+    What the prescriber still needs on their details before they can sign (empty list = ready).
+    Philippines (default): the PRC license number; the NPI is optional (checked only when entered, at save).
+    US: a valid NPI and a license number.
+    """
+    profile = getattr(user, "prescriber_profile", None)
+    has_license = bool(profile and profile.license_number.strip())
+    if us_rules(org):
+        return [m for m, ok in (("prescriber NPI", npi_valid(user.npi)), ("prescriber license number", has_license)) if not ok]
+    return [] if has_license else ["prescriber PRC license number"]
+
+
 def npi_valid(npi):
     """A 10-digit NPI whose check digit is right (Luhn on the number with the 80840 prefix)."""
     npi = str(npi or "")
@@ -237,6 +255,9 @@ def clinical_snapshot(rx):
             "npi": prescriber.npi,
             "license_number": getattr(profile, "license_number", ""),
             "license_state": getattr(profile, "license_state", ""),
+            "ptr_number": getattr(profile, "ptr_number", ""),
+            "s2_number": getattr(profile, "s2_number", ""),
+            "rules": "US" if us_rules(rx.organization) else "PH",
             "dea_number": getattr(profile, "dea_number", ""),
             "practice_name": getattr(profile, "practice_name", "") or rx.organization.name,
             "address": getattr(profile, "address", ""),
@@ -273,11 +294,8 @@ def missing_for_sign(rx):
     if rx.refills is None or rx.refills > MAX_REFILLS:
         missing.append("refills (0-%d)" % MAX_REFILLS)
     prescriber = rx.prescriber
-    if not npi_valid(prescriber.npi):
-        missing.append("prescriber NPI")
+    missing += prescriber_missing(prescriber, rx.organization)
     profile = getattr(prescriber, "prescriber_profile", None)
-    if not (profile and profile.license_number.strip()):
-        missing.append("prescriber license number")
     if is_controlled(rx.drug_name, rx.organization):
         if not rx.is_yellow_rx:
             missing.append("DDB yellow prescription (dangerous drug)")
