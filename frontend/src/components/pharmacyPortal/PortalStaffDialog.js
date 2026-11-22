@@ -8,7 +8,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { authHeader, errorText } from "../pharmacy/pharmacyShared";
 
-const BLANK = { full_name: "", prc_number: "", email: "", username: "", password: "" };
+const BLANK = { full_name: "", prc_number: "", email: "", mobile: "", username: "", password: "" };
 
 /**
  * The pharmacy's pharmacists: name, PRC license number (RA 10918) and email (each active pharmacist gets the portal
@@ -74,6 +74,7 @@ export default function PortalStaffDialog({ open, onClose }) {
                 <TableCell>Name</TableCell>
                 <TableCell>PRC number</TableCell>
                 <TableCell>Email (portal notices)</TableCell>
+                <TableCell>Mobile (SMS)</TableCell>
                 <TableCell>Login</TableCell>
                 <TableCell>Status</TableCell>
                 {canManage && <TableCell />}
@@ -86,11 +87,12 @@ export default function PortalStaffDialog({ open, onClose }) {
                     <TableCell><TextField size="small" value={editing.full_name} onChange={(e) => setEditing({ ...editing, full_name: e.target.value })} /></TableCell>
                     <TableCell><TextField size="small" value={editing.prc_number} onChange={(e) => setEditing({ ...editing, prc_number: e.target.value })} inputProps={{ "data-testid": "staff-edit-prc" }} /></TableCell>
                     <TableCell><TextField size="small" value={editing.email} onChange={(e) => setEditing({ ...editing, email: e.target.value })} inputProps={{ "data-testid": "staff-edit-email" }} /></TableCell>
+                    <TableCell><TextField size="small" value={editing.mobile} placeholder="0917 123 4567" onChange={(e) => setEditing({ ...editing, mobile: e.target.value })} inputProps={{ "data-testid": "staff-edit-mobile" }} /></TableCell>
                     <TableCell>{s.username || "—"}</TableCell>
                     <TableCell />
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
                       <Button size="small" variant="contained" data-testid="staff-edit-save"
-                        onClick={async () => { if (await update(s.id, { full_name: editing.full_name, prc_number: editing.prc_number, email: editing.email }, "Saved.")) setEditing(null); }}>
+                        onClick={async () => { if (await update(s.id, { full_name: editing.full_name, prc_number: editing.prc_number, email: editing.email, mobile: editing.mobile }, "Saved.")) setEditing(null); }}>
                         Save
                       </Button>
                       <Button size="small" onClick={() => setEditing(null)}>Cancel</Button>
@@ -101,11 +103,12 @@ export default function PortalStaffDialog({ open, onClose }) {
                     <TableCell>{s.full_name}{s.is_admin && <Chip size="small" variant="outlined" label="Admin" sx={{ ml: 0.5 }} />}</TableCell>
                     <TableCell>{s.prc_number || "—"}</TableCell>
                     <TableCell>{s.email || "—"}</TableCell>
+                    <TableCell>{s.mobile || "—"}</TableCell>
                     <TableCell>{s.username || "No login"}</TableCell>
                     <TableCell>{s.is_active ? "Active" : "Deactivated"}</TableCell>
                     {canManage && (
                       <TableCell sx={{ whiteSpace: "nowrap" }}>
-                        <Button size="small" onClick={() => setEditing({ id: s.id, full_name: s.full_name, prc_number: s.prc_number, email: s.email })} data-testid={`staff-edit-${s.id}`}>Edit</Button>
+                        <Button size="small" onClick={() => setEditing({ id: s.id, full_name: s.full_name, prc_number: s.prc_number, email: s.email, mobile: s.mobile || "" })} data-testid={`staff-edit-${s.id}`}>Edit</Button>
                         <Button size="small" color={s.is_active ? "error" : "primary"} data-testid={`staff-toggle-${s.id}`}
                           onClick={() => update(s.id, { is_active: !s.is_active }, s.is_active ? "Deactivated." : "Reactivated.")}>
                           {s.is_active ? "Deactivate" : "Reactivate"}
@@ -125,8 +128,9 @@ export default function PortalStaffDialog({ open, onClose }) {
               <Grid size={{ xs: 12, sm: 4 }}>{f("full_name", "Full name")}</Grid>
               <Grid size={{ xs: 12, sm: 4 }}>{f("prc_number", "PRC license number")}</Grid>
               <Grid size={{ xs: 12, sm: 4 }}>{f("email", "Email")}</Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>{f("username", "Portal username (optional)")}</Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>{f("password", "Password (10+ characters, optional)", { type: "password" })}</Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>{f("mobile", "Mobile for SMS (optional)", { placeholder: "0917 123 4567" })}</Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>{f("username", "Portal username (optional)")}</Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>{f("password", "Password (10+ characters, optional)", { type: "password" })}</Grid>
             </Grid>
             <Stack direction="row">
               <Button variant="contained" size="small" disabled={!form.full_name.trim() || !form.prc_number.trim() || !form.email.trim()} onClick={add} data-testid="staff-add-save">

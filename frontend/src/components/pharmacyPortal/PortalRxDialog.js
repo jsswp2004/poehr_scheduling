@@ -26,7 +26,8 @@ const REQUEST_KINDS = [
 ];
 
 const DONE = {
-  accept: "Accepted.",
+  accept: "Accepted; the prescriber was told.",
+  filled: "Accepted and marked filled (ready for pickup); the prescriber was told.",
   decline: "Declined; the prescriber was told.",
   ready: "Marked ready for pickup.",
   dispense: "Dispensed.",
@@ -256,7 +257,13 @@ export default function PortalRxDialog({ open, rxId, me, onClose, onChanged }) {
           <>
             <Button color="error" onClick={() => setMode("decline")} data-testid="portal-decline">Decline</Button>
             {me?.user?.role === "ext_pharmacist" && (
-              <Button variant="contained" onClick={() => act("accept")} disabled={busy} data-testid="portal-accept">Accept</Button>
+              <>
+                <Button variant="contained" onClick={() => act("accept")} disabled={busy} data-testid="portal-accept">Accept</Button>
+                <Button variant="contained" color="success" onClick={() => act("filled")} disabled={busy} data-testid="portal-filled"
+                  title="Accept it and mark it filled, ready for pickup, in one step">
+                  Filled
+                </Button>
+              </>
             )}
           </>
         )}
