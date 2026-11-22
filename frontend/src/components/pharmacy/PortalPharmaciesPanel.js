@@ -8,6 +8,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { authHeader, errorText } from "./pharmacyShared";
 import PortalAccessLogDialog from "./PortalAccessLogDialog";
+import PartnerChangesDialog from "./PartnerChangesDialog";
 
 const STATUS_COLOR = { pending: "warning", approved: "success", suspended: "error" };
 
@@ -23,6 +24,7 @@ export default function PortalPharmaciesPanel() {
   const [suspend, setSuspend] = useState(null);
   const [reason, setReason] = useState("");
   const [logOpen, setLogOpen] = useState(false);
+  const [detailsOf, setDetailsOf] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,10 +107,14 @@ export default function PortalPharmaciesPanel() {
                 </TableCell>
                 <TableCell>
                   <Chip size="small" color={STATUS_COLOR[p.status] || "default"} label={p.status_label} />
+                  {p.pending_change && <Chip size="small" color="warning" variant="outlined" sx={{ ml: 0.5 }} label="Details change to review" data-testid={`partner-pending-${p.id}`} />}
                   {p.status_reason && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{p.status_reason}</Typography>}
                 </TableCell>
                 {canApprove && <TableCell>{(p.pharmacists || []).map((s) => `${s.full_name} ${s.prc_number}`).join("; ")}</TableCell>}
                 <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                  {canApprove && (
+                    <Button size="small" onClick={() => setDetailsOf(p)} data-testid={`partner-details-${p.id}`}>{p.pending_change ? "Review details" : "Details"}</Button>
+                  )}
                   {canApprove && p.status === "pending" && <Button size="small" variant="contained" onClick={() => setStatus(p, "approve")} data-testid={`partner-approve-${p.id}`}>Approve</Button>}
                   {canApprove && p.status === "approved" && <Button size="small" color="error" onClick={() => { setReason(""); setSuspend(p); }} data-testid={`partner-suspend-${p.id}`}>Suspend</Button>}
                   {canApprove && p.status === "suspended" && <Button size="small" onClick={() => setStatus(p, "reinstate")}>Reinstate</Button>}
@@ -121,6 +127,7 @@ export default function PortalPharmaciesPanel() {
         </Table>
       </TableContainer>
       <PortalAccessLogDialog open={logOpen} onClose={() => setLogOpen(false)} pharmacies={rows} />
+      <PartnerChangesDialog partner={detailsOf} onClose={() => setDetailsOf(null)} onReviewed={() => { setDetailsOf(null); load(); }} />
       <Dialog open={!!suspend} onClose={() => setSuspend(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Suspend {suspend?.name}</DialogTitle>
         <DialogContent dividers>

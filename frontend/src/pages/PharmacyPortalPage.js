@@ -12,6 +12,7 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import PortalRxDialog, { PORTAL_STATUS_COLOR } from "../components/pharmacyPortal/PortalRxDialog";
 import PortalStaffDialog from "../components/pharmacyPortal/PortalStaffDialog";
+import PortalPharmacyDetailsDialog from "../components/pharmacyPortal/PortalPharmacyDetailsDialog";
 import { DrugName, authHeader, errorText, fmtDateTime } from "../components/pharmacy/pharmacyShared";
 import { PORTAL_ROLES } from "../utils/landing";
 import { extractClaimCode, takePendingClaim } from "../utils/claimCode";
@@ -107,6 +108,7 @@ export default function PharmacyPortalPage() {
   const [claimOpen, setClaimOpen] = useState(false);
   const [noticesOpen, setNoticesOpen] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [notices, setNotices] = useState([]);
   const seq = useRef(0);
   const role = signedInRole();
@@ -185,6 +187,7 @@ export default function PharmacyPortalPage() {
         <Button size="small" startIcon={<Badge color="error" badgeContent={me?.unread_notices || 0}><NotificationsIcon fontSize="small" /></Badge>} onClick={openNotices} data-testid="portal-notices">
           Notices
         </Button>
+        <Button size="small" onClick={() => setDetailsOpen(true)} disabled={!me} data-testid="portal-details">Pharmacy details</Button>
         <Button size="small" onClick={() => setStaffOpen(true)} disabled={!me} data-testid="portal-staff">Pharmacists</Button>
         <Button size="small" variant="contained" disabled={!me || !!me.problem || me.user.role !== "ext_pharmacist"} onClick={() => setClaimOpen(true)} data-testid="portal-claim"
           title={me && me.user.role !== "ext_pharmacist" ? "Only a pharmacist can claim a prescription" : ""}>
@@ -193,6 +196,11 @@ export default function PharmacyPortalPage() {
       </Stack>
 
       {me?.problem && <Alert severity="warning" sx={{ mb: 1 }} data-testid="portal-problem">{me.problem}</Alert>}
+      {me?.details_pending_review && (
+        <Alert severity="info" sx={{ mb: 1 }} data-testid="portal-details-pending">
+          Pending POWER review: your change to the registered name or LTO. <Button size="small" onClick={() => setDetailsOpen(true)}>View</Button>
+        </Alert>
+      )}
       {linkCode && me && me.user.role !== "ext_pharmacist" && (
         <Alert severity="info" sx={{ mb: 1 }} data-testid="portal-claim-not-pharmacist">
           Claim code {linkCode}: only a pharmacist can claim a prescription. Ask one of your pharmacists to sign in to the portal and claim it.
@@ -260,6 +268,7 @@ export default function PharmacyPortalPage() {
 
       <PortalRxDialog open={!!openId} rxId={openId} me={me} onClose={() => setOpenId(null)} onChanged={() => { load(); loadMe(); }} />
       <PortalStaffDialog open={staffOpen} onClose={() => setStaffOpen(false)} />
+      <PortalPharmacyDetailsDialog open={detailsOpen} onClose={() => setDetailsOpen(false)} onSaved={loadMe} />
       <ClaimDialog open={claimOpen} initialCode={claimCode} onClose={() => { setClaimOpen(false); setClaimCode(""); }} onClaimed={(rx) => { setClaimOpen(false); setClaimCode(""); setTab("in_progress"); load(); setOpenId(rx.id); }} />
       <Dialog open={noticesOpen} onClose={() => setNoticesOpen(false)} maxWidth="sm" fullWidth data-testid="portal-notices-dialog">
         <DialogTitle>Notices</DialogTitle>
