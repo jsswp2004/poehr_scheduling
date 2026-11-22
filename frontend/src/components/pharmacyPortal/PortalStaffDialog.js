@@ -63,18 +63,18 @@ export default function PortalStaffDialog({ open, onClose }) {
   );
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth data-testid="portal-staff-dialog">
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth data-testid="portal-staff-dialog">
       <DialogTitle>Pharmacists</DialogTitle>
       <DialogContent dividers>
         {error && <Alert severity="error" sx={{ mb: 1 }} data-testid="staff-error">{error}</Alert>}
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small" aria-label="Pharmacists">
+        <TableContainer component={Paper} variant="outlined" sx={{ overflowX: "auto" }}>
+          <Table size="small" aria-label="Pharmacists" sx={{ minWidth: 900 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
                 <TableCell>PRC number</TableCell>
                 <TableCell>Email (portal notices)</TableCell>
-                <TableCell>Mobile (SMS)</TableCell>
+                <TableCell sx={{ minWidth: 190, whiteSpace: "nowrap" }}>Mobile (SMS)</TableCell>
                 <TableCell>Login</TableCell>
                 <TableCell>Status</TableCell>
                 {canManage && <TableCell />}
@@ -87,7 +87,7 @@ export default function PortalStaffDialog({ open, onClose }) {
                     <TableCell><TextField size="small" value={editing.full_name} onChange={(e) => setEditing({ ...editing, full_name: e.target.value })} /></TableCell>
                     <TableCell><TextField size="small" value={editing.prc_number} onChange={(e) => setEditing({ ...editing, prc_number: e.target.value })} inputProps={{ "data-testid": "staff-edit-prc" }} /></TableCell>
                     <TableCell><TextField size="small" value={editing.email} onChange={(e) => setEditing({ ...editing, email: e.target.value })} inputProps={{ "data-testid": "staff-edit-email" }} /></TableCell>
-                    <TableCell><TextField size="small" value={editing.mobile} placeholder="0917 123 4567" onChange={(e) => setEditing({ ...editing, mobile: e.target.value })} inputProps={{ "data-testid": "staff-edit-mobile" }} /></TableCell>
+                    <TableCell sx={{ minWidth: 190 }}><TextField size="small" fullWidth sx={{ minWidth: 180 }} value={editing.mobile} placeholder="0917 123 4567" onChange={(e) => setEditing({ ...editing, mobile: e.target.value })} inputProps={{ "data-testid": "staff-edit-mobile" }} /></TableCell>
                     <TableCell>{s.username || "—"}</TableCell>
                     <TableCell />
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
@@ -103,7 +103,7 @@ export default function PortalStaffDialog({ open, onClose }) {
                     <TableCell>{s.full_name}{s.is_admin && <Chip size="small" variant="outlined" label="Admin" sx={{ ml: 0.5 }} />}</TableCell>
                     <TableCell>{s.prc_number || "—"}</TableCell>
                     <TableCell>{s.email || "—"}</TableCell>
-                    <TableCell>{s.mobile || "—"}</TableCell>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>{s.mobile || "—"}</TableCell>
                     <TableCell>{s.username || "No login"}</TableCell>
                     <TableCell>{s.is_active ? "Active" : "Deactivated"}</TableCell>
                     {canManage && (
