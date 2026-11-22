@@ -211,6 +211,8 @@ class PartnerPharmacy(models.Model):
     province = models.CharField(max_length=80, blank=True)
     phone = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True, help_text="Where portal notices are emailed")
+    sms_mobile = models.CharField(max_length=16, blank=True,
+                                  help_text="Mobile number for SMS (+639...): new-prescription texts when no pharmacist has a mobile")
     fda_lto_number = models.CharField(max_length=40)
     lto_expiry = models.DateField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
@@ -235,6 +237,7 @@ class PartnerPharmacist(models.Model):
     full_name = models.CharField(max_length=160)
     prc_number = models.CharField(max_length=40, blank=True)
     email = models.EmailField(blank=True, help_text="Portal notices are emailed to each active pharmacist")
+    mobile = models.CharField(max_length=16, blank=True, help_text="Mobile number for SMS (+639...): new-prescription texts")
     is_admin = models.BooleanField(default=False, help_text="Manages the pharmacy's portal logins (the person who registered it)")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
