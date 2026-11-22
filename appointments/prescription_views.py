@@ -453,7 +453,7 @@ class PrescriptionMetaView(APIView):
             prof = getattr(d, "prescriber_profile", None)
             doctors.append({
                 "id": d.pk, "name": _name(d), "npi": d.npi,
-                "ready": bool(rxs.npi_valid(d.npi) and prof and prof.license_number.strip()),
+                "ready": not rxs.prescriber_missing(d, org),
             })
         return Response({
             "frequencies": [{"value": k, "label": v} for k, v in FREQUENCY_LABELS.items()],
@@ -631,13 +631,17 @@ class PatientPharmacyView(APIView):
 
 def _profile_json(user):
     prof = getattr(user, "prescriber_profile", None)
+    missing = rxs.prescriber_missing(user, user.organization)
     return {
         "user": user.pk, "name": _name(user), "npi": user.npi,
         "license_number": getattr(prof, "license_number", ""), "license_state": getattr(prof, "license_state", ""),
         "dea_number": getattr(prof, "dea_number", ""), "practice_name": getattr(prof, "practice_name", ""),
-        "s2_number": getattr(prof, "s2_number", ""),
+        "s2_number": getattr(prof, "s2_number", ""), "ptr_number": getattr(prof, "ptr_number", ""),
         "address": getattr(prof, "address", ""), "phone": getattr(prof, "phone", ""), "fax": getattr(prof, "fax", ""),
-        "ready": bool(rxs.npi_valid(user.npi) and prof and prof.license_number.strip()),
+        # PH (default): the PRC license number is what signing needs; US: NPI + license number
+        "rules": "US" if rxs.us_rules(user.organization) else "PH",
+        "missing": missing,
+        "ready": not missing,
     }
 
 
@@ -681,7 +685,8 @@ class PrescriberProfileView(APIView):
             if dea and not rxs.dea_valid(dea):
                 return Response({"detail": "That DEA number isn't valid."}, status=400)
             prof.dea_number = dea
-        for key, limit in (("license_number", 40), ("license_state", 2), ("practice_name", 200), ("address", 255), ("phone", 30), ("fax", 30), ("s2_number", 40)):
+        for key, limit in (("license_number", 40), ("license_state", 2), ("practice_name", 200), ("address", 255), ("phone", 30), ("fax", 30), ("s2_number", 40),
+                           ("ptr_number", 40)):
             if key in d:
                 value = str(d.get(key) or "").strip()[:limit]
                 setattr(prof, key, value.upper() if key == "license_state" else value)
