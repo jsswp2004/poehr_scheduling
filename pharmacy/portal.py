@@ -149,6 +149,33 @@ def new_claim_code():
             return code
 
 
+def claim_link(code):
+    """What the prescription's QR code holds: the portal's Claim page with the code filled in (FRONTEND_BASE_URL)."""
+    from django.conf import settings
+
+    base = getattr(settings, "FRONTEND_BASE_URL", "https://www.powerhealthit.com").rstrip("/")
+    return f"{base}/pharmacy-portal/claim?code={code}"
+
+
+def normalize_claim_code(raw):
+    """
+    The claim code from whatever was typed or scanned: the 8 characters, the old QR text "POWER-RX:<code>", or the
+    new QR link ".../pharmacy-portal/claim?code=<code>". Upper case, without spaces or dashes.
+    """
+    from urllib.parse import parse_qs, urlparse
+
+    text = str(raw or "").strip()
+    if "code=" in text:
+        found = parse_qs(urlparse(text).query or text.split("?", 1)[-1]).get("code")
+        text = found[0] if found else ""
+    elif "://" in text:
+        return ""  # a link without a claim code
+    text = text.upper()
+    if text.startswith("POWER-RX:"):
+        text = text[len("POWER-RX:"):]
+    return text.replace("-", "").replace(" ", "")
+
+
 def ensure_claim_code(rx):
     if not rx.claim_code:
         rx.claim_code = new_claim_code()
@@ -218,7 +245,7 @@ def claim(user, code, birthdate, mobile_last4=""):
 
 @transaction.atomic
 def _claim(user, partner, code, birthdate, mobile_last4):
-    code = str(code or "").strip().upper().replace("POWER-RX:", "").replace("-", "").replace(" ", "")
+    code = normalize_claim_code(code)
     dob = parse_date(str(birthdate or ""))
     last4 = "".join(ch for ch in str(mobile_last4 or "") if ch.isdigit())
     if not code or dob is None or len(last4) != 4:

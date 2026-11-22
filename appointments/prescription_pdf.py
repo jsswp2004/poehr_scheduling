@@ -59,15 +59,18 @@ def _qty(rx):
 
 
 def _draw_claim(c, rx, right, y):
-    """The POWER Pharmacy Portal claim code, as text and as a QR code (POWER-RX:<code>), at the right of the body."""
+    """
+    The POWER Pharmacy Portal claim code at the right of the body: a QR code that opens the portal's Claim page with the
+    code filled in (FRONTEND_BASE_URL/pharmacy-portal/claim?code=<code>), and the code printed under it.
+    """
     from reportlab.graphics import renderPDF
     from reportlab.graphics.barcode import qr
     from reportlab.graphics.shapes import Drawing
 
-    from pharmacy.portal import ensure_claim_code
+    from pharmacy.portal import claim_link, ensure_claim_code
 
     code = ensure_claim_code(rx)
-    widget = qr.QrCodeWidget(f"POWER-RX:{code}")
+    widget = qr.QrCodeWidget(claim_link(code))
     x0, y0, x1, y1 = widget.getBounds()
     size = 0.9 * inch
     drawing = Drawing(size, size, transform=[size / (x1 - x0), 0, 0, size / (y1 - y0), 0, 0])
