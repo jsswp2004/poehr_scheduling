@@ -473,7 +473,33 @@ def _yes(data, key):
     return v.strip().lower() in ("true", "yes", "1") if isinstance(v, str) else v is True
 
 
-ACTIONS = ("accept", "decline", "ready", "dispense", "refill")
+ACTIONS = ("accept", "filled", "decline", "ready", "dispense", "refill")
+
+
+def normalize_ph_mobile(raw):
+    """A Philippine mobile number as +639XXXXXXXXX ('' when blank). Raises PortalError when it isn't one."""
+    digits = "".join(ch for ch in str(raw or "") if ch.isdigit())
+    if not digits:
+        return ""
+    if digits.startswith("63"):
+        digits = digits[2:]
+    elif digits.startswith("0"):
+        digits = digits[1:]
+    if len(digits) != 10 or not digits.startswith("9"):
+        raise PortalError("Enter a Philippine mobile number, for example 0917 123 4567.")
+    return f"+63{digits}"
+
+
+def _tell_prescriber_accepted(rx, partner, filled=False):
+    """In-app notice and email to the prescriber (same details as the decline notice)."""
+    when = timezone.localtime().strftime("%b %d, %Y %I:%M %p")
+    what = "accepted and filled (ready for pickup)" if filled else "accepted"
+    transport.notify_prescriber(
+        rx.prescriber, f"Pharmacy {'filled' if filled else 'accepted'} RX-{rx.pk:06d}",
+        f"{partner.name} {what} the prescription for {drug_names(rx.drug_name)['display']} "
+        f"({rx.patient.last_name}, {rx.patient.first_name}) on {when}.",
+        rx, "portal_filled" if filled else "portal_accepted", rx.pk,
+    )
 
 
 @transaction.atomic
@@ -499,6 +525,19 @@ def act(user, portal_rx, action, data=None):
         portal_rx.status = "in_progress"
         portal_rx.save(update_fields=["status", "updated_at"])
         _mark_sent(rx, user, "portal_accepted", {"pharmacy": partner.name})
+        _tell_prescriber_accepted(rx, partner)
+        return portal_rx
+
+    if action == "filled":
+        # Accept and mark it filled (ready for pickup) in one step, for a pharmacy that prepares it right away
+        _expect(portal_rx, ("new",))
+        if user.role != "ext_pharmacist":
+            raise PortalError("Only a pharmacist can accept a prescription.", 403)
+        portal_rx.status = "ready"
+        portal_rx.save(update_fields=["status", "updated_at"])
+        _mark_sent(rx, user, "portal_accepted", {"pharmacy": partner.name})
+        _rx_event(rx, "portal_ready", user, {"pharmacy": partner.name, "filled": True})
+        _tell_prescriber_accepted(rx, partner, filled=True)
         return portal_rx
 
     if action == "decline":
@@ -715,9 +754,12 @@ def register(data):
     pharmacists = data.get("pharmacists") or []
     if not isinstance(pharmacists, list) or not any(str(p.get("prc_number") or "").strip() for p in pharmacists if isinstance(p, dict)):
         raise PortalError("List at least one pharmacist with a PRC license number.")
+    sms_mobile = normalize_ph_mobile(data.get("sms_mobile"))
+    admin_mobile = normalize_ph_mobile(data.get("admin_mobile"))
+    staff_mobiles = [normalize_ph_mobile(p.get("mobile")) if isinstance(p, dict) else "" for p in pharmacists]
     partner = PartnerPharmacy.objects.create(
         name=name, address=_text(data, "address", 255), city=_text(data, "city", 80), province=_text(data, "province", 80),
-        phone=_text(data, "phone", 30), email=email, fda_lto_number=lto, lto_expiry=expiry,
+        phone=_text(data, "phone", 30), email=email, sms_mobile=sms_mobile, fda_lto_number=lto, lto_expiry=expiry,
     )
     transaction.on_commit(lambda: _tell_power_admins(partner))
     admin_is_pharmacist = bool(_text(data, "admin_prc_number", 40))
@@ -726,11 +768,12 @@ def register(data):
         first_name=_text(data, "first_name", 150), last_name=_text(data, "last_name", 150),
     )
     PartnerPharmacist.objects.create(partner=partner, user=user, full_name=f"{user.first_name} {user.last_name}".strip() or username,
-                                     prc_number=_text(data, "admin_prc_number", 40), is_admin=True, email=email)
-    for p in pharmacists:
+                                     prc_number=_text(data, "admin_prc_number", 40), is_admin=True, email=email, mobile=admin_mobile)
+    for p, mobile in zip(pharmacists, staff_mobiles):
         if isinstance(p, dict) and str(p.get("prc_number") or "").strip():
             PartnerPharmacist.objects.create(partner=partner, full_name=str(p.get("full_name") or "").strip()[:160] or "Pharmacist",
-                                             prc_number=str(p.get("prc_number")).strip()[:40], email=str(p.get("email") or "").strip()[:254])
+                                             prc_number=str(p.get("prc_number")).strip()[:40], email=str(p.get("email") or "").strip()[:254],
+                                             mobile=mobile)
     return partner, user
 
 

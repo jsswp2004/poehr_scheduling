@@ -155,7 +155,7 @@ class NoticeReadView(PortalView):
 
 
 def _staff_json(s):
-    return {"id": s.pk, "full_name": s.full_name, "prc_number": s.prc_number, "email": s.email, "is_admin": s.is_admin,
+    return {"id": s.pk, "full_name": s.full_name, "prc_number": s.prc_number, "email": s.email, "mobile": s.mobile, "is_admin": s.is_admin,
             "username": s.user.username if s.user_id else "", "has_login": bool(s.user_id), "is_active": s.is_active}
 
 
@@ -179,6 +179,10 @@ class StaffView(PortalView):
         email = str(d.get("email") or "").strip()[:254]
         if not (prc and name and email):
             return Response({"detail": "Enter the pharmacist's name, PRC license number and email."}, status=400)
+        try:
+            mobile = pt.normalize_ph_mobile(d.get("mobile"))
+        except pt.PortalError as exc:
+            return Response({"detail": exc.message}, status=400)
         user = None
         if username or password:  # a portal login is optional: some pharmacists only receive the emails
             if len(password) < 10:
@@ -187,7 +191,7 @@ class StaffView(PortalView):
                 return Response({"detail": "That username is taken."}, status=400)
             user = CustomUser.objects.create_user(username=username, password=password, role="ext_pharmacist", email=email,
                                                   first_name=name.split(" ")[0], last_name=" ".join(name.split(" ")[1:]))
-        s = PartnerPharmacist.objects.create(partner=partner, user=user, full_name=name, prc_number=prc, email=email)
+        s = PartnerPharmacist.objects.create(partner=partner, user=user, full_name=name, prc_number=prc, email=email, mobile=mobile)
         pt.log_access(request.user, "staff_added", None, request, {"staff": s.pk})
         return Response(_staff_json(s), status=201)
 
@@ -211,6 +215,11 @@ class StaffDetailView(PortalView):
                 if key in ("full_name", "prc_number") and not value:
                     return Response({"detail": "The name and PRC license number can't be blank."}, status=400)
                 setattr(s, key, value)
+        if "mobile" in d:
+            try:
+                s.mobile = pt.normalize_ph_mobile(d.get("mobile"))
+            except pt.PortalError as exc:
+                return Response({"detail": exc.message}, status=400)
         if "is_active" in d:
             active = bool(d.get("is_active"))
             if not active and s.user_id == request.user.pk:
