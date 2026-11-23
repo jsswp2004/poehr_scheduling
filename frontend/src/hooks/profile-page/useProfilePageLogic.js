@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../../components/SimpleToast';
-import { USER_ROLES } from '../../config/constants';
+import useRoleOptions from '../useRoleOptions';
 import { API_BASE_URL } from '../../config/api';
 import { useAuth } from '../useAuth';
 import { useProfile } from '../useProfile';
@@ -50,14 +50,7 @@ export const useProfilePageLogic = () => {
     } = usePasswordChange();
 
     // Available roles for system admin
-    const availableRoles = [
-        { value: USER_ROLES.ADMIN, label: "Admin" },
-        { value: USER_ROLES.SYSTEM_ADMIN, label: "System Admin" },
-        { value: USER_ROLES.DOCTOR, label: "Doctor" },
-        { value: USER_ROLES.REGISTRAR, label: "Registrar" },
-        { value: USER_ROLES.RECEPTIONIST, label: "Receptionist" },
-        { value: USER_ROLES.PATIENT, label: "Patient" },
-    ];
+    const availableRoles = useRoleOptions();
 
     // Handler functions
     const handleProfileSubmit = async () => {

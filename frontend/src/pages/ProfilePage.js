@@ -35,10 +35,12 @@ import { useNavigate } from "react-router-dom";
 import CreatableSelect from "react-select/creatable";
 import { notifyProfileUpdated } from "../utils/events";
 import { API_BASE_URL } from "../config/api";
+import useRoleOptions from "../hooks/useRoleOptions";
 import UserFacilitiesPanel from "../components/profile/UserFacilitiesPanel";
 import RemoveUserDialog from "../components/profile/RemoveUserDialog";
 
 function ProfilePage() {
+  const roleOptions = useRoleOptions();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [removeTarget, setRemoveTarget] = useState(null);
@@ -947,12 +949,9 @@ function ProfilePage() {
                       onChange={handleChange}
                       sx={{ borderRadius: 2 }}
                     >
-                      <MenuItem value="admin">Admin</MenuItem>
-                      <MenuItem value="system_admin">System Admin</MenuItem>
-                      <MenuItem value="doctor">Doctor</MenuItem>
-                      <MenuItem value="registrar">Registrar</MenuItem>
-                      <MenuItem value="receptionist">Receptionist</MenuItem>
-                      <MenuItem value="patient">Patient</MenuItem>
+                      {roleOptions.map((r) => (
+                        <MenuItem key={r.value} value={r.value}>{r.label}</MenuItem>
+                      ))}
                     </MUISelect>
                   </FormControl>
                 ) : (
