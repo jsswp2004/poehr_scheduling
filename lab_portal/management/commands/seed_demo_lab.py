@@ -6,6 +6,9 @@ DEMO / TEST DATA: a fake partner lab for trying the POWER Lab Portal, "Diagnosti
     python manage.py seed_demo_lab --reset-passwords    ... and give the logins new passwords
     python manage.py seed_demo_lab --password '...'     ... use this password (new logins, or with --reset-passwords)
     python manage.py seed_demo_lab --remove             delete the demo lab, its directory entries and its logins
+    python manage.py seed_demo_lab --from-env           for a deploy's build step (Render has no shell on the free
+                                                        plan): does nothing unless SEED_DEMO_LAB=true, then reads
+                                                        DEMO_LAB_PASSWORD and DEMO_LAB_CLINIC; never fails the build
 
 It is idempotent: a re-run updates the profile and keeps the passwords (unless --reset-passwords). Everything it
 creates is marked DEMO and uses example.ph addresses, which can't receive mail, and no mobile numbers, so no texts
@@ -17,6 +20,7 @@ The logins:
   demo_diagnostika_path     pathologist: may release everything, including Philippine critical values
 """
 
+import os
 import secrets
 import string
 from datetime import timedelta
@@ -72,8 +76,25 @@ class Command(BaseCommand):
         parser.add_argument("--password", help="Password for new logins (and for all of them with --reset-passwords)")
         parser.add_argument("--reset-passwords", action="store_true", help="Give the logins new passwords")
         parser.add_argument("--remove", action="store_true", help="Delete the demo lab, its directory entries and logins")
+        parser.add_argument("--from-env", action="store_true",
+                            help="Build step: run only when SEED_DEMO_LAB=true, take DEMO_LAB_PASSWORD and DEMO_LAB_CLINIC, never fail")
 
     def handle(self, *args, **opts):
+        if opts["from_env"]:
+            if os.environ.get("SEED_DEMO_LAB", "").strip().lower() not in ("1", "true", "yes"):
+                self.stdout.write("seed_demo_lab: SEED_DEMO_LAB is not true, skipping.")
+                return
+            opts["password"] = opts["password"] or os.environ.get("DEMO_LAB_PASSWORD") or None
+            opts["clinic"] = opts["clinic"] or os.environ.get("DEMO_LAB_CLINIC") or None
+            opts["reset_passwords"] = bool(opts["password"])  # the logins always match DEMO_LAB_PASSWORD
+            try:
+                return self._seed(opts)
+            except Exception as exc:  # a demo seed must never block a deploy
+                self.stderr.write(f"seed_demo_lab: skipped, {exc}")
+                return
+        return self._seed(opts)
+
+    def _seed(self, opts):
         if opts["remove"]:
             return self._remove()
         if opts["password"] is not None and len(opts["password"]) < 10:

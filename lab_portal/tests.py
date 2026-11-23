@@ -516,3 +516,20 @@ class SeedDemoLabTests(TestCase):
         call_command("seed_demo_lab", "--remove", stdout=StringIO())
         self.assertFalse(PartnerLab.objects.filter(name=lab.name).exists())
         self.assertFalse(get_user_model().objects.filter(username__startswith="demo_diagnostika_").exists())
+
+    def test_from_env_does_nothing_unless_switched_on_and_never_fails(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        with mock.patch.dict("os.environ", {"SEED_DEMO_LAB": ""}):
+            call_command("seed_demo_lab", "--from-env", stdout=StringIO())
+        self.assertFalse(PartnerLab.objects.exists())
+        org = Organization.objects.create(name="Env Clinic")
+        env = {"SEED_DEMO_LAB": "true", "DEMO_LAB_PASSWORD": "env-pass-1234", "DEMO_LAB_CLINIC": str(org.pk)}
+        with mock.patch.dict("os.environ", env):
+            call_command("seed_demo_lab", "--from-env", stdout=StringIO())
+        self.assertTrue(get_user_model().objects.get(username="demo_diagnostika_asst").check_password("env-pass-1234"))
+        self.assertTrue(ClinicLab.objects.filter(organization=org).exists())
+        with mock.patch.dict("os.environ", {**env, "DEMO_LAB_CLINIC": "no such clinic"}):
+            call_command("seed_demo_lab", "--from-env", stdout=StringIO(), stderr=StringIO())  # warns, doesn't raise
