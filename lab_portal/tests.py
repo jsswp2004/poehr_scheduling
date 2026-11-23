@@ -487,3 +487,32 @@ class DirectoryTests(Base):
         listed = self.api(self.doctor).get("/api/lab-requests/clinic-labs/").json()
         self.assertEqual(listed["results"][0]["name"], "Rizal Clinical Lab")  # the default first
         self.assertEqual(listed["country"], "PH")
+
+
+class SeedDemoLabTests(TestCase):
+    def test_seed_is_idempotent_links_the_clinic_and_removes_cleanly(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        org = Organization.objects.create(name="Seed Clinic")
+        out = StringIO()
+        call_command("seed_demo_lab", "--clinic", str(org.pk), "--password", "demo-pass-123", stdout=out)
+        lab = PartnerLab.objects.get(name="Diagnostika Clinical Laboratory (DEMO)")
+        self.assertEqual(lab.status, "approved")
+        staff = {m.user.username: m for m in PartnerLabStaff.objects.filter(partner=lab).select_related("user")}
+        self.assertEqual(set(staff), {"demo_diagnostika_admin", "demo_diagnostika_asst", "demo_diagnostika_path"})
+        self.assertTrue(staff["demo_diagnostika_admin"].is_admin)
+        self.assertFalse(staff["demo_diagnostika_asst"].can_release)
+        self.assertTrue(staff["demo_diagnostika_path"].is_pathologist)
+        self.assertTrue(staff["demo_diagnostika_asst"].user.check_password("demo-pass-123"))
+        self.assertTrue(ClinicLab.objects.filter(organization=org, partner=lab, mode="partner_portal").exists())
+
+        call_command("seed_demo_lab", "--clinic", str(org.pk), stdout=StringIO())  # re-run keeps passwords, no duplicates
+        self.assertEqual(PartnerLab.objects.filter(name=lab.name).count(), 1)
+        self.assertEqual(ClinicLab.objects.filter(partner=lab).count(), 1)
+        self.assertTrue(get_user_model().objects.get(username="demo_diagnostika_admin").check_password("demo-pass-123"))
+
+        call_command("seed_demo_lab", "--remove", stdout=StringIO())
+        self.assertFalse(PartnerLab.objects.filter(name=lab.name).exists())
+        self.assertFalse(get_user_model().objects.filter(username__startswith="demo_diagnostika_").exists())
