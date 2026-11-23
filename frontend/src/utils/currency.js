@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { API_BASE_URL } from "../config/api";
 
 // Shows US-dollar prices in Philippine pesos for visitors in the Philippines. Prices are still set in
 // USD; the peso amount is an approximation from a recent exchange rate, refreshed at most every 12 hours.
@@ -42,7 +43,9 @@ let state = {
 const listeners = new Set();
 const setState = (patch) => { state = { ...state, ...patch }; listeners.forEach((l) => l()); };
 
-if (typeof window !== "undefined" && (state.currency === "PHP" || inPH) && (!cached || Date.now() - cached.at > RATE_TTL_MS)) {
+function loadRate() {
+  const c = cachedRate();
+  if (c && Date.now() - c.at <= RATE_TTL_MS) { if (c.rate !== state.rate) setState({ rate: c.rate }); return; }
   fetch(RATE_URL)
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error("rate"))))
     .then((d) => {
@@ -50,6 +53,29 @@ if (typeof window !== "undefined" && (state.currency === "PHP" || inPH) && (!cac
       if (rate > 0) { write(RATE_KEY, JSON.stringify({ rate, at: Date.now() })); setState({ rate }); }
     })
     .catch(() => { /* keep the cached or fallback rate */ });
+}
+
+// The visitor's IP address is the reliable test: a browser set to Singapore time or US English can still be
+// in the Philippines. The server answers with a two-letter country (or null), and that overrides the
+// browser guess above unless the visitor has already picked a currency.
+function loadCountry() {
+  fetch(`${API_BASE_URL}/api/users/visitor-country/`)
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error("country"))))
+    .then((d) => {
+      if (!d || !d.country) return;
+      const here = d.country === "PH";
+      const saved = read(PREF_KEY);
+      const patch = { inPhilippines: here };
+      if (saved !== "USD" && saved !== "PHP") patch.currency = here ? "PHP" : "USD";
+      setState(patch);
+      if (here) loadRate();
+    })
+    .catch(() => { /* keep the browser-based guess */ });
+}
+
+if (typeof window !== "undefined") {
+  if (state.currency === "PHP" || inPH) loadRate();
+  loadCountry();
 }
 
 export function formatPrice(s, usd, decimals = 0) {

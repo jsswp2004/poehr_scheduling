@@ -8,6 +8,7 @@ from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView, EdFol
 from .org_access import module_catalog, organization_access
 from .mds_session import mds_session
 from .dictionaries import dictionary_detail, dictionary_list
+from .visitor_country import visitor_country
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
@@ -133,6 +134,7 @@ urlpatterns = [
     path("dictionaries/", dictionary_list, name="dictionary-list"),
     path("dictionaries/<slug:code>/", dictionary_detail, name="dictionary-detail"),
     path("modules/", module_catalog, name="module-catalog"),
+    path("visitor-country/", visitor_country, name="visitor-country"),
     path("organization-access/", organization_access, name="organization-access"),
     path("team/", get_team_members, name="team-list"),
     # Debug endpoint for Stripe configuration
