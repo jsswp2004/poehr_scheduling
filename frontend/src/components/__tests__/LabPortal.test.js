@@ -17,6 +17,7 @@ jest.mock("../../config/api", () => ({
     labPortalAction: (id) => `/lab/requests/${id}/action/`,
     labPortalResults: (id) => `/lab/requests/${id}/results/`,
     labPortalReportFile: (id) => `/lab/requests/${id}/report-file/`,
+    labPortalReportFileRead: (id) => `/lab/requests/${id}/report-file/read/`,
     labPortalReportFileView: (id) => `/lab/requests/${id}/report-file/view/`,
     labPortalCriticalCall: (id) => `/lab/requests/${id}/critical-call/`,
     labPortalRelease: (id) => `/lab/requests/${id}/release/`,
@@ -32,7 +33,7 @@ jest.mock("../../config/api", () => ({
   },
 }), { virtual: true });
 jest.mock("../../utils/auth", () => ({ getValidToken: async () => "t" }), { virtual: true });
-jest.mock("react-toastify", () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
+jest.mock("react-toastify", () => ({ toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() } }));
 jest.mock("jwt-decode", () => ({ jwtDecode: jest.fn() }));
 jest.mock("../pharmacyPortal/ClaimCameraScanner", () => () => null);
 
@@ -189,6 +190,29 @@ describe("a lab request", () => {
     expect(api.post.mock.calls[0][1].items).toEqual([
       { item: 7, results: [expect.objectContaining({ test_name: "Complete blood count", value: "7.2" })] },
     ]);
+  });
+
+  test("Fill values from PDF puts the read values in the form for review, without saving", async () => {
+    const withPdf = { ...DETAIL, status: "in_process", status_label: "In process", report_file: { file_name: "cbc.pdf", size: 900 }, can_read_pdf: true };
+    api.get.mockResolvedValue({ data: withPdf });
+    api.post.mockResolvedValue({ data: { items: [{ item: 7, results: [
+      { test_name: "Hemoglobin", value: "13.9", units: "g/dL", reference_range: "13.5-17.5", abnormal_flag: "" },
+      { test_name: "WBC", value: "11.2", units: "x10^9/L", reference_range: "4.5-11.0", abnormal_flag: "H" },
+    ] }] } });
+    render(<LabRequestDialog open requestId={4} me={ME} onClose={() => {}} onChanged={() => {}} />);
+    fireEvent.click(await screen.findByTestId("lab-read-pdf"));
+    expect(await screen.findByTestId("lab-pdf-filled")).toHaveTextContent("Check every value");
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post.mock.calls[0][0]).toBe("/lab/requests/4/report-file/read/");
+    expect(screen.getByTestId("line-name-7-0")).toHaveValue("Hemoglobin");
+    expect(screen.getByTestId("line-value-7-1")).toHaveValue("11.2");
+  });
+
+  test("no Fill from PDF button when the reader is off", async () => {
+    api.get.mockResolvedValue({ data: { ...DETAIL, status: "in_process", status_label: "In process", report_file: { file_name: "cbc.pdf", size: 900 }, can_read_pdf: false } });
+    render(<LabRequestDialog open requestId={4} me={ME} onClose={() => {}} />);
+    await screen.findByTestId("lab-view-pdf");
+    expect(screen.queryByTestId("lab-read-pdf")).toBeNull();
   });
 
   test("someone who may not release sees the release buttons off", async () => {

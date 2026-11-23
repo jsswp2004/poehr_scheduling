@@ -94,6 +94,8 @@ export default function LabRequestDialog({ open, requestId, me, onClose, onChang
   const [accession, setAccession] = useState("");
   const [specimenNote, setSpecimenNote] = useState("");
   const [call, setCall] = useState({ called_name: "", called_number: "", read_back_confirmed: false });
+  const [reading, setReading] = useState(false);
+  const [filledFromPdf, setFilledFromPdf] = useState(false);
 
   const role = me?.user?.role || "";
   const isWorker = WORKER_ROLES.includes(role);
@@ -102,6 +104,7 @@ export default function LabRequestDialog({ open, requestId, me, onClose, onChang
 
   const show = useCallback((data) => {
     setReq(data);
+    setFilledFromPdf(false);
     const next = {};
     (data.items || []).forEach((i) => { next[i.id] = linesFrom(i); });
     setLines(next);
@@ -163,11 +166,36 @@ export default function LabRequestDialog({ open, requestId, me, onClose, onChang
       })),
   }, { headers: await authHeader() }), "Results saved. They are not sent to the clinic until you release them.");
 
+  // Read the values out of the attached PDF into the form. Nothing is saved: the person checks them, then saves.
+  const readPdf = async () => {
+    setReading(true);
+    setError("");
+    try {
+      const res = await api.post(apiEndpoints.labPortalReportFileRead(req.id), {}, { headers: await authHeader() });
+      const found = res.data?.items || [];
+      if (!found.length) {
+        toast.info("No values for these tests were found in the PDF. Enter them by hand.");
+        return;
+      }
+      setLines((all) => {
+        const next = { ...all };
+        found.forEach((f) => { next[f.item] = f.results.map((l) => ({ ...BLANK_LINE, ...l })); });
+        return next;
+      });
+      setFilledFromPdf(true);
+    } catch (err) {
+      setError(errorText(err, "Could not read the PDF. Enter the values by hand."));
+    } finally {
+      setReading(false);
+    }
+  };
+
   const uploadPdf = async (file) => {
     if (!file) return;
     const body = new FormData();
     body.append("file", file);
-    await run(async () => api.post(apiEndpoints.labPortalReportFile(req.id), body, { headers: await authHeader() }), "Signed report attached.");
+    const done = await run(async () => api.post(apiEndpoints.labPortalReportFile(req.id), body, { headers: await authHeader() }), "Signed report attached.");
+    if (done && req.can_read_pdf) await readPdf();
   };
 
   const viewPdf = async () => {
@@ -281,7 +309,18 @@ export default function LabRequestDialog({ open, requestId, me, onClose, onChang
                   {req.report_file && (
                     <Button size="small" onClick={viewPdf} data-testid="lab-view-pdf">{req.report_file.file_name}</Button>
                   )}
+                  {req.report_file && req.can_read_pdf && (
+                    <Button size="small" variant="outlined" disabled={busy || reading} onClick={readPdf} data-testid="lab-read-pdf"
+                      startIcon={reading ? <CircularProgress size={14} /> : null}>
+                      {reading ? "Reading the PDF..." : "Fill values from PDF"}
+                    </Button>
+                  )}
                 </Stack>
+                {filledFromPdf && (
+                  <Alert severity="warning" data-testid="lab-pdf-filled">
+                    Values filled in from the PDF. Check every value, unit and flag against the report, then Save results. Nothing is saved or sent yet.
+                  </Alert>
+                )}
 
                 {req.has_critical && (
                   <Paper variant="outlined" sx={{ p: 1.5, borderColor: "error.main" }} data-testid="lab-critical">
