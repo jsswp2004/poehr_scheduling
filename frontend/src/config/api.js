@@ -357,6 +357,7 @@ export const apiEndpoints = {
     labPortalAction: (id) => `${API_BASE_URL}/api/lab-portal/requests/${id}/action/`,
     labPortalResults: (id) => `${API_BASE_URL}/api/lab-portal/requests/${id}/results/`,
     labPortalReportFile: (id) => `${API_BASE_URL}/api/lab-portal/requests/${id}/report-file/`,
+    labPortalReportFileRead: (id) => `${API_BASE_URL}/api/lab-portal/requests/${id}/report-file/read/`,
     labPortalReportFileView: (id) => `${API_BASE_URL}/api/lab-portal/requests/${id}/report-file/view/`,
     labPortalCriticalCall: (id) => `${API_BASE_URL}/api/lab-portal/requests/${id}/critical-call/`,
     labPortalRelease: (id) => `${API_BASE_URL}/api/lab-portal/requests/${id}/release/`,

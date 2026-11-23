@@ -236,6 +236,13 @@ DICTATION_VERTEX_CREDENTIALS_JSON = os.environ.get("DICTATION_VERTEX_CREDENTIALS
 # Anthropic API only: the API key. Set it in the host environment (Render), never in code.
 DICTATION_ANTHROPIC_API_KEY = os.environ.get("DICTATION_ANTHROPIC_API_KEY", "")
 
+# ---- POWER Lab Portal: read result values out of a lab's signed PDF (lab_portal/pdf_reader.py) ----
+# Off until you turn it on, because it sends the report to Claude through the Dictation service above
+# (DICTATION_CLEANUP_PROVIDER and its credentials), which needs the same BAA. The values only pre-fill the form.
+LAB_PDF_READER_ENABLED = os.environ.get("LAB_PDF_READER_ENABLED", "").lower() in ("1", "true", "yes")
+# Model id; unset falls back to DICTATION_CLEANUP_MODEL_ID.
+LAB_PDF_READER_MODEL_ID = os.environ.get("LAB_PDF_READER_MODEL_ID", "")
+
 # ---- Documentation assistant (chat over a patient's chart: patients, notes, orders, visits, labs) ----
 # Off until you turn it on, because it sends chart text to the model. Needs the AWS BAA (same account and IAM
 # role as Dictation; Bedrock model invocation logging must stay OFF). Read-only: it never changes the chart.

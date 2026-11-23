@@ -36,7 +36,7 @@ from appointments import orders_workflow as ow
 from appointments.lab_intake import _complete_order
 from appointments.models import LabReport, LabReportFileData, Order
 
-from . import transport
+from . import pdf_reader, transport
 from .models import (
     OPEN_STATUSES,
     REQUEST_STATUSES,
@@ -577,6 +577,7 @@ def serialize(req, detail=False):
                                for c in req.critical_calls.select_related("called_by")],
             "report_file": ({"file_name": req.report_file.file_name, "size": req.report_file.size}
                             if LabRequestFile.objects.filter(request=req).exists() else None),
+            "can_read_pdf": pdf_reader.enabled(),
             "events": [{"type": e.event_type, "to": e.to_status, "at": e.created_at.isoformat(), "by": name_of(e.user) if e.user_id else ""}
                        for e in req.events.select_related("user")],
         })
@@ -818,6 +819,31 @@ def save_report_file(user, req, upload):
         "sha256": hashlib.sha256(content).hexdigest(), "data": content, "uploaded_by": user})
     _event(req, "report_file", user, {"file_name": name, "size": len(content)})
     return req
+
+
+def read_report_pdf(user, req):
+    """
+    Read the values out of the attached signed PDF, for the Results form to pre-fill. Saves nothing: the person checks
+    them against the report, then saves and releases as usual. Returns {"items": [{"item": id, "results": [...]}]}.
+    """
+    partner = _working_partner(user)
+    if getattr(user, "role", None) not in WORKER_ROLES:
+        raise LabPortalError("Only a medical technologist or pathologist can enter results.", 403)
+    if req.partner_id != partner.pk:
+        raise LabPortalError("Lab request not found.", 404)
+    _expect(req, ("collected", "in_process", "preliminary", "final"))
+    if not pdf_reader.enabled():
+        raise LabPortalError("Reading values from the PDF is not turned on for POWER yet. Enter them by hand.", 503)
+    f = LabRequestFile.objects.filter(request=req).first()
+    if f is None:
+        raise LabPortalError("Attach the signed report (PDF) first.")
+    tests = [{"id": i.pk, "name": i.order.orderable_name} for i in req.items.select_related("order").exclude(status="cancelled")]
+    try:
+        found = pdf_reader.read_values(bytes(f.data), tests)
+    except pdf_reader.PdfReaderUnavailable:
+        raise LabPortalError("Could not read the PDF just now. Try again, or enter the values by hand.", 503)
+    _event(req, "pdf_read", user, {"tests": len(found), "lines": sum(len(v) for v in found.values())})
+    return {"items": [{"item": item_id, "results": lines} for item_id, lines in found.items()]}
 
 
 @transaction.atomic

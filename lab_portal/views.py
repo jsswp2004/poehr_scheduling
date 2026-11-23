@@ -149,6 +149,22 @@ class ReportFileView(_RequestWrite):
         s.save_report_file(request.user, req, request.FILES.get("file"))
 
 
+class ReportFileReadView(PortalView):
+    """Values read from the attached PDF, to pre-fill the Results form (nothing is saved)."""
+
+    def post(self, request, pk):
+        req = self.get_request(pk)
+        if req is None:
+            return Response({"detail": "Lab request not found."}, status=404)
+        try:
+            data = s.read_report_pdf(request.user, req)
+        except s.LabPortalError as exc:
+            s.log_access(request.user, "read_pdf_refused", req, request, {"reason": exc.message[:200]})
+            return _error(exc)
+        s.log_access(request.user, "read_pdf", req, request)
+        return Response(data)
+
+
 class CriticalCallView(_RequestWrite):
     log_action = "critical_call"
 

@@ -489,6 +489,51 @@ class DirectoryTests(Base):
         self.assertEqual(listed["country"], "PH")
 
 
+class PdfReaderTests(Base):
+    READ = "/api/lab-portal/requests/{}/report-file/read/"
+
+    def test_off_by_default(self):
+        req = self.collected(self.one())
+        self.assertEqual(self.upload(self.rmt, req).status_code, 200)
+        self.assertFalse(self.api(self.rmt).get(f"/api/lab-portal/requests/{req.pk}/").json()["can_read_pdf"])
+        self.assertEqual(self.api(self.rmt).post(self.READ.format(req.pk)).status_code, 503)
+
+    @override_settings(LAB_PDF_READER_ENABLED=True, LAB_PDF_READER_MODEL_ID="claude-test")
+    def test_fills_values_for_review_without_saving(self):
+        req = self.collected(self.one())
+        item = req.items.get()
+        self.assertEqual(self.api(self.rmt).post(self.READ.format(req.pk)).status_code, 400)  # no PDF yet
+        self.assertEqual(self.upload(self.rmt, req).status_code, 200)
+        reply = {"tests": [
+            {"item_id": item.pk, "lines": [
+                {"test_name": "Hemoglobin", "value": "13.9", "units": "g/dL", "reference_range": "13.5-17.5", "abnormal_flag": ""},
+                {"test_name": "WBC", "value": "11.2", "units": "x10^9/L", "reference_range": "4.5-11.0", "abnormal_flag": "high"},
+                {"test_name": "", "value": "3"},  # no name: dropped
+            ]},
+            {"item_id": 999999, "lines": [{"test_name": "Not ours", "value": "1"}]},  # not on this request: dropped
+        ]}
+        with mock.patch("lab_portal.pdf_reader._call", return_value=reply) as call:
+            res = self.api(self.rmt).post(self.READ.format(req.pk))
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(call.call_args[0][0], PDF)
+        items = res.json()["items"]
+        self.assertEqual([i["item"] for i in items], [item.pk])
+        self.assertEqual([(l["test_name"], l["value"], l["abnormal_flag"]) for l in items[0]["results"]],
+                         [("Hemoglobin", "13.9", ""), ("WBC", "11.2", "H")])
+        item.refresh_from_db()
+        self.assertEqual(item.draft, {})  # nothing saved
+        self.assertTrue(req.events.filter(event_type="pdf_read").exists())
+
+    @override_settings(LAB_PDF_READER_ENABLED=True, LAB_PDF_READER_MODEL_ID="claude-test")
+    def test_service_failure_and_who_may_read(self):
+        req = self.collected(self.one())
+        self.upload(self.rmt, req)
+        with mock.patch("lab_portal.pdf_reader._call", side_effect=RuntimeError("down")):
+            self.assertEqual(self.api(self.rmt).post(self.READ.format(req.pk)).status_code, 503)
+        with mock.patch("lab_portal.pdf_reader._call", return_value={"tests": []}):
+            self.assertEqual(self.api(self.labadmin).post(self.READ.format(req.pk)).status_code, 403)
+
+
 class SeedDemoLabTests(TestCase):
     def test_seed_is_idempotent_links_the_clinic_and_removes_cleanly(self):
         from io import StringIO
