@@ -739,7 +739,12 @@ def act(user, req, action, data=None):
     if not reason:
         raise LabPortalError("Give the reason the specimen was rejected.")
     req.status, req.specimen_note, req.collected_at = "accepted", f"Recollect: {reason}"[:300], None
-    req.save(update_fields=["status", "specimen_note", "collected_at", "updated_at"])
+    req.accession_number = ""
+    req.save(update_fields=["status", "specimen_note", "collected_at", "accession_number", "updated_at"])
+    # nothing measured on the rejected specimen may be released as the new specimen's result: the saved values and
+    # the signed PDF go, and a critical value needs a new call (calls before this are kept for the record only)
+    req.items.exclude(status="cancelled").update(draft={}, draft_saved_at=None)
+    LabRequestFile.objects.filter(request=req).delete()
     _event(req, "recollect", user, {"reason": reason}, from_status=before)
     transport.notify_provider(req, "recollect", f"Specimen rejected for {req.number}",
                               f"{partner.name} rejected the specimen for {chart_name(req.patient)} ({reason}). The patient needs to return.")
@@ -869,7 +874,11 @@ def release(user, req, status):
             raise LabPortalError(f"{i.order.orderable_name}: {exc}")
     critical = any(p["abnormal_flag"] in CRITICAL_FLAGS for rows in prepared.values() for p in rows)
     if critical:
-        if not req.critical_calls.filter(read_back_confirmed=True).exists():
+        calls = req.critical_calls.filter(read_back_confirmed=True)
+        last_recollect = req.events.filter(event_type="recollect").order_by("-created_at").values_list("created_at", flat=True).first()
+        if last_recollect is not None:
+            calls = calls.filter(created_at__gt=last_recollect)
+        if not calls.exists():
             raise LabPortalError("A critical value needs a logged phone call with read-back before release.", 409)
         if partner.country == "PH" and not is_pathologist(user):
             raise LabPortalError("A result with a critical value must be released by the pathologist.", 403)
