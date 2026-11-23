@@ -75,6 +75,15 @@ def format_phone_to_international(phone):
     if raw.startswith("+") and 8 <= len(cleaned) <= 15:
         return f"+{cleaned}"
 
+    # Philippine mobile numbers typed without "+63": local "09XXXXXXXXX" (11
+    # digits) or "639XXXXXXXXX" (12 digits). A US number is never 12 digits and
+    # its area code can't start with 0, so these can't be misread as US. A bare
+    # 10-digit "9XXXXXXXXX" is NOT converted: 9xx is a valid US area-code range.
+    if len(cleaned) == 11 and cleaned.startswith("09"):
+        return f"+63{cleaned[1:]}"
+    if len(cleaned) == 12 and cleaned.startswith("639"):
+        return f"+{cleaned}"
+
     # Handle different scenarios
     if len(cleaned) == 10:
         # US number without country code: 3018806015 → +13018806015

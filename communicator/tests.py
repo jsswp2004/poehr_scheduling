@@ -21,6 +21,16 @@ class PhoneFormattingTest(SimpleTestCase):
         # Hong Kong: +852 + 8 digits is 11 digits and must not become +1...
         self.assertEqual(format_phone_to_international("+852 1234 5678"), "+85212345678")
 
+    def test_philippine_numbers_without_plus_are_recognised(self):
+        self.assertEqual(format_phone_to_international("09628289452"), "+639628289452")
+        self.assertEqual(format_phone_to_international("0962 828 9452"), "+639628289452")
+        self.assertEqual(format_phone_to_international("639628289452"), "+639628289452")
+        self.assertEqual(format_phone_to_international("63 962 828 9452"), "+639628289452")
+
+    def test_bare_ten_digit_nine_number_stays_us(self):
+        # 917 is a real US (NYC) area code, so a bare 9XXXXXXXXX must stay US.
+        self.assertEqual(format_phone_to_international("9175550199"), "+19175550199")
+
     def test_us_numbers_unchanged(self):
         self.assertEqual(format_phone_to_international("3018806015"), "+13018806015")
         self.assertEqual(format_phone_to_international("(301) 880-6015"), "+13018806015")
@@ -237,6 +247,19 @@ class PhilippineRoutingTest(TestCase):
         self.assertEqual(data["sendername"], "POWERHIT")
         log = MessageLog.objects.get(recipient="+639628289452")
         self.assertEqual((log.status, log.provider_id), ("sent", "semaphore:111"))
+
+    @override_settings(SEMAPHORE_API_KEY="key123", SEMAPHORE_SENDER_NAME="")
+    def test_local_format_ph_numbers_go_to_semaphore_not_twilio(self):
+        from .utils import send_sms
+
+        ok = _semaphore_response(200, [{"message_id": 5, "status": "Pending"}])
+        for number in ["09628289452", "639628289452"]:
+            with patch("communicator.utils.requests.post", return_value=ok) as post, patch(
+                "communicator.utils.Client"
+            ) as twilio:
+                send_sms(number, "Hello", user=self.user)
+            twilio.assert_not_called()
+            self.assertEqual(post.call_args.kwargs["data"]["number"], "639628289452")
 
     @override_settings(SEMAPHORE_API_KEY="key123", SEMAPHORE_SENDER_NAME="")
     def test_semaphore_error_is_logged_as_failed(self):
