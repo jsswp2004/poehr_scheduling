@@ -932,3 +932,6 @@ html {
 .pp-plan-pick:has(input:focus-visible) { outline: 2px solid var(--color-primary, #2563eb); outline-offset: 2px; }
 .pp-plan-price { font-size: 26px; font-weight: 700; color: #1e293b; }
 .pp-plan-price small { font-size: 14px; font-weight: 400; color: #64748b; }
+
+.pp-currency-note { font-size: 0.9rem; margin-top: 0.5rem; }
+.pp-currency-switch { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
