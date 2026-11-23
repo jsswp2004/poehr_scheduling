@@ -146,10 +146,14 @@ export default function LabRequestDialog({ open, requestId, me, onClose, onChang
   };
 
   const saveResults = () => run(async () => api.post(apiEndpoints.labPortalResults(req.id), {
-    items: (req.items || []).filter((i) => i.status !== "cancelled").map((i) => ({
-      item: i.id,
-      results: (lines[i.id] || []).filter((l) => String(l.test_name).trim() || String(l.value).trim()),
-    })).filter((row) => row.results.length > 0),
+    // a test with no value entered yet is left out, so the ready tests can be saved (and released as preliminary);
+    // once any value is entered, every line with a name or value goes, and the server checks them all
+    items: (req.items || []).filter((i) => i.status !== "cancelled")
+      .filter((i) => (lines[i.id] || []).some((l) => String(l.value ?? "").trim()))
+      .map((i) => ({
+        item: i.id,
+        results: (lines[i.id] || []).filter((l) => String(l.test_name).trim() || String(l.value ?? "").trim()),
+      })),
   }, { headers: await authHeader() }), "Results saved. They are not sent to the clinic until you release them.");
 
   const uploadPdf = async (file) => {

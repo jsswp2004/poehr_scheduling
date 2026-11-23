@@ -175,6 +175,22 @@ describe("a lab request", () => {
     expect(screen.getByTestId("lab-release-final")).not.toBeDisabled();
   });
 
+  test("a test with no value yet is left out, so the ready tests can be saved", async () => {
+    const two = {
+      ...DETAIL, status: "in_process", status_label: "In process",
+      items: [DETAIL.items[0], { ...DETAIL.items[0], id: 8, name: "Lipid panel", order_number: "ORD-00000012" }],
+    };
+    api.get.mockResolvedValue({ data: two });
+    api.post.mockResolvedValue({ data: two });
+    render(<LabRequestDialog open requestId={4} me={ME} onClose={() => {}} onChanged={() => {}} />);
+    fireEvent.change(await screen.findByTestId("line-value-7-0"), { target: { value: "7.2" } });
+    fireEvent.click(screen.getByTestId("lab-save-results"));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0][1].items).toEqual([
+      { item: 7, results: [expect.objectContaining({ test_name: "Complete blood count", value: "7.2" })] },
+    ]);
+  });
+
   test("someone who may not release sees the release buttons off", async () => {
     api.get.mockResolvedValue({ data: { ...DETAIL, status: "in_process", status_label: "In process" } });
     render(<LabRequestDialog open requestId={4} me={{ ...ME, user: { ...ME.user, can_release: false } }} onClose={() => {}} />);

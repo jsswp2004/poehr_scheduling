@@ -16,7 +16,7 @@ from appointments.models import Appointment, InboxAlert, LabReport, LabReportFil
 from users.models import Organization
 
 from . import services as s
-from .models import ClinicLab, LabPortalAccessLog, LabRequest, PartnerLab, PartnerLabStaff
+from .models import ClinicLab, LabPortalAccessLog, LabRequest, LabRequestFile, PartnerLab, PartnerLabStaff
 
 User = get_user_model()
 NEXT_YEAR = date.today() + timedelta(days=365)
@@ -396,6 +396,31 @@ class LabWorkflowTests(Base):
         self.assertEqual(self.do(self.rmt, req, "recollect", reason="Hemolyzed").status_code, 200)
         req.refresh_from_db()
         self.assertEqual((req.status, req.collected_at), ("accepted", None))
+
+    def test_recollect_throws_away_what_was_measured_on_the_rejected_specimen(self):
+        req = self.collected(self.one())
+        self.results(self.rmt, req, [CRITICAL])
+        self.upload(self.rmt, req)
+        call = {"called_name": "Nurse J. Bautista", "read_back_confirmed": True}
+        self.assertEqual(self.api(self.rmt).post(f"/api/lab-portal/requests/{req.pk}/critical-call/", call, format="json").status_code, 200)
+        self.assertEqual(self.do(self.rmt, req, "recollect", reason="Hemolyzed").status_code, 200)
+        item = req.items.get()
+        self.assertEqual((item.draft, item.draft_saved_at), ({}, None))
+        self.assertFalse(LabRequestFile.objects.filter(request=req).exists())
+        # the new specimen: nothing to release until new results are entered
+        self.assertEqual(self.do(self.rmt, req, "collect", accession_number="BDL-2").status_code, 200)
+        res, _ = self.release(self.path, req)
+        self.assertEqual(res.status_code, 400, res.content)
+        self.assertIn("results first", res.json()["detail"])
+        # a critical value on the new specimen needs a new call: the one before the recollect doesn't count
+        self.results(self.rmt, req, [CRITICAL])
+        self.upload(self.rmt, req)
+        res, _ = self.release(self.path, req)
+        self.assertEqual(res.status_code, 409)
+        self.assertIn("phone call", res.json()["detail"])
+        self.assertEqual(self.api(self.rmt).post(f"/api/lab-portal/requests/{req.pk}/critical-call/", call, format="json").status_code, 200)
+        res, _ = self.release(self.path, req)
+        self.assertEqual(res.status_code, 200, res.content)
 
     def test_admin_cannot_do_lab_work(self):
         req = self.one()
