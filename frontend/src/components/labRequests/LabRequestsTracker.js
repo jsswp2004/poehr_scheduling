@@ -14,23 +14,24 @@ const CANCELLABLE = ["unclaimed", "new", "accepted", "collected", "in_process"];
  * A patient's lab requests at outside labs (POWER Lab Portal): where each is, the code the patient shows, and Cancel.
  * Released results arrive in Lab Results and the provider's inbox like any other lab report.
  */
-export default function LabRequestsTracker({ patientId, refreshKey = 0, canCancel = false }) {
+export default function LabRequestsTracker({ patientId = null, refreshKey = 0, canCancel = false, openOnly = false, title = "Outside lab requests" }) {
+  const clinicWide = !patientId;
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(null);
   const [reason, setReason] = useState("");
 
   const load = useCallback(async () => {
-    if (!patientId) return;
     try {
-      const res = await api.get(apiEndpoints.labRequests, { headers: await authHeader(), params: { patient: patientId } });
+      const params = clinicWide ? (openOnly ? { open: 1 } : {}) : { patient: patientId };
+      const res = await api.get(apiEndpoints.labRequests, { headers: await authHeader(), params });
       setRows(Array.isArray(res.data) ? res.data : res.data.results || []);
       setError("");
     } catch (err) {
       setRows([]);
       if (err?.response && err.response.status !== 403) setError(errorText(err, "Could not load the outside lab requests."));
     }
-  }, [patientId]);
+  }, [patientId, clinicWide, openOnly]);
 
   useEffect(() => {
     load();
@@ -47,17 +48,18 @@ export default function LabRequestsTracker({ patientId, refreshKey = 0, canCance
     }
   };
 
-  if (rows.length === 0 && !error) return null;
+  if (rows.length === 0 && !error && !clinicWide) return null;
 
   return (
     <Box data-testid="lab-requests-tracker">
-      <Typography variant="subtitle1" sx={{ mb: 1 }}>Outside lab requests</Typography>
+      {title && <Typography variant="subtitle1" sx={{ mb: 1 }}>{title}</Typography>}
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Request</TableCell>
+              {clinicWide && <TableCell>Patient</TableCell>}
               <TableCell>Tests</TableCell>
               <TableCell>Lab</TableCell>
               <TableCell>Patient's code</TableCell>
@@ -67,6 +69,9 @@ export default function LabRequestsTracker({ patientId, refreshKey = 0, canCance
             </TableRow>
           </TableHead>
           <TableBody>
+            {rows.length === 0 && (
+              <TableRow><TableCell colSpan={clinicWide ? 8 : 7}><Typography variant="body2" color="text.secondary" data-testid="lab-requests-empty">No outside lab requests{openOnly ? " waiting" : ""}.</Typography></TableCell></TableRow>
+            )}
             {rows.map((r) => (
               <TableRow key={r.id} data-testid={`lab-request-row-${r.id}`}>
                 <TableCell>
@@ -74,6 +79,7 @@ export default function LabRequestsTracker({ patientId, refreshKey = 0, canCance
                   {r.priority === "stat" && <Chip size="small" color="error" label="STAT" sx={{ ml: 0.5 }} />}
                   {r.care_setting === "inpatient" && <Typography variant="caption" display="block" color="text.secondary">Inpatient{r.location ? ` · ${r.location}` : ""}</Typography>}
                 </TableCell>
+                {clinicWide && <TableCell>{r.patient?.name}<Typography variant="caption" display="block" color="text.secondary">{r.provider}</Typography></TableCell>}
                 <TableCell>{r.tests.map((t) => t.name).join(", ")}</TableCell>
                 <TableCell>{r.lab || <Typography variant="body2" color="text.secondary">Patient chooses</Typography>}</TableCell>
                 <TableCell><code>{r.claim_code}</code></TableCell>

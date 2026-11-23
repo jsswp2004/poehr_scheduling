@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import {
-  Alert, Autocomplete, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid,
+  Alert, Autocomplete, Box, Button, Checkbox, Chip, Tab, Tabs, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid,
   MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
 import ScienceIcon from "@mui/icons-material/Science";
@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { authHeader, errorText, licenseWord } from "../components/labPortal/labShared";
+import LabRequestsTracker from "../components/labRequests/LabRequestsTracker";
 
 const MODES = [
   { value: "partner_portal", label: "POWER Lab Portal partner" },
@@ -121,13 +122,8 @@ function PartnerApprovals() {
   );
 }
 
-/**
- * Partner Labs (/lab-network): the clinic's lab directory (which outside labs its providers can send lab orders to,
- * the default, and which take inpatient work) and, for POWER administrators, partner lab approval.
- */
-export default function LabNetworkPage() {
-  const role = roleOf();
-  const isSysAdmin = role === "system_admin";
+/** The clinic's lab directory: which outside labs its providers can send lab orders to, the default, and inpatient work. */
+function LabDirectory({ canEdit }) {
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [form, setForm] = useState(BLANK);
@@ -184,17 +180,8 @@ export default function LabNetworkPage() {
   };
 
   return (
-    <Box sx={{ px: 2, py: 2, maxWidth: 1200, mx: "auto" }} data-testid="lab-network-page">
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-        <ScienceIcon color="primary" />
-        <Typography variant="h6">Partner Labs</Typography>
-      </Stack>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Outside laboratories your providers can send signed lab orders to. Labs on the POWER Lab Portal get the request in their portal
-        and by text, and send results straight back to the ordering provider.
-      </Typography>
+    <Box data-testid="lab-directory">
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
-
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>Your lab directory</Typography>
         <TableContainer>
@@ -218,9 +205,9 @@ export default function LabNetworkPage() {
                     {r.partner ? r.partner.name : "—"}
                     {r.partner?.problem && <Typography variant="caption" display="block" color="error">{r.partner.problem}</Typography>}
                   </TableCell>
-                  <TableCell><Checkbox size="small" checked={r.is_default} onChange={(e) => change(r, { is_default: e.target.checked })} /></TableCell>
-                  <TableCell><Checkbox size="small" checked={r.accepts_inpatient} onChange={(e) => change(r, { accepts_inpatient: e.target.checked })} /></TableCell>
-                  <TableCell><Checkbox size="small" checked={r.is_active} onChange={(e) => change(r, { is_active: e.target.checked })} /></TableCell>
+                  <TableCell><Checkbox size="small" disabled={!canEdit} checked={r.is_default} onChange={(e) => change(r, { is_default: e.target.checked })} /></TableCell>
+                  <TableCell><Checkbox size="small" disabled={!canEdit} checked={r.accepts_inpatient} onChange={(e) => change(r, { accepts_inpatient: e.target.checked })} /></TableCell>
+                  <TableCell><Checkbox size="small" disabled={!canEdit} checked={r.is_active} onChange={(e) => change(r, { is_active: e.target.checked })} /></TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 && <TableRow><TableCell colSpan={6}><Typography variant="body2" color="text.secondary">No labs yet. Add one below.</Typography></TableCell></TableRow>}
@@ -228,6 +215,7 @@ export default function LabNetworkPage() {
           </Table>
         </TableContainer>
 
+        {canEdit ? (<>
         <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Add a lab</Typography>
         <Grid container spacing={1.5}>
           <Grid size={{ xs: 12, sm: 4 }}>
@@ -260,9 +248,56 @@ export default function LabNetworkPage() {
           <FormControlLabel control={<Checkbox checked={form.accepts_inpatient} onChange={(e) => setForm({ ...form, accepts_inpatient: e.target.checked })} />} label="Takes our inpatient (outsourced) labs" />
           <Button variant="contained" size="small" disabled={!form.name.trim() || (form.mode === "partner_portal" && !form.partner)} onClick={add} data-testid="clinic-lab-add">Add</Button>
         </Stack>
+        </>) : (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Your clinic's administrator adds and changes labs.</Typography>
+        )}
       </Paper>
 
-      {isSysAdmin && <PartnerApprovals />}
+    </Box>
+  );
+}
+
+const TABS = [
+  { value: "requests", label: "Outside lab requests" },
+  { value: "directory", label: "Partner labs" },
+  { value: "approvals", label: "Lab approvals", sysAdminOnly: true },
+];
+
+/**
+ * POWER Labs (/labs, the Solutions tile; also /lab-network from the Management Portal): every lab order the clinic
+ * sent to an outside partner lab and where it is, the clinic's lab directory, and, for POWER administrators, partner
+ * lab approval. Lab orders are sent from a patient's Orders (Send to lab); results come back to Lab Results.
+ */
+export default function LabNetworkPage({ initialTab = "requests" }) {
+  const role = roleOf();
+  const isSysAdmin = role === "system_admin";
+  const isAdmin = isSysAdmin || role === "admin";
+  const [tab, setTab] = useState(initialTab);
+  const [openOnly, setOpenOnly] = useState(true);
+
+  return (
+    <Box sx={{ px: 2, py: 2, maxWidth: 1200, mx: "auto" }} data-testid="lab-network-page">
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+        <ScienceIcon color="primary" />
+        <Typography variant="h6">POWER Labs</Typography>
+      </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Lab orders sent to outside partner labs on the POWER Lab Portal. Send them from a patient's Orders (Send to lab); the lab gets
+        them in its portal and by text, and results come straight back to the ordering provider's Lab Results.
+      </Typography>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
+        {TABS.filter((t) => !t.sysAdminOnly || isSysAdmin).map((t) => (
+          <Tab key={t.value} value={t.value} label={t.label} data-testid={`labs-tab-${t.value}`} sx={{ textTransform: "none" }} />
+        ))}
+      </Tabs>
+      {tab === "requests" && (
+        <>
+          <FormControlLabel control={<Checkbox size="small" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />} label="Still open only" sx={{ mb: 1 }} />
+          <LabRequestsTracker title="" openOnly={openOnly} canCancel={["admin", "system_admin", "doctor", "nurse"].includes(role)} />
+        </>
+      )}
+      {tab === "directory" && <LabDirectory canEdit={isAdmin} />}
+      {tab === "approvals" && isSysAdmin && <PartnerApprovals />}
     </Box>
   );
 }
