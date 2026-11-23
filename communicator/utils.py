@@ -1,7 +1,59 @@
+import os
+from types import SimpleNamespace
+
+import requests
 from twilio.rest import Client
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import MessageLog
+
+SEMAPHORE_URL = "https://api.semaphore.co/api/v4/messages"
+# Philippine numbers cannot be reached from a US Twilio number (error 21612),
+# so +63 destinations go through Semaphore, a Philippine SMS gateway.
+PH_PREFIX = "+63"
+
+
+def _semaphore_config():
+    """(api_key, sender_name) from Django settings or the environment."""
+    key = getattr(settings, "SEMAPHORE_API_KEY", "") or os.getenv("SEMAPHORE_API_KEY", "")
+    sender = getattr(settings, "SEMAPHORE_SENDER_NAME", "") or os.getenv(
+        "SEMAPHORE_SENDER_NAME", ""
+    )
+    return key.strip(), sender.strip()
+
+
+def _send_via_semaphore(to_e164: str, message: str):
+    """
+    Send one SMS through Semaphore. Raises on any failure so send_sms can log it.
+    Note: Semaphore silently drops messages that start with the word "test".
+    Semaphore has no inbound/webhook API, so replies (STOP) never reach the app.
+    """
+    key, sender = _semaphore_config()
+    payload = {
+        "apikey": key,
+        "number": to_e164.lstrip("+"),  # Semaphore expects 639XXXXXXXXX
+        "message": message,
+    }
+    if sender:
+        payload["sendername"] = sender
+
+    resp = requests.post(SEMAPHORE_URL, data=payload, timeout=20)
+    try:
+        data = resp.json()
+    except ValueError:
+        data = None
+
+    if resp.status_code >= 400 or not isinstance(data, list) or not data:
+        detail = data if data is not None else resp.text[:200]
+        raise Exception(f"Semaphore error (HTTP {resp.status_code}): {detail}")
+
+    first = data[0]
+    status = str(first.get("status", "")).lower()
+    if status in ("failed", "refunded"):
+        raise Exception(f"Semaphore rejected the message (status: {status})")
+    return SimpleNamespace(
+        sid=str(first.get("message_id", "")), status=status, provider="semaphore"
+    )
 
 
 def format_phone_to_international(phone):
@@ -178,15 +230,38 @@ def send_sms(to: str, message: str, user=None, organization=None, bypass_opt_out
                 f"   This might be a contact from the contact list rather than a registered user"
             )
 
-    client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-    try:
-        print(f"Sending to Twilio with number: '{formatted_phone}'")
-        result = client.messages.create(
+    use_semaphore = bool(formatted_phone) and formatted_phone.startswith(PH_PREFIX)
+    provider = "Semaphore" if use_semaphore else "Twilio"
+
+    if use_semaphore and not _semaphore_config()[0]:
+        # Fail early with a clear reason instead of a confusing Twilio 400.
+        reason = "No Philippine SMS provider is configured (SEMAPHORE_API_KEY is not set)"
+        print(f"❌ {reason}")
+        MessageLog.objects.create(
+            user=user,
+            organization=org,
+            recipient=formatted_phone,
             body=message,
-            from_=settings.TWILIO_PHONE_NUMBER,
-            to=formatted_phone,  # Use formatted phone number
+            message_type="sms",
+            status="failed",
+            provider_id=reason[:100],
         )
-        print(f"✅ Twilio success - SID: {result.sid}")
+        raise Exception(reason)
+
+    try:
+        print(f"Sending via {provider} with number: '{formatted_phone}'")
+        if use_semaphore:
+            result = _send_via_semaphore(formatted_phone, message)
+            provider_id = f"semaphore:{result.sid}"
+        else:
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            result = client.messages.create(
+                body=message,
+                from_=settings.TWILIO_PHONE_NUMBER,
+                to=formatted_phone,  # Use formatted phone number
+            )
+            provider_id = result.sid
+        print(f"✅ {provider} success - ID: {result.sid}")
         MessageLog.objects.create(
             user=user,
             organization=org,
@@ -194,12 +269,12 @@ def send_sms(to: str, message: str, user=None, organization=None, bypass_opt_out
             body=message,
             message_type="sms",
             status="sent",
-            provider_id=result.sid,
+            provider_id=provider_id,
         )
         print(f"✅ MessageLog created with recipient: '{formatted_phone}'")
         return result
     except Exception as exc:
-        print(f"❌ Twilio error: {str(exc)}")
+        print(f"❌ {provider} error: {str(exc)}")
         MessageLog.objects.create(
             user=user,
             organization=org,

@@ -1,7 +1,7 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIClient
 
 from .models import Contact
@@ -205,6 +205,80 @@ class ContactOptOutTest(TestCase):
         client.post("/api/communicator/sms-webhook/", {"From": "+13015550199", "Body": "START"})
         self.contact.refresh_from_db()
         self.assertFalse(self.contact.sms_opt_out)
+
+
+def _semaphore_response(status_code=200, payload=None):
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.json.return_value = payload
+    resp.text = str(payload)
+    return resp
+
+
+class PhilippineRoutingTest(TestCase):
+    """+63 numbers go through Semaphore; everything else stays on Twilio."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="ph", password="pass")
+
+    @override_settings(SEMAPHORE_API_KEY="key123", SEMAPHORE_SENDER_NAME="POWERHIT")
+    def test_ph_number_is_sent_via_semaphore(self):
+        from .models import MessageLog
+        from .utils import send_sms
+
+        ok = _semaphore_response(200, [{"message_id": 111, "status": "Queued"}])
+        with patch("communicator.utils.requests.post", return_value=ok) as post, patch(
+            "communicator.utils.Client"
+        ) as twilio:
+            send_sms("+63 962 828 9452", "Hello", user=self.user)
+        twilio.assert_not_called()
+        data = post.call_args.kwargs["data"]
+        self.assertEqual(data["number"], "639628289452")
+        self.assertEqual(data["sendername"], "POWERHIT")
+        log = MessageLog.objects.get(recipient="+639628289452")
+        self.assertEqual((log.status, log.provider_id), ("sent", "semaphore:111"))
+
+    @override_settings(SEMAPHORE_API_KEY="key123", SEMAPHORE_SENDER_NAME="")
+    def test_semaphore_error_is_logged_as_failed(self):
+        from .models import MessageLog
+        from .utils import send_sms
+
+        bad = _semaphore_response(400, {"sendername": ["Sender name not approved"]})
+        with patch("communicator.utils.requests.post", return_value=bad):
+            with self.assertRaises(Exception) as ctx:
+                send_sms("+639628289452", "Hello", user=self.user)
+        self.assertIn("Semaphore error", str(ctx.exception))
+        self.assertTrue(MessageLog.objects.filter(status="failed").exists())
+
+    @override_settings(SEMAPHORE_API_KEY="")
+    def test_ph_number_without_key_fails_early(self):
+        from .models import MessageLog
+        from .utils import send_sms
+
+        with patch.dict("os.environ", {"SEMAPHORE_API_KEY": ""}), patch(
+            "communicator.utils.requests.post"
+        ) as post, patch("communicator.utils.Client") as twilio:
+            with self.assertRaises(Exception) as ctx:
+                send_sms("+639628289452", "Hello", user=self.user)
+        self.assertIn("No Philippine SMS provider", str(ctx.exception))
+        post.assert_not_called()
+        twilio.assert_not_called()
+        self.assertTrue(MessageLog.objects.filter(status="failed").exists())
+
+    @override_settings(SEMAPHORE_API_KEY="key123")
+    def test_non_philippine_numbers_stay_on_twilio(self):
+        from .utils import send_sms
+
+        # US, UK, Hong Kong (+852 is 11 digits) and a number that merely
+        # contains 63 must all stay on Twilio.
+        for number in ["3015550199", "+1 301 555 0199", "+44 1234 567890", "+852 1234 5678", "+16305550199"]:
+            with patch("communicator.utils.requests.post") as post, patch(
+                "communicator.utils.Client"
+            ) as twilio:
+                twilio.return_value.messages.create.return_value.sid = "SM123"
+                send_sms(number, "Hello", user=self.user)
+            post.assert_not_called()
+            twilio.return_value.messages.create.assert_called_once()
 
 
 class CsvUploadTest(TestCase):
