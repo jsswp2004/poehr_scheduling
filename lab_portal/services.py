@@ -872,13 +872,13 @@ def release(user, req, status):
             prepared[i.pk] = lab_results.prepare_items(i.draft.get("items") or [])
         except lab_results.LabResultError as exc:
             raise LabPortalError(f"{i.order.orderable_name}: {exc}")
-    critical = any(p["abnormal_flag"] in CRITICAL_FLAGS for rows in prepared.values() for p in rows)
-    if critical:
-        calls = req.critical_calls.filter(read_back_confirmed=True)
-        last_recollect = req.events.filter(event_type="recollect").order_by("-created_at").values_list("created_at", flat=True).first()
-        if last_recollect is not None:
-            calls = calls.filter(created_at__gt=last_recollect)
-        if not calls.exists():
+    critical_items = [i for i in ready if any(p["abnormal_flag"] in CRITICAL_FLAGS for p in prepared[i.pk])]
+    critical = bool(critical_items)
+    if critical_items:
+        # the call must be about these values: logged after the last time any critical result being released was saved
+        # (a call about an earlier value, or about the rejected specimen before a recollect, doesn't count)
+        saved = max(i.draft_saved_at for i in critical_items)
+        if not req.critical_calls.filter(read_back_confirmed=True, created_at__gt=saved).exists():
             raise LabPortalError("A critical value needs a logged phone call with read-back before release.", 409)
         if partner.country == "PH" and not is_pathologist(user):
             raise LabPortalError("A result with a critical value must be released by the pathologist.", 403)
