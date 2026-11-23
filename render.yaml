@@ -8,11 +8,13 @@ services:
     region: ohio
     branch: azure-deployment-fixed
     # The demo seeds (seed_demo_data, seed_physician_demo) are not run on deploy: run them by hand in the Render shell
-    # only when a database needs demo data.
+    # only when a database needs demo data. seed_demo_lab --from-env does nothing unless SEED_DEMO_LAB=true is set in
+    # the dashboard (with DEMO_LAB_PASSWORD and, optionally, DEMO_LAB_CLINIC), and it never fails the build.
     buildCommand: >-
       pip install -r requirements.txt &&
       python manage.py collectstatic --noinput &&
-      python manage.py migrate
+      python manage.py migrate &&
+      python manage.py seed_demo_lab --from-env
     startCommand: "gunicorn poehr_scheduling_backend.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
