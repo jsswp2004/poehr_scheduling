@@ -579,3 +579,37 @@ class SeedDemoLabTests(TestCase):
         self.assertTrue(ClinicLab.objects.filter(organization=org).exists())
         with mock.patch.dict("os.environ", {**env, "DEMO_LAB_CLINIC": "no such clinic"}):
             call_command("seed_demo_lab", "--from-env", stdout=StringIO(), stderr=StringIO())  # warns, doesn't raise
+
+
+class PdfReaderFallbackTests(TestCase):
+    def test_text_layer_is_used_when_pdf_input_is_refused(self):
+        from lab_portal import pdf_reader
+
+        class Refused(Exception):
+            status_code = 400
+
+        sent = []
+
+        def ask(content):
+            sent.append(content)
+            if content[0]["type"] == "document":
+                raise Refused("model does not support PDF input")
+            return {"tests": []}
+
+        with mock.patch.object(pdf_reader, "_ask", side_effect=ask), mock.patch.object(pdf_reader, "pdf_text", return_value="WBC 11.8 H"):
+            self.assertEqual(pdf_reader._call(b"%PDF-1.4", [{"id": 1, "name": "CBC"}]), {"tests": []})
+        self.assertEqual(len(sent), 2)
+        self.assertIn("WBC 11.8 H", sent[1][0]["text"])
+
+    def test_pdf_text_reads_a_generated_report(self):
+        from io import BytesIO
+
+        from reportlab.pdfgen import canvas
+
+        from lab_portal import pdf_reader
+
+        buf = BytesIO()
+        c = canvas.Canvas(buf)
+        c.drawString(72, 720, "Hemoglobin 13.1 L g/dL 13.5 - 17.5")
+        c.save()
+        self.assertIn("Hemoglobin 13.1", pdf_reader.pdf_text(buf.getvalue()))
