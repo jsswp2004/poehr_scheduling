@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { PORTAL_HOME, PORTAL_ROLES } from '../utils/landing';
+import { portalHomeFor } from '../utils/landing';
 
 // blockRoles/blockedTo: roles that may be signed in but must not open this page
 // (for example Staffing-only "staff" logins and the patient portal).
@@ -14,15 +14,16 @@ function PrivateRoute({ children, blockRoles = [], blockedTo = '/solutions' }) {
     return <Navigate to="/login" />;
   }
 
-  // POWER Pharmacy Portal accounts never open an internal page: always back to the portal (the server refuses them too).
+  // POWER Pharmacy Portal and Lab Portal accounts never open an internal page: always back to the portal (the server refuses them too).
   let signedInRole = '';
   try {
     signedInRole = jwtDecode(token).role || '';
   } catch (err) {
     signedInRole = '';
   }
-  if (PORTAL_ROLES.includes(signedInRole) && !(location.pathname || '').startsWith(PORTAL_HOME)) {
-    return <Navigate to={PORTAL_HOME} replace />;
+  const portalHome = portalHomeFor(signedInRole);
+  if (portalHome && !(location.pathname || '').startsWith(portalHome)) {
+    return <Navigate to={portalHome} replace />;
   }
 
   if (blockRoles.length > 0) {

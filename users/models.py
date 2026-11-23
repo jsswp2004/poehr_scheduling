@@ -22,6 +22,10 @@ class CustomUser(AbstractUser):
         # POWER Pharmacy Portal (Phase 3): staff of an outside (partner) pharmacy. They only ever reach the portal.
         ("ext_pharmacist", "External Pharmacist"),
         ("ext_pharmacy_admin", "External Pharmacy Admin"),
+        # POWER Lab Portal: staff of an outside (partner) laboratory. They only ever reach the lab portal.
+        ("ext_lab_tech", "External Medical Technologist"),
+        ("ext_lab_pathologist", "External Pathologist"),
+        ("ext_lab_admin", "External Lab Admin"),
     )
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="none"

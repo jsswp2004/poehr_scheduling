@@ -10,6 +10,10 @@ import LoginPage from './pages/LoginPage';
 import PharmacyPortalPage from './pages/PharmacyPortalPage';
 import PharmacyPortalRegisterPage from './pages/PharmacyPortalRegisterPage';
 import PharmacyPortalClaimLinkPage from './pages/PharmacyPortalClaimLinkPage';
+import LabPortalPage from './pages/LabPortalPage';
+import LabPortalRegisterPage from './pages/LabPortalRegisterPage';
+import LabPortalClaimLinkPage from './pages/LabPortalClaimLinkPage';
+import LabNetworkPage from './pages/LabNetworkPage';
 import RegisterPage from './pages/RegisterPage';
 import RegistrationWorkspacePage from './pages/RegistrationWorkspacePage';
 import DashboardPage from './pages/DashboardPage';
@@ -232,6 +236,11 @@ function AppContent() {
         <Route path="/pharmacy-portal" element={<PrivateRoute><PharmacyPortalPage /></PrivateRoute>} />
         <Route path="/pharmacy-portal/register" element={<PharmacyPortalRegisterPage />} />
         <Route path="/pharmacy-portal/claim" element={<PharmacyPortalClaimLinkPage />} />
+        {/* POWER Lab Portal: partner laboratories (their own landing), and the clinic's Partner Labs directory */}
+        <Route path="/lab-portal" element={<PrivateRoute><LabPortalPage /></PrivateRoute>} />
+        <Route path="/lab-portal/register" element={<LabPortalRegisterPage />} />
+        <Route path="/lab-portal/claim" element={<LabPortalClaimLinkPage />} />
+        <Route path="/lab-network" element={<PrivateRoute><LabNetworkPage /></PrivateRoute>} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/patients" element={<PrivateRoute><PatientsPage /></PrivateRoute>} />
         <Route path="/patients/:id" element={<PrivateRoute><PatientDetailPage /></PrivateRoute>} />

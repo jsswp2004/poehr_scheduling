@@ -117,6 +117,7 @@ MODULE_ROUTES = [
     ("lab-reports/", "clinical_documentation"),
     ("lab-messages/", "clinical_documentation"),
     ("lab-usage/", "clinical_documentation"),
+    ("lab-requests/", "clinical_documentation"),  # POWER Lab Portal, clinic side (sending orders to partner labs)
     ("referrals/", "clinical_documentation"),
     ("referral-", "clinical_documentation"),
     ("prescriptions/", "clinical_documentation"),

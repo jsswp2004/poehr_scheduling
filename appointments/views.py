@@ -1670,6 +1670,13 @@ class RunScheduledJobsView(APIView):
         except Exception as exc:
             results["staffing_shift_generation"] = f"error: {exc}"
 
+        try:
+            from lab_portal.services import remind_and_expire
+
+            results["lab_request_reminders"] = remind_and_expire()
+        except Exception as exc:
+            results["lab_request_reminders"] = f"error: {exc}"
+
         today = timezone.now().date()
         if today.day == 1:
             from users.messaging_stripe import report_monthly_messaging_usage
@@ -1702,6 +1709,12 @@ class RunScheduledJobsView(APIView):
                 results["portal_access_log_purge"] = {"deleted": purge_access_log()}
             except Exception as exc:
                 results["portal_access_log_purge"] = f"error: {exc}"
+            try:
+                from lab_portal.services import purge_access_log as purge_lab_log
+
+                results["lab_portal_access_log_purge"] = {"deleted": purge_lab_log()}
+            except Exception as exc:
+                results["lab_portal_access_log_purge"] = f"error: {exc}"
         else:
             results["messaging_billing"] = "skipped (only runs on the 1st of the month)"
             results["portal_access_log_purge"] = "skipped (only runs on the 1st of the month)"

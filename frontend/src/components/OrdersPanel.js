@@ -40,6 +40,8 @@ import { toast } from "./SimpleToast";
 import DynamicNoteForm from "./DynamicNoteForm";
 import IcdCodePicker, { dxLabel } from "./IcdCodePicker";
 import LabResultsPanel from "./LabResultsPanel";
+import SendToLabDialog, { sendableLabOrders } from "./labRequests/SendToLabDialog";
+import LabRequestsTracker from "./labRequests/LabRequestsTracker";
 import PanelTitle from "./patients/PanelTitle";
 import OrderSchedule from "./tasks/OrderSchedule";
 import { scheduleSummary } from "./tasks/taskShared";
@@ -131,6 +133,8 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
   const [allergyStop, setAllergyStop] = useState(null); // { items: [{ name, alerts }], retry }
   const [overrideReason, setOverrideReason] = useState("");
   const [draftAlerts, setDraftAlerts] = useState({}); // { [orderId]: [alert, ...] } for medication drafts
+  const [sendToLab, setSendToLab] = useState(null); // { preselect: [orderId] } while the Send to lab dialog is open
+  const [labRequestsKey, setLabRequestsKey] = useState(0);
   const [labEntry, setLabEntry] = useState(null); // asks the lab results section below to open its entry form for an order
 
   const canPlace = ["doctor", "nurse", "admin", "system_admin"].includes(me.role);
@@ -647,6 +651,11 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
               Complete
             </Button>
           )}
+          {!viewOnly && canPlace && sendableLabOrders([order]).length > 0 && (
+            <Button size="small" disabled={busy} onClick={() => setSendToLab({ preselect: [order.id] })} data-testid={`send-to-lab-${order.id}`}>
+              Send to lab
+            </Button>
+          )}
           {!viewOnly && order.orderable_category === "laboratory" && order.status !== "discontinued" && (
             <Button
               size="small"
@@ -804,6 +813,11 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
               Sign all ({drafts.length})
             </Button>
           )}
+          {tab !== "drafts" && !viewOnly && canPlace && sendableLabOrders(orders).length > 0 && (
+            <Button variant="outlined" disabled={busy} onClick={() => setSendToLab({ preselect: [] })} data-testid="send-labs-to-lab">
+              Send labs to an outside lab ({sendableLabOrders(orders).length})
+            </Button>
+          )}
         </Stack>
 
         <Box sx={{ mt: 2 }}>
@@ -831,6 +845,20 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
           )}
         </Box>
       </Box>
+
+      {/* POWER Lab Portal: lab orders sent to an outside partner lab, until the results come back */}
+      <LabRequestsTracker patientId={patientId} refreshKey={labRequestsKey} canCancel={!viewOnly && canPlace} />
+      <SendToLabDialog
+        open={!!sendToLab}
+        orders={orders}
+        preselect={sendToLab ? sendToLab.preselect : []}
+        onClose={() => setSendToLab(null)}
+        onSent={() => {
+          setSendToLab(null);
+          setLabRequestsKey((k) => k + 1);
+          loadAll();
+        }}
+      />
 
       </Stack>
 

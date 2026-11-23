@@ -18,9 +18,18 @@ const CLINICAL_ROLES = ['doctor', 'nurse', 'registrar', 'receptionist'];
 // POWER Pharmacy Portal: staff of an outside pharmacy only ever use the portal.
 export const PORTAL_ROLES = ['ext_pharmacist', 'ext_pharmacy_admin'];
 export const PORTAL_HOME = '/pharmacy-portal';
+// POWER Lab Portal: staff of an outside laboratory only ever use the lab portal.
+export const LAB_PORTAL_ROLES = ['ext_lab_tech', 'ext_lab_pathologist', 'ext_lab_admin'];
+export const LAB_PORTAL_HOME = '/lab-portal';
+/** The only page an outside pharmacy or lab login may open, or null for everyone else. */
+export const portalHomeFor = (role) => {
+  if (PORTAL_ROLES.includes(role)) return PORTAL_HOME;
+  if (LAB_PORTAL_ROLES.includes(role)) return LAB_PORTAL_HOME;
+  return null;
+};
 
 export const landingPath = (role, modules) => {
-  if (PORTAL_ROLES.includes(role)) return PORTAL_HOME;
+  if (portalHomeFor(role)) return portalHomeFor(role);
   if (role === 'admin' || role === 'system_admin') return '/admin';
   if (!role || role === 'patient') return '/dashboard';
   const all = !Array.isArray(modules);

@@ -171,6 +171,8 @@ urlpatterns = [
     path("api/surgery/", include("surgery.urls")),
     path("api/pharmacy/", include("pharmacy.urls")),
     path("api/pharmacy-portal/", include("pharmacy.portal_urls")),
+    path("api/lab-portal/", include("lab_portal.urls")),
+    path("api/lab-requests/", include("lab_portal.clinic_urls")),
     path("api/sms/", include("users.urls")),  # or sms.urls
     path("api/messages/", include("users.urls")),
     path("api/secure-messages/", include("secure_messaging.urls")),
