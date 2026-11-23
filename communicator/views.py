@@ -19,6 +19,7 @@ from .models import Contact, ContactList, MessageLog
 from .serializers import ContactListSerializer, ContactSerializer, MessageLogSerializer
 from .utils import send_sms, send_email
 from users.permissions import HasRight
+from .patient_sync import visible_contacts
 
 
 class MessageLogFilter(django_filters.FilterSet):
@@ -96,7 +97,7 @@ class ContactListViewSet(viewsets.ModelViewSet):
     def members(self, request, pk=None):
         """Add ({"add": [ids]}) and/or remove ({"remove": [ids]}) contacts in this list."""
         lst = self.get_object()
-        mine = Contact.objects.filter(uploaded_by=request.user)
+        mine = visible_contacts(request.user)
         add = request.data.get("add") or []
         remove = request.data.get("remove") or []
         if not isinstance(add, list) or not isinstance(remove, list):
@@ -118,9 +119,7 @@ class ContactViewSet(viewsets.ModelViewSet):
 
         logger = logging.getLogger(__name__)
 
-        queryset = Contact.objects.filter(uploaded_by=self.request.user).order_by(
-            "-created_at"
-        )
+        queryset = visible_contacts(self.request.user).order_by("-created_at")
         logger.info(
             f"📋 ContactViewSet: User {self.request.user.id} requesting contacts, found {queryset.count()} contacts"
         )
@@ -129,6 +128,25 @@ class ContactViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(uploaded_by=self.request.user)
+
+    def _block_synced(self, contact):
+        if contact.patient_user_id:
+            return Response(
+                {
+                    "error": "This contact is a registered patient and is kept up to date automatically. "
+                    "Change it on the patient's profile instead."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def update(self, request, *args, **kwargs):
+        blocked = self._block_synced(self.get_object())
+        return blocked or super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        blocked = self._block_synced(self.get_object())
+        return blocked or super().destroy(request, *args, **kwargs)
 
 
 class BulkUploadView(APIView):
@@ -266,7 +284,7 @@ class SendBulkMessageView(APIView):
         if not (send_sms_flag or send_email_flag):
             return Response({"error": "Choose at least one channel"}, status=400)
 
-        contacts = Contact.objects.filter(uploaded_by=request.user)
+        contacts = visible_contacts(request.user)
 
         # Optional: send to a subset instead of every contact.
         contact_ids = request.data.get("contact_ids")

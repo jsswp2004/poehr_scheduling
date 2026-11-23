@@ -37,6 +37,16 @@ class Contact(models.Model):
     # Normalized phone (+1XXXXXXXXXX), maintained automatically in save().
     phone_e164 = models.CharField(max_length=20, blank=True, db_index=True, editable=False)
 
+    # Set when this contact mirrors a registered patient who agreed to texts. Such
+    # contacts are kept in step with the patient automatically and are read-only.
+    patient_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="communicator_contact",
+    )
+
     # SMS opt-out state for contacts who are not registered users.
     sms_opt_out = models.BooleanField(default=False)
     sms_opt_out_date = models.DateTimeField(null=True, blank=True)

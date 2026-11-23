@@ -29,6 +29,7 @@ class ContactSerializer(serializers.ModelSerializer):
     )
     opted_out = serializers.SerializerMethodField()
     last_messaged = serializers.SerializerMethodField()
+    is_patient = serializers.SerializerMethodField()
 
     class Meta:
         model = Contact
@@ -42,6 +43,7 @@ class ContactSerializer(serializers.ModelSerializer):
             "opted_out",
             "last_messaged",
             "list_ids",
+            "is_patient",
         ]
         read_only_fields = [
             "id",
@@ -49,7 +51,12 @@ class ContactSerializer(serializers.ModelSerializer):
             "created_at",
             "opted_out",
             "last_messaged",
+            "is_patient",
         ]
+
+    def get_is_patient(self, obj):
+        """True for a registered patient mirrored automatically (read-only in the app)."""
+        return obj.patient_user_id is not None
 
     def validate_list_ids(self, lists):
         request = self.context.get("request")
