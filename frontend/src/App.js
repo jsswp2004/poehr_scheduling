@@ -66,6 +66,7 @@ import ToastTestPage from './pages/ToastTestPage';
 import MessagesPage from './pages/MessagesPage';
 import OrganizationAccessPage from './pages/OrganizationAccessPage';
 import SystemDictionariesPage from './pages/SystemDictionariesPage';
+import DictionaryMaintenancePage from './pages/DictionaryMaintenancePage';
 import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
 import WebSocketTest from './components/WebSocketTest';
@@ -266,6 +267,7 @@ function AppContent() {
         <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
         <Route path="/organization-access" element={<PrivateRoute><OrganizationAccessPage /></PrivateRoute>} />
         <Route path="/system-dictionaries" element={<PrivateRoute><SystemDictionariesPage /></PrivateRoute>} />
+        <Route path="/dictionary-maintenance" element={<PrivateRoute><DictionaryMaintenancePage /></PrivateRoute>} />
         <Route path="/note-builder" element={<PrivateRoute><NoteTemplateBuilderPage /></PrivateRoute>} />
         <Route path="/flowsheet-builder" element={<PrivateRoute><FlowsheetBuilderPage /></PrivateRoute>} />
         <Route path="/status-board-builder" element={<PrivateRoute><StatusBoardBuilderPage /></PrivateRoute>} />

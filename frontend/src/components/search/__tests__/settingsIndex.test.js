@@ -46,8 +46,9 @@ describe("findSettings", () => {
     SETTINGS.forEach((s) => expect(s.path).toMatch(/^\/settings\?tab=/));
   });
 
-  it("only offers system dictionaries to a system administrator", () => {
-    expect(findSettings("dictionaries", "admin").map((r) => r.label)).not.toContain("System Dictionaries");
-    expect(findSettings("dictionaries", "system_admin").map((r) => r.label)).toContain("System Dictionaries");
+  it("offers the dictionaries tool to administrators and system administrators", () => {
+    expect(findSettings("dictionaries", "admin").map((r) => r.label)).toContain("Dictionaries");
+    expect(findSettings("dictionaries", "system_admin").map((r) => r.label)).toContain("Dictionaries");
+    expect(findSettings("dictionaries", "registrar").map((r) => r.label)).not.toContain("Dictionaries");
   });
 });

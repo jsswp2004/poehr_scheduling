@@ -85,7 +85,7 @@ const TOOL_WORDS = {
   "location-manager": "location facility unit room bed",
   settings: "clinic preferences",
   "organization-access": "plan users rights access services organization billing subscription",
-  "system-dictionaries": "dropdown list lookup choices roles",
+  "dictionary-maintenance": "dictionary dictionaries dropdown list lookup choices roles registration clinical",
   profile: "account password picture",
 };
 
