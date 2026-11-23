@@ -17,12 +17,12 @@ import {
   EXTRA_MODULE_PRICE,
   GROUP_ORDER,
   groupOf,
-  formatMoney,
   planMonthlyTotal,
   planTerms,
   pricedModules,
   userLimitLabel,
 } from "../utils/modulePricing";
+import { useCurrency } from "../utils/currency";
 
 // What each service does today, in plain words. Keep these to things the product really does.
 const CAPABILITIES = {
@@ -129,9 +129,10 @@ const PLAN_CARDS = [
 ];
 
 const fmtAmount = (n) => (n === null || n === undefined ? "Unlimited" : Number(n).toLocaleString("en-US"));
-const fmtRate = (n) => `$${Number(n).toFixed(2)}`;
 
 export const PricingPage = ({ className }) => {
+  const { money, currency, inPhilippines, setCurrency } = useCurrency();
+  const fmtRate = (n) => money(n, 2);
   const [catalog, setCatalog] = useState({ plans: [], modules: [], planPricing: null, messaging: null, assistants: null });
   const [error, setError] = useState(false);
   const [plan, setPlan] = useState("basic");
@@ -189,11 +190,21 @@ export const PricingPage = ({ className }) => {
         <div className="page-title-section">
           <h1 className="page-title">Pick your plan, then the services your team uses.</h1>
           <p className="page-subtitle">
-            Professional is {formatMoney(planTerms(catalog.planPricing, "basic").base)} a month for one person with one
-            service. Clinic is {formatMoney(planTerms(catalog.planPricing, "premium").base)} a month for up to 10
-            people with two services. Each additional service is {formatMoney(EXTRA_MODULE_PRICE)}. Reports are free
+            Professional is {money(planTerms(catalog.planPricing, "basic").base)} a month for one person with one
+            service. Clinic is {money(planTerms(catalog.planPricing, "premium").base)} a month for up to 10
+            people with two services. Each additional service is {money(EXTRA_MODULE_PRICE)}. Reports are free
             with every plan.
           </p>
+          {(inPhilippines || currency === "PHP") && (
+            <p className="page-subtitle pp-currency-note">
+              {currency === "PHP"
+                ? "Prices are set in US dollars and shown here in Philippine pesos at a recent exchange rate, so the amounts are approximate. "
+                : "Prices are shown in US dollars. "}
+              <button type="button" className="pp-currency-switch" onClick={() => setCurrency(currency === "PHP" ? "USD" : "PHP")}>
+                {currency === "PHP" ? "Show US dollars" : "Show Philippine pesos"}
+              </button>
+            </p>
+          )}
         </div>
       </div>
 
@@ -215,13 +226,13 @@ export const PricingPage = ({ className }) => {
                 <h3>{c.name}</h3>
                 <div className="pp-users">{limitFor(c.key, c.key === "basic" ? 1 : c.key === "premium" ? 10 : 999999)}</div>
                 <div className="pp-plan-price">
-                  {t.quoted ? "Quote" : formatMoney(t.base)}
+                  {t.quoted ? "Quote" : money(t.base)}
                   {!t.quoted && <small> / month</small>}
                 </div>
                 <p>
                   {t.quoted
                     ? c.blurb
-                    : `Includes ${t.included} service${t.included === 1 ? "" : "s"}. Each additional service is ${formatMoney(EXTRA_MODULE_PRICE)}. ${c.blurb}`}
+                    : `Includes ${t.included} service${t.included === 1 ? "" : "s"}. Each additional service is ${money(EXTRA_MODULE_PRICE)}. ${c.blurb}`}
                 </p>
               </label>
             );
@@ -281,18 +292,18 @@ export const PricingPage = ({ className }) => {
 
           <aside className="pp-total" aria-live="polite">
             <div className="pp-note">Your monthly price</div>
-            <div className="pp-big">{total === null ? "Quote" : formatMoney(total)}</div>
+            <div className="pp-big">{total === null ? "Quote" : money(total)}</div>
             {total !== null && (
               <>
                 <div className="pp-row">
                   <span>
                     {cta.name}, {terms.included} service{terms.included === 1 ? "" : "s"} included
                   </span>
-                  <span>{formatMoney(terms.base)}</span>
+                  <span>{money(terms.base)}</span>
                 </div>
                 <div className="pp-row">
                   <span>Additional services ({extras})</span>
-                  <span>{formatMoney(EXTRA_MODULE_PRICE * extras)}</span>
+                  <span>{money(EXTRA_MODULE_PRICE * extras)}</span>
                 </div>
               </>
             )}
@@ -373,7 +384,7 @@ export const PricingPage = ({ className }) => {
                 <b>{e.title}</b>
                 <span>{e.services}</span>
                 <span className="pp-example-price">
-                  {formatMoney(t.base + EXTRA_MODULE_PRICE * Math.max(0, e.count - t.included))} / month
+                  {money(t.base + EXTRA_MODULE_PRICE * Math.max(0, e.count - t.included))} / month
                 </span>
               </div>
             );
