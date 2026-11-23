@@ -48,6 +48,13 @@ export const useCreateProfile = () => {
         { value: 'registrar', label: 'Registrar' },
         { value: 'system_admin', label: 'System Admin' },
         { value: 'staff', label: 'Staff', behaves_like: 'staff' },
+        { value: 'pharmacist', label: 'Pharmacist' },
+        { value: 'pharmacy_tech', label: 'Pharmacy Assistant' },
+        { value: 'ext_pharmacist', label: 'External Pharmacist' },
+        { value: 'ext_pharmacy_admin', label: 'External Pharmacy Admin' },
+        { value: 'ext_lab_tech', label: 'External Medical Technologist' },
+        { value: 'ext_lab_pathologist', label: 'External Pathologist' },
+        { value: 'ext_lab_admin', label: 'External Lab Admin' },
     ];
     const rawRoles = roleDictionary
         ? roleDictionary.entries.filter((e) => e.is_active).map((e) => ({ value: e.value, label: e.label, behaves_like: e.behaves_like }))
