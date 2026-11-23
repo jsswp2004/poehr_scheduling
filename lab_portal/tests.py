@@ -503,6 +503,7 @@ class SeedDemoLabTests(TestCase):
         staff = {m.user.username: m for m in PartnerLabStaff.objects.filter(partner=lab).select_related("user")}
         self.assertEqual(set(staff), {"demo_diagnostika_admin", "demo_diagnostika_asst", "demo_diagnostika_path"})
         self.assertTrue(staff["demo_diagnostika_admin"].is_admin)
+        self.assertIn(staff["demo_diagnostika_admin"].user.role, s.WORKER_ROLES)  # the chief med tech works requests too
         self.assertFalse(staff["demo_diagnostika_asst"].can_release)
         self.assertTrue(staff["demo_diagnostika_path"].is_pathologist)
         self.assertTrue(staff["demo_diagnostika_asst"].user.check_password("demo-pass-123"))

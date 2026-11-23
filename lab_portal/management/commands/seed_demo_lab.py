@@ -15,7 +15,9 @@ creates is marked DEMO and uses example.ph addresses, which can't receive mail, 
 go out. It touches nothing else: only the lab named below, its logins and its directory entries.
 
 The logins:
-  demo_diagnostika_admin    lab administrator (chief medical technologist): manages staff, may release results
+  demo_diagnostika_admin    lab administrator who is also the chief medical technologist (so a worker login, ext_lab_tech,
+                            with the lab-admin flag, as registration sets up a licensed admin): manages staff, works
+                            requests and may release results
   demo_diagnostika_asst     lab assistant: receives requests, logs collection and enters results, may not release
   demo_diagnostika_path     pathologist: may release everything, including Philippine critical values
 """
@@ -56,7 +58,7 @@ PROFILE = {
 LAB_ROLES = ("ext_lab_tech", "ext_lab_pathologist", "ext_lab_admin")
 LOGINS = [
     # username, role, first name, last name, email, PRC number, admin?, pathologist?, may release?
-    ("demo_diagnostika_admin", "ext_lab_admin", "Liza", "Santos (DEMO)", "liza.santos.demo@example.ph", "0098765", True, False, True),
+    ("demo_diagnostika_admin", "ext_lab_tech", "Liza", "Santos (DEMO)", "liza.santos.demo@example.ph", "0098765", True, False, True),
     ("demo_diagnostika_asst", "ext_lab_tech", "Mark", "Reyes (DEMO)", "mark.reyes.demo@example.ph", "", False, False, False),
     ("demo_diagnostika_path", "ext_lab_pathologist", "Ramon", "Villanueva (DEMO)", "ramon.villanueva.demo@example.ph", "0071234", False, True, True),
 ]
