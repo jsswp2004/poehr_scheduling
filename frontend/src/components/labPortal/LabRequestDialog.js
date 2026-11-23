@@ -12,6 +12,13 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { FLAG_OPTIONS, LAB_STATUS_COLOR, authHeader, errorText, fmtDateTime, staffLicenseWord } from "./labShared";
 
+/** The ordering provider's license as the server sends it: {prc} (PH) or {npi, license} (US); a plain string is shown as is. */
+export const providerLicense = (lic) => {
+  if (!lic) return "";
+  if (typeof lic === "string") return lic;
+  return [lic.prc && `PRC ${lic.prc}`, lic.npi && `NPI ${lic.npi}`, lic.license && `License ${lic.license}`].filter(Boolean).join(" · ");
+};
+
 export const WORKER_ROLES = ["ext_lab_tech", "ext_lab_pathologist"];
 const RESULT_STATUSES = ["collected", "in_process", "preliminary", "final"];
 const BLANK_LINE = { test_name: "", value: "", units: "", reference_range: "", abnormal_flag: "" };
@@ -215,7 +222,7 @@ export default function LabRequestDialog({ open, requestId, me, onClose, onChang
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <Typography variant="overline">Ordered by</Typography>
-                <Typography variant="body2">{req.provider}{req.provider_license ? ` · ${req.provider_license}` : ""}</Typography>
+                <Typography variant="body2">{req.provider}{providerLicense(req.provider_license) ? ` · ${providerLicense(req.provider_license)}` : ""}</Typography>
                 <Typography variant="body2" color="text.secondary">{req.clinic}{req.clinic_phone ? ` · ${req.clinic_phone}` : ""}</Typography>
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
