@@ -613,3 +613,15 @@ class PdfReaderFallbackTests(TestCase):
         c.drawString(72, 720, "Hemoglobin 13.1 L g/dL 13.5 - 17.5")
         c.save()
         self.assertIn("Hemoglobin 13.1", pdf_reader.pdf_text(buf.getvalue()))
+
+    def test_reply_as_text_json_is_accepted(self):
+        from types import SimpleNamespace
+
+        from lab_portal import pdf_reader
+
+        reply = SimpleNamespace(content=[SimpleNamespace(type="text", text='Here: {"tests": [{"item_id": 1, "lines": []}]}')], stop_reason="end_turn")
+        client = mock.Mock()
+        client.messages.create.return_value = reply
+        with mock.patch.object(pdf_reader, "_client", return_value=client):
+            self.assertEqual(pdf_reader._ask([{"type": "text", "text": "x"}]), {"tests": [{"item_id": 1, "lines": []}]})
+        self.assertEqual(client.messages.create.call_args.kwargs["tool_choice"], {"type": "auto"})
