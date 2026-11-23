@@ -344,6 +344,23 @@ class LabWorkflowTests(Base):
         self.assertTrue(any(t.startswith("POWER CRITICAL") for t in provider_texts))
         self.assertTrue(InboxAlert.objects.filter(recipient=self.doctor, kind="critical").exists())
 
+    def test_a_new_critical_value_needs_its_own_call(self):
+        req = self.collected(self.one())
+        self.results(self.rmt, req, [CRITICAL])
+        call = {"called_name": "Nurse J. Bautista", "read_back_confirmed": True}
+        self.assertEqual(self.api(self.rmt).post(f"/api/lab-portal/requests/{req.pk}/critical-call/", call, format="json").status_code, 200)
+        res, _ = self.release(self.path, req, "preliminary")
+        self.assertEqual(res.status_code, 200, res.content)
+        # a different critical value entered afterwards: the earlier call was about the old value
+        self.results(self.rmt, req, [[{**CRITICAL[0], "value": "9"}]])
+        self.upload(self.rmt, req)
+        res, _ = self.release(self.path, req)
+        self.assertEqual(res.status_code, 409, res.content)
+        self.assertIn("phone call", res.json()["detail"])
+        self.assertEqual(self.api(self.rmt).post(f"/api/lab-portal/requests/{req.pk}/critical-call/", call, format="json").status_code, 200)
+        res, _ = self.release(self.path, req)
+        self.assertEqual(res.status_code, 200, res.content)
+
     def test_us_technologist_may_release_a_critical_after_the_call(self):
         self.bayanihan.country = "US"
         self.bayanihan.save()
