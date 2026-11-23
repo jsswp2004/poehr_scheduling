@@ -184,7 +184,9 @@ export default function LabRequestDialog({ open, requestId, me, onClose, onChang
       });
       setFilledFromPdf(true);
     } catch (err) {
-      setError(errorText(err, "Could not read the PDF. Enter the values by hand."));
+      const msg = errorText(err, "Could not read the PDF. Enter the values by hand.");
+      setError(msg);
+      toast.error(msg); // the error banner is at the top of the dialog, out of sight down here
     } finally {
       setReading(false);
     }
