@@ -1505,6 +1505,7 @@ class LabReport(models.Model):
         ("manual", "Entered by hand"),
         ("scan", "Scanned document"),
         ("interface", "Lab interface"),
+        ("partner_lab", "Partner lab portal"),
     ]
     STATUS_CHOICES = [
         ("preliminary", "Preliminary"),

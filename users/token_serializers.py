@@ -33,6 +33,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                     token['modules'] = user.organization.enabled_modules
                     token['subscription_status'] = user.organization.subscription_status
                     token['organization_type'] = user.organization.organization_type
+                elif user.role in ('ext_lab_tech', 'ext_lab_pathologist', 'ext_lab_admin'):
+                    # POWER Lab Portal users belong to a partner laboratory, not a clinic: no clinic services.
+                    token['organization_id'] = None
+                    token['organization_name'] = None
+                    token['subscription_tier'] = 'basic'
+                    token['subscription_status'] = 'active'
+                    token['organization_type'] = 'lab_portal'
+                    token['modules'] = []
                 elif user.role in ('ext_pharmacist', 'ext_pharmacy_admin'):
                     # POWER Pharmacy Portal users belong to a partner pharmacy, not a clinic: no clinic services.
                     token['organization_id'] = None

@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "staffing",
     "surgery",
     "pharmacy",
+    "lab_portal",
     "secure_messaging",
     "telehealth",
     "dictation",
@@ -374,5 +375,7 @@ STRIPE_ASSISTANT_OVERAGE_PRICE_ID = os.getenv("STRIPE_ASSISTANT_OVERAGE_PRICE_ID
 # Django Cron Settings
 CRON_CLASSES = [
     "appointments.cron.BlastPatientReminderCronJob",
+    "lab_portal.cron.LabRequestRemindersCronJob",  # daily: lab request reminders (day 3, 7) and 30-day expiry
+    "lab_portal.cron.PurgeLabPortalAccessLogCronJob",  # monthly, 5-year retention of the lab portal access log
     "pharmacy.cron.PurgePortalAccessLogCronJob",  # monthly, 5-year retention of the pharmacy portal access log
 ]
