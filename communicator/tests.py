@@ -1,10 +1,35 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from rest_framework.test import APIClient
 
 from .models import Contact
+from .utils import format_phone_to_international
+
+
+class PhoneFormattingTest(SimpleTestCase):
+    def test_international_number_loses_spaces(self):
+        # This exact input was rejected by Twilio (the space was sent through).
+        self.assertEqual(format_phone_to_international("+63 9628289452"), "+639628289452")
+
+    def test_international_number_loses_other_formatting(self):
+        self.assertEqual(format_phone_to_international(" +63 (962) 828-9452 "), "+639628289452")
+        self.assertEqual(format_phone_to_international("+44 1234 567890"), "+441234567890")
+
+    def test_eleven_digit_non_us_number_is_not_treated_as_us(self):
+        # Hong Kong: +852 + 8 digits is 11 digits and must not become +1...
+        self.assertEqual(format_phone_to_international("+852 1234 5678"), "+85212345678")
+
+    def test_us_numbers_unchanged(self):
+        self.assertEqual(format_phone_to_international("3018806015"), "+13018806015")
+        self.assertEqual(format_phone_to_international("(301) 880-6015"), "+13018806015")
+        self.assertEqual(format_phone_to_international("13018806015"), "+13018806015")
+        self.assertEqual(format_phone_to_international("+1 301-880-6015"), "+13018806015")
+
+    def test_empty_values_pass_through(self):
+        self.assertEqual(format_phone_to_international(""), "")
+        self.assertIsNone(format_phone_to_international(None))
 
 
 class ContactModelTest(TestCase):

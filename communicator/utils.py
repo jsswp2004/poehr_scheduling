@@ -11,8 +11,17 @@ def format_phone_to_international(phone):
     if not phone:
         return phone
 
+    raw = str(phone).strip()
+
     # Remove all non-numeric characters
-    cleaned = "".join(filter(str.isdigit, phone))
+    cleaned = "".join(filter(str.isdigit, raw))
+
+    # An explicit "+" means the country code was typed on purpose. Keep it and
+    # only strip formatting (spaces, dashes, parentheses) so Twilio gets strict
+    # E.164, e.g. "+63 962 828 9452" -> "+639628289452". This must run before
+    # the US-guessing branches below, which would mangle non-US numbers.
+    if raw.startswith("+") and 8 <= len(cleaned) <= 15:
+        return f"+{cleaned}"
 
     # Handle different scenarios
     if len(cleaned) == 10:
