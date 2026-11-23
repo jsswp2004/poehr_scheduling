@@ -63,6 +63,10 @@ export const SOLUTIONS = [
   // Administrators only; not tied to a service, so it is always there for them.
   { key: 'management', label: 'Management Portal', module: null, path: '/admin', roles: ['admin', 'system_admin'] },
   { key: 'notes', label: 'POWER Notes', module: 'clinical_documentation', path: '/patients', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar', 'receptionist'] },
+  // POWER Labs: lab orders sent to outside partner labs (POWER Lab Portal), the clinic's lab directory, and partner lab
+  // approval for POWER administrators. Part of POWER Notes (orders and lab results live there), so it is a companion
+  // tile: it never counts as someone's one solution to go straight into.
+  { key: 'labs', label: 'POWER Labs', module: 'clinical_documentation', path: '/labs', roles: ['admin', 'system_admin', 'doctor', 'nurse'], companion: true },
   { key: 'registration', label: 'POWER Registration', module: 'registration', path: '/registration', roles: ['admin', 'system_admin', 'registrar'] },
   { key: 'scheduler', label: 'POWER Scheduler', module: 'scheduling', path: '/patients?tab=appointments', roles: ['admin', 'system_admin', 'doctor', 'nurse', 'registrar'] },
   { key: 'communicator', label: 'POWER Communicator', module: 'communicator', path: '/communicator', roles: ['admin', 'system_admin', 'registrar'] },
@@ -106,11 +110,13 @@ export const solutionsFor = (role, modules, claims = {}) => {
  * to the Solutions page.
  */
 export const postLoginPath = (role, modules, claims = {}) => {
-  if (PORTAL_ROLES.includes(role)) return PORTAL_HOME;
+  if (portalHomeFor(role)) return portalHomeFor(role);
   if (!role || role === 'patient') return '/dashboard';
   const list = solutionsFor(role, modules, claims);
+  const main = list.filter((t) => !t.companion);
   if (list.length === 0) return '/dashboard';
   if (list.length === 1) return list[0].path;
+  if (main.length === 1) return main[0].path;
   return '/solutions';
 };
 

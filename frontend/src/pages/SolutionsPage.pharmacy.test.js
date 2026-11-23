@@ -36,3 +36,18 @@ test('a pharmacist goes straight into Pharmacy after signing in', () => {
   expect(landingPath('pharmacist', ['pharmacy'])).toBe('/patients?care=pharmacy');
   expect(landingPath('pharmacist', ['staffing'])).toBe('/dashboard');
 });
+
+test('POWER Labs: a tile for clinicians and administrators with POWER Notes, opening /labs', () => {
+  expect(solutionsFor('doctor', ['clinical_documentation']).map((t) => t.key)).toEqual(['notes', 'labs']);
+  expect(solutionsFor('registrar', ['clinical_documentation']).map((t) => t.key)).not.toContain('labs');
+  expect(solutionsFor('doctor', ['staffing']).map((t) => t.key)).not.toContain('labs');
+  signIn({ role: 'doctor', modules: ['clinical_documentation'] });
+  render(<SolutionsPage />);
+  fireEvent.click(screen.getByText('POWER Labs'));
+  expect(mockNavigate).toHaveBeenCalledWith('/labs');
+});
+
+test('POWER Labs is a companion tile: a Notes-only clinician still goes straight into Notes', () => {
+  expect(postLoginPath('doctor', ['clinical_documentation'])).toBe('/patients');
+  expect(postLoginPath('ext_lab_tech', [])).toBe('/lab-portal');
+});

@@ -240,7 +240,8 @@ function AppContent() {
         <Route path="/lab-portal" element={<PrivateRoute><LabPortalPage /></PrivateRoute>} />
         <Route path="/lab-portal/register" element={<LabPortalRegisterPage />} />
         <Route path="/lab-portal/claim" element={<LabPortalClaimLinkPage />} />
-        <Route path="/lab-network" element={<PrivateRoute><LabNetworkPage /></PrivateRoute>} />
+        <Route path="/labs" element={<PrivateRoute><LabNetworkPage /></PrivateRoute>} />
+        <Route path="/lab-network" element={<PrivateRoute><LabNetworkPage initialTab="directory" /></PrivateRoute>} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/patients" element={<PrivateRoute><PatientsPage /></PrivateRoute>} />
         <Route path="/patients/:id" element={<PrivateRoute><PatientDetailPage /></PrivateRoute>} />

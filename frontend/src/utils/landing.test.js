@@ -39,7 +39,7 @@ describe('postLoginPath', () => {
   test('each role sees only its own tiles', () => {
     const keys = (role, mods) => solutionsFor(role, mods).map((t) => t.key);
     expect(keys('registrar', null)).toEqual(['notes', 'registration', 'scheduler', 'communicator', 'staffing', 'surgery', 'telehealth']);
-    expect(keys('nurse', null)).toEqual(['notes', 'scheduler', 'staffing', 'surgery', 'telehealth', 'dictate', 'mds']);
+    expect(keys('nurse', null)).toEqual(['notes', 'labs', 'scheduler', 'staffing', 'surgery', 'telehealth', 'dictate', 'mds']);
     expect(keys('receptionist', null)).toEqual(['notes', 'telehealth']);
     expect(keys('nurse', ['dictation'])).toEqual(['dictate']);
     expect(keys('nurse', ['mds'])).toEqual(['mds']);

@@ -251,4 +251,11 @@ describe("the clinic side", () => {
     fireEvent.click(screen.getByTestId("lab-request-cancel-confirm"));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/lab-requests/5/cancel/", { reason: "Wrong test" }, expect.anything()));
   });
+
+  test("on the POWER Labs page the tracker lists every patient's open requests", async () => {
+    api.get.mockResolvedValue({ data: [] });
+    render(<LabRequestsTracker openOnly title="" />);
+    expect(await screen.findByTestId("lab-requests-empty")).toHaveTextContent("No outside lab requests waiting.");
+    expect(api.get).toHaveBeenCalledWith("/lab-requests/", expect.objectContaining({ params: { open: 1 } }));
+  });
 });
