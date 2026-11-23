@@ -70,13 +70,15 @@ export default function PharmacyPatientList({ selectedId, onSelect, onOpenChart,
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", px: 0.5 }} data-testid="pharmacy-patient-list">
       <Box sx={{ display: "flex", gap: 2, mb: 1, mt: 0.5, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <SearchField label="Search patients..." onSearchChange={setSearch} initialValue={search} variant="outlined" size="small" sx={{ minWidth: 250 }} />
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel id="pharmacy-care-filter-label">Filter by Care Setting</InputLabel>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          {/* shrink + notched: the label sits above "All care settings" (displayEmpty shows it) instead of on top of it */}
+          <InputLabel id="pharmacy-care-filter-label" shrink>Filter by Care Setting</InputLabel>
           <MUISelect
             labelId="pharmacy-care-filter-label"
             label="Filter by Care Setting"
             value={care}
             displayEmpty
+            notched
             onChange={(e) => setCare(e.target.value)}
             inputProps={{ "data-testid": "pharmacy-care-filter" }}
           >
@@ -91,14 +93,15 @@ export default function PharmacyPatientList({ selectedId, onSelect, onOpenChart,
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: "#dbeafe" }}>
-              <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Location</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Weight</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>SCr</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>CrCl</TableCell>
+              {/* fixed widths for the short columns so the free space goes to Allergies, not between Location and Weight */}
+              <TableCell sx={{ fontWeight: "bold", width: 220 }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 200 }}>Location</TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 80, whiteSpace: "nowrap" }}>Weight</TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 100, whiteSpace: "nowrap" }}>SCr</TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 180 }}>CrCl</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Allergies</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Orders</TableCell>
-              <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>Actions</TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 130 }}>Orders</TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 100, textAlign: "center" }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

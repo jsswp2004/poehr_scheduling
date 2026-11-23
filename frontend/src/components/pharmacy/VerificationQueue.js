@@ -88,7 +88,8 @@ export default function VerificationQueue({ role, patient = null, onSelectPatien
           inputProps={{ "data-testid": "queue-search" }}
           sx={{ minWidth: 200 }}
         />
-        <TextField select size="small" label="Care setting" value={care} onChange={(e) => setCare(e.target.value)} sx={{ minWidth: 170 }} inputProps={{ "data-testid": "queue-filter-care" }}>
+        <TextField select size="small" label="Care setting" value={care} onChange={(e) => setCare(e.target.value)} sx={{ minWidth: 170 }}
+          SelectProps={{ displayEmpty: true }} InputLabelProps={{ shrink: true }} inputProps={{ "data-testid": "queue-filter-care" }}>
           {CARE_OPTIONS.map((c) => <MenuItem key={c.value || "all"} value={c.value}>{c.label}</MenuItem>)}
         </TextField>
         {patient && (

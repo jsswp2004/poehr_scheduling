@@ -67,7 +67,8 @@ export default function FormularyPanel() {
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mr: 1 }}>Formulary{meta?.edits_shared ? " (shared POWER)" : ""}</Typography>
         <TextField size="small" label="Search" placeholder="Generic, brand, code or RxNorm" value={q} onChange={(e) => setQ(e.target.value)} inputProps={{ "data-testid": "formulary-search" }} sx={{ minWidth: 240 }} />
         {FILTERS.map((f) => (
-          <TextField key={f.key} select size="small" label={f.label} value={filters[f.key]} onChange={(e) => setFilters((s) => ({ ...s, [f.key]: e.target.value }))} sx={{ minWidth: 140 }} inputProps={{ "data-testid": `formulary-filter-${f.key}` }}>
+          <TextField key={f.key} select size="small" label={f.label} value={filters[f.key]} onChange={(e) => setFilters((s) => ({ ...s, [f.key]: e.target.value }))} sx={{ minWidth: 140 }}
+            SelectProps={{ displayEmpty: true }} InputLabelProps={{ shrink: true }} inputProps={{ "data-testid": `formulary-filter-${f.key}` }}>
             {f.options.map(([v, l]) => <MenuItem key={v || "any"} value={v}>{l}</MenuItem>)}
           </TextField>
         ))}
