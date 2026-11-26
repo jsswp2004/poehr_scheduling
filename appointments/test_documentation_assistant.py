@@ -522,7 +522,7 @@ class BedrockClientTests(TestCase):
         kwargs = client.converse.call_args.kwargs
         self.assertEqual(kwargs["modelId"], "m-1")
         self.assertNotIn("toolConfig", kwargs)                    # Bedrock rejects an empty tool list
-        self.assertNotIn("temperature", kwargs["inferenceConfig"])  # some newer Claude models reject it
+        self.assertNotIn("temperature", kwargs["inferenceConfig"])  # some newer models reject it
 
     @override_settings(DOCUMENTATION_ASSISTANT_MODEL_ID="m-1")
     def test_tool_use_reply_and_tool_config(self):

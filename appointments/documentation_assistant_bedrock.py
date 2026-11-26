@@ -72,7 +72,7 @@ def converse(system, messages, tools, max_tokens):
         "modelId": model_id(),
         "system": [{"text": system}],
         "messages": messages,
-        # no temperature: some newer Claude models reject it
+        # no temperature: some newer models reject it
         "inferenceConfig": {"maxTokens": max_tokens},
     }
     if tools:

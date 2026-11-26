@@ -6,7 +6,7 @@ In-app Scheduler assistant.
   ->   {"conversation_id": "<uuid>", "answer": "...", "actions": [{"label", "route"}],
         "confirmations": [{"id", "title", "summary", "detail", "warning", "confirm_label", ...}]}
 
-A signed-in admin, system admin, doctor, nurse or registrar asks about the schedule. Claude answers using a small
+A signed-in admin, system admin, doctor, nurse or registrar asks about the schedule. The AI model answers using a small
 set of READ tools (appointments/scheduler_assistant_tools.py) that call the existing appointment views AS THAT
 USER, so the app's own scoping decides what they can see.
 

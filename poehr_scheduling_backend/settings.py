@@ -222,7 +222,7 @@ REST_FRAMEWORK = {
 DICTATION_AWS_REGION = os.environ.get("DICTATION_AWS_REGION", "us-east-1")
 # Bedrock model/inference-profile id for the "clean up & structure" step. Unset = cleanup unavailable.
 DICTATION_CLEANUP_MODEL_ID = os.environ.get("DICTATION_CLEANUP_MODEL_ID", "")
-# Which service runs the cleanup model: "bedrock" (AWS, default), "vertex" (Claude on Google Cloud) or "anthropic" (Anthropic API).
+# Which service runs the cleanup model: "bedrock" (AWS, default), "vertex" (Google Cloud Vertex AI) or "anthropic" (Anthropic API).
 DICTATION_CLEANUP_PROVIDER = os.environ.get("DICTATION_CLEANUP_PROVIDER", "bedrock").lower()
 DICTATION_CLEANUP_BACKEND = {
     "bedrock": "dictation.engines.bedrock_cleanup.complete",
@@ -237,7 +237,7 @@ DICTATION_VERTEX_CREDENTIALS_JSON = os.environ.get("DICTATION_VERTEX_CREDENTIALS
 DICTATION_ANTHROPIC_API_KEY = os.environ.get("DICTATION_ANTHROPIC_API_KEY", "")
 
 # ---- POWER Lab Portal: read result values out of a lab's signed PDF (lab_portal/pdf_reader.py) ----
-# Off until you turn it on, because it sends the report to Claude through the Dictation service above
+# Off until you turn it on, because it sends the report to the AI model through the Dictation service above
 # (DICTATION_CLEANUP_PROVIDER and its credentials), which needs the same BAA. The values only pre-fill the form.
 LAB_PDF_READER_ENABLED = os.environ.get("LAB_PDF_READER_ENABLED", "").lower() in ("1", "true", "yes")
 # Model id; unset falls back to DICTATION_CLEANUP_MODEL_ID.

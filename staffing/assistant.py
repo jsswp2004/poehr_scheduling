@@ -5,7 +5,7 @@ In-app staffing assistant.
        {"message": "what's my coverage next week?", "conversation_id": "<uuid, optional>"}
   ->   {"conversation_id": "<uuid>", "answer": "...", "actions": [{"label", "route"}]}
 
-A signed-in admin, scheduler or staff member asks a question. Claude answers it
+A signed-in admin, scheduler or staff member asks a question. The AI model answers it
 using a small set of READ tools (staffing/assistant_tools.py) that call the
 existing staffing views AS THAT USER, so the app's own role and organization
 rules decide what they can see. Staff only ever get own-data tools.

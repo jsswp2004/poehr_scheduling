@@ -7,7 +7,7 @@ In-app Communicator assistant.
         "confirmations": [{"id", "title", "summary", "detail", "warning", "confirm_label", ...}]}
 
 A signed-in admin, system admin or registrar asks a question about their contact
-list or message history. Claude answers using a small set of READ tools
+list or message history. The AI model answers using a small set of READ tools
 (communicator/assistant_tools.py) that call the existing Communicator views AS
 THAT USER, so the app's own scoping decides what they can see.
 

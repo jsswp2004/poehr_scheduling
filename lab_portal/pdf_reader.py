@@ -4,12 +4,12 @@ Read the result values out of a lab's signed PDF report, so the medical technolo
 The values only pre-fill the Results form in the portal. Nothing is saved or released until a person has checked
 them against the report and pressed Save results and then Release, so a misread is caught where it is made.
 
-It sends the PDF (patient name and values included) to Claude, through the same service that Dictation uses
+It sends the PDF (patient name and values included) to the AI model, through the same service that Dictation uses
 (settings.DICTATION_CLEANUP_PROVIDER: bedrock, vertex or anthropic), so it needs the same signed BAA. It is off
 until LAB_PDF_READER_ENABLED=true is set on the server.
 
 settings.LAB_PDF_READER_ENABLED   = True                    (off by default)
-settings.LAB_PDF_READER_MODEL_ID  = "claude-sonnet-5-5"     (optional; falls back to DICTATION_CLEANUP_MODEL_ID)
+settings.LAB_PDF_READER_MODEL_ID  = "<model id>"            (optional; falls back to DICTATION_CLEANUP_MODEL_ID)
 """
 import base64
 import logging

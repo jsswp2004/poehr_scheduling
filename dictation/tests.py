@@ -306,7 +306,7 @@ class PatientSearchByMrnTests(TestCase):
 
 
 class VertexEngineTests(SimpleTestCase):
-    """Claude on Google Cloud: same contract as the Bedrock engine, no network in the tests."""
+    """Google Cloud Vertex AI: same contract as the Bedrock engine, no network in the tests."""
 
     def _reply(self, text):
         from types import SimpleNamespace
@@ -347,7 +347,7 @@ class VertexEngineTests(SimpleTestCase):
 
 
 class AnthropicEngineTests(SimpleTestCase):
-    """Claude through the Anthropic API directly: same contract as the other engines, no network in the tests."""
+    """Anthropic API directly: same contract as the other engines, no network in the tests."""
 
     def _reply(self, text):
         from types import SimpleNamespace

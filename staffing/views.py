@@ -78,7 +78,7 @@ class StaffingAdminWriteMixin:
     (matching the pattern already live in production, e.g.
     users.payment_views.messaging_usage) rather than the newer
     users.rights.HasRight system, since that system's migration has not
-    been applied/deployed yet -- see claude/rights-permissions-system.md.
+    been applied/deployed yet -- see users/rights.py.
     """
 
     permission_classes = [IsStaffingManager]

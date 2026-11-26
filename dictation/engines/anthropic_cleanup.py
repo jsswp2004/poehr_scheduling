@@ -8,7 +8,7 @@ Before real patient text goes through: get a signed BAA with Anthropic that cove
 zero data retention on the organization. Until then use made-up text only.
 
 settings.DICTATION_ANTHROPIC_API_KEY  = "<api key>"            (required; keep it only in the host's environment)
-settings.DICTATION_CLEANUP_MODEL_ID   = "claude-sonnet-5-5"    (required)
+settings.DICTATION_CLEANUP_MODEL_ID   = "<model id>"          (required)
 """
 import logging
 
